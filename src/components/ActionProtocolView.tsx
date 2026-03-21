@@ -132,6 +132,9 @@ export default function ActionProtocolView() {
   const [showModuleEditor, setShowModuleEditor] = useState<string | null>(null);
   const [editModuleName, setEditModuleName] = useState('');
   const [editModulePrompt, setEditModulePrompt] = useState('');
+  const [longPressModule, setLongPressModule] = useState<PromptModule | null>(null);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isLongPressingRef = useRef(false);
 
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     try {
@@ -167,6 +170,49 @@ export default function ActionProtocolView() {
     setShowModuleEditor(module.id);
     setEditModuleName(module.name);
     setEditModulePrompt(module.prompt);
+    setLongPressModule(null);
+  };
+
+  const handleLongPressStart = (module: PromptModule) => {
+    isLongPressingRef.current = false;
+    longPressTimerRef.current = setTimeout(() => {
+      isLongPressingRef.current = true;
+      setLongPressModule(module);
+    }, 500);
+  };
+
+  const handleLongPressEnd = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const handleTouchStart = (module: PromptModule) => {
+    handleLongPressStart(module);
+  };
+
+  const handleTouchEnd = () => {
+    handleLongPressEnd();
+  };
+
+  const handleMouseDown = (module: PromptModule) => {
+    handleLongPressStart(module);
+  };
+
+  const handleMouseUp = () => {
+    handleLongPressEnd();
+  };
+
+  const handleMouseLeave = () => {
+    handleLongPressEnd();
+  };
+
+  const handleModuleClick = (module: PromptModule) => {
+    if (!isLongPressingRef.current) {
+      setSelectedModuleId(module.id);
+    }
+    isLongPressingRef.current = false;
   };
 
   const handleSaveModule = () => {
@@ -409,49 +455,30 @@ export default function ActionProtocolView() {
               </button>
             </div>
             <p className="text-xs text-gray-500 mb-3">
-              点击选择模块，编辑提示词
+              点击选择模块，长按编辑/删除
             </p>
             
             <div className="space-y-2 overflow-y-auto flex-1">
               {modules.map((module) => (
                 <div key={module.id} className="group relative">
                   <div
-                    className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center gap-3 cursor-pointer ${
+                    className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center gap-3 cursor-pointer select-none ${
                       selectedModuleId === module.id
                         ? 'bg-golden/10 border-2 border-golden text-golden'
                         : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100 text-gray-700'
                     }`}
+                    onClick={() => handleModuleClick(module)}
+                    onTouchStart={() => handleTouchStart(module)}
+                    onTouchEnd={handleTouchEnd}
+                    onMouseDown={() => handleMouseDown(module)}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseLeave}
                   >
-                    <button
-                      onClick={() => setSelectedModuleId(module.id)}
-                      className="flex-1 flex items-center gap-3"
-                    >
-                      <span className="text-xl">{module.icon}</span>
-                      <span className="font-medium flex-1 truncate">{module.name}</span>
-                    </button>
-                    <div className="flex gap-1 shrink-0">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditModule(module);
-                        }}
-                        className="p-1.5 text-gray-400 hover:text-golden hover:bg-white rounded-lg transition-colors"
-                        title="编辑"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={(e) => handleDeleteModule(module.id, e)}
-                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-white rounded-lg transition-colors"
-                        title="删除"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
+                    <span className="text-xl">{module.icon}</span>
+                    <span className="font-medium flex-1 truncate">{module.name}</span>
+                    <span className="text-xs text-gray-400 sm:hidden">
+                      长按
+                    </span>
                   </div>
                 </div>
               ))}
@@ -621,6 +648,63 @@ export default function ActionProtocolView() {
           </div>
         </div>
       </div>
+
+      {longPressModule && (
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onClick={() => setLongPressModule(null)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="p-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{longPressModule.icon}</span>
+                <div>
+                  <h3 className="font-semibold text-gray-800">{longPressModule.name}</h3>
+                  <p className="text-xs text-gray-500">选择操作</p>
+                </div>
+                <button
+                  onClick={() => setLongPressModule(null)}
+                  className="ml-auto p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="p-2">
+              <button
+                onClick={() => handleEditModule(longPressModule)}
+                className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 rounded-xl transition-colors"
+              >
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </div>
+                <div className="text-left">
+                  <div className="font-medium text-gray-800">编辑模块</div>
+                  <div className="text-xs text-gray-500">修改模块名称和提示词</div>
+                </div>
+              </button>
+              <button
+                onClick={(e) => {
+                  handleDeleteModule(longPressModule.id, e as any);
+                  setLongPressModule(null);
+                }}
+                className="w-full px-4 py-3 flex items-center gap-3 hover:bg-red-50 rounded-xl transition-colors"
+              >
+                <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </div>
+                <div className="text-left">
+                  <div className="font-medium text-red-600">删除模块</div>
+                  <div className="text-xs text-red-500">删除这个模块</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showModuleEditor && (
         <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
