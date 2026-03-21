@@ -132,9 +132,9 @@ export default function ActionProtocolView() {
   const [showModuleEditor, setShowModuleEditor] = useState<string | null>(null);
   const [editModuleName, setEditModuleName] = useState('');
   const [editModulePrompt, setEditModulePrompt] = useState('');
-  const [longPressModule, setLongPressModule] = useState<PromptModule | null>(null);
-  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const isLongPressingRef = useRef(false);
+  const [doubleClickModule, setDoubleClickModule] = useState<PromptModule | null>(null);
+  const lastClickTimeRef = useRef<number>(0);
+  const lastClickModuleRef = useRef<string | null>(null);
 
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     try {
@@ -170,49 +170,22 @@ export default function ActionProtocolView() {
     setShowModuleEditor(module.id);
     setEditModuleName(module.name);
     setEditModulePrompt(module.prompt);
-    setLongPressModule(null);
-  };
-
-  const handleLongPressStart = (module: PromptModule) => {
-    isLongPressingRef.current = false;
-    longPressTimerRef.current = setTimeout(() => {
-      isLongPressingRef.current = true;
-      setLongPressModule(module);
-    }, 500);
-  };
-
-  const handleLongPressEnd = () => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-  };
-
-  const handleTouchStart = (module: PromptModule) => {
-    handleLongPressStart(module);
-  };
-
-  const handleTouchEnd = () => {
-    handleLongPressEnd();
-  };
-
-  const handleMouseDown = (module: PromptModule) => {
-    handleLongPressStart(module);
-  };
-
-  const handleMouseUp = () => {
-    handleLongPressEnd();
-  };
-
-  const handleMouseLeave = () => {
-    handleLongPressEnd();
+    setDoubleClickModule(null);
   };
 
   const handleModuleClick = (module: PromptModule) => {
-    if (!isLongPressingRef.current) {
+    const now = Date.now();
+    const timeDiff = now - lastClickTimeRef.current;
+    const isSameModule = lastClickModuleRef.current === module.id;
+    
+    if (timeDiff < 300 && isSameModule) {
+      setDoubleClickModule(module);
+    } else {
       setSelectedModuleId(module.id);
     }
-    isLongPressingRef.current = false;
+    
+    lastClickTimeRef.current = now;
+    lastClickModuleRef.current = module.id;
   };
 
   const handleSaveModule = () => {
@@ -455,7 +428,7 @@ export default function ActionProtocolView() {
               </button>
             </div>
             <p className="text-xs text-gray-500 mb-3">
-              点击选择模块，长按编辑/删除
+              点击选择模块，双击编辑/删除
             </p>
             
             <div className="space-y-2 overflow-y-auto flex-1">
@@ -468,16 +441,11 @@ export default function ActionProtocolView() {
                         : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100 text-gray-700'
                     }`}
                     onClick={() => handleModuleClick(module)}
-                    onTouchStart={() => handleTouchStart(module)}
-                    onTouchEnd={handleTouchEnd}
-                    onMouseDown={() => handleMouseDown(module)}
-                    onMouseUp={handleMouseUp}
-                    onMouseLeave={handleMouseLeave}
                   >
                     <span className="text-xl">{module.icon}</span>
                     <span className="font-medium flex-1 truncate">{module.name}</span>
                     <span className="text-xs text-gray-400 sm:hidden">
-                      长按
+                      双击
                     </span>
                   </div>
                 </div>
@@ -649,18 +617,18 @@ export default function ActionProtocolView() {
         </div>
       </div>
 
-      {longPressModule && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onClick={() => setLongPressModule(null)}>
+      {doubleClickModule && (
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onClick={() => setDoubleClickModule(null)}>
           <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <div className="p-4 border-b border-gray-100">
               <div className="flex items-center gap-3">
-                <span className="text-2xl">{longPressModule.icon}</span>
+                <span className="text-2xl">{doubleClickModule.icon}</span>
                 <div>
-                  <h3 className="font-semibold text-gray-800">{longPressModule.name}</h3>
+                  <h3 className="font-semibold text-gray-800">{doubleClickModule.name}</h3>
                   <p className="text-xs text-gray-500">选择操作</p>
                 </div>
                 <button
-                  onClick={() => setLongPressModule(null)}
+                  onClick={() => setDoubleClickModule(null)}
                   className="ml-auto p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -671,7 +639,7 @@ export default function ActionProtocolView() {
             </div>
             <div className="p-2">
               <button
-                onClick={() => handleEditModule(longPressModule)}
+                onClick={() => handleEditModule(doubleClickModule)}
                 className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 rounded-xl transition-colors"
               >
                 <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -686,8 +654,8 @@ export default function ActionProtocolView() {
               </button>
               <button
                 onClick={(e) => {
-                  handleDeleteModule(longPressModule.id, e as any);
-                  setLongPressModule(null);
+                  handleDeleteModule(doubleClickModule.id, e as any);
+                  setDoubleClickModule(null);
                 }}
                 className="w-full px-4 py-3 flex items-center gap-3 hover:bg-red-50 rounded-xl transition-colors"
               >
