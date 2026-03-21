@@ -115,12 +115,7 @@ export default function ActionProtocolView() {
     try {
       const saved = localStorage.getItem('think-tank-modules');
       if (saved) {
-        const savedModules = JSON.parse(saved) as PromptModule[];
-        const moduleMap = new Map(savedModules.map((m) => [m.id, m]));
-        const completeModules = DEFAULT_MODULES.map((defaultModule) => 
-          moduleMap.get(defaultModule.id) || defaultModule
-        );
-        return completeModules;
+        return JSON.parse(saved) as PromptModule[];
       }
       return DEFAULT_MODULES;
     } catch {
@@ -128,7 +123,14 @@ export default function ActionProtocolView() {
     }
   });
   
-  const [selectedModuleId, setSelectedModuleId] = useState<string>(DEFAULT_MODULES[0].id);
+  const [selectedModuleId, setSelectedModuleId] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem('think-tank-selected-module');
+      return saved || DEFAULT_MODULES[0].id;
+    } catch {
+      return DEFAULT_MODULES[0].id;
+    }
+  });
   const [showModuleEditor, setShowModuleEditor] = useState<string | null>(null);
   const [editModuleName, setEditModuleName] = useState('');
   const [editModulePrompt, setEditModulePrompt] = useState('');
@@ -147,7 +149,17 @@ export default function ActionProtocolView() {
   const [moduleMessages, setModuleMessages] = useState<Record<string, ChatMessage[]>>(() => {
     try {
       const saved = localStorage.getItem('think-tank-module-messages');
-      return saved ? JSON.parse(saved) : {};
+      if (saved) {
+        const data = JSON.parse(saved);
+        for (const moduleId in data) {
+          data[moduleId] = data[moduleId].map((msg: any) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp),
+          }));
+        }
+        return data;
+      }
+      return {};
     } catch {
       return {};
     }
@@ -178,6 +190,10 @@ export default function ActionProtocolView() {
   useEffect(() => {
     localStorage.setItem('think-tank-modules', JSON.stringify(modules));
   }, [modules]);
+
+  useEffect(() => {
+    localStorage.setItem('think-tank-selected-module', selectedModuleId);
+  }, [selectedModuleId]);
 
   useEffect(() => {
     localStorage.setItem('think-tank-memory-config', JSON.stringify(memoryConfig));
