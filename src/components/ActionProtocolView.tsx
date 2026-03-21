@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiService, ChatMessage } from '../services/apiService';
 
@@ -135,13 +135,21 @@ export default function ActionProtocolView() {
   const [doubleClickModule, setDoubleClickModule] = useState<PromptModule | null>(null);
   const lastClickTimeRef = useRef<number>(0);
   const lastClickModuleRef = useRef<string | null>(null);
-
-  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+  const [showMemorySettings, setShowMemorySettings] = useState(false);
+  const [memoryConfig, setMemoryConfig] = useState(() => {
     try {
-      const saved = localStorage.getItem('think-tank-messages');
-      return saved ? JSON.parse(saved) : [];
+      const saved = localStorage.getItem('think-tank-memory-config');
+      return saved ? JSON.parse(saved) : { maxWords: 2000, autoExtract: true };
     } catch {
-      return [];
+      return { maxWords: 2000, autoExtract: true };
+    }
+  });
+  const [moduleMessages, setModuleMessages] = useState<Record<string, ChatMessage[]>>(() => {
+    try {
+      const saved = localStorage.getItem('think-tank-module-messages');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
     }
   });
   const [input, setInput] = useState('');
@@ -152,19 +160,51 @@ export default function ActionProtocolView() {
   const [streamingContent, setStreamingContent] = useState('');
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    localStorage.setItem('think-tank-messages', JSON.stringify(messages));
-  }, [messages]);
-
   const selectedModule = modules.find(m => m.id === selectedModuleId) || modules[0];
+  const currentMessages = moduleMessages[selectedModuleId] || [];
+
+  const setCurrentMessages = useCallback((newMessages: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => {
+    setModuleMessages(prev => {
+      const updated = { ...prev };
+      if (typeof newMessages === 'function') {
+        updated[selectedModuleId] = newMessages(prev[selectedModuleId] || []);
+      } else {
+        updated[selectedModuleId] = newMessages;
+      }
+      return updated;
+    });
+  }, [selectedModuleId]);
 
   useEffect(() => {
     localStorage.setItem('think-tank-modules', JSON.stringify(modules));
   }, [modules]);
 
   useEffect(() => {
+    localStorage.setItem('think-tank-memory-config', JSON.stringify(memoryConfig));
+  }, [memoryConfig]);
+
+  useEffect(() => {
+    localStorage.setItem('think-tank-module-messages', JSON.stringify(moduleMessages));
+  }, [moduleMessages]);
+
+  const prepareConversationHistory = (userMessage: ChatMessage): ChatMessage[] => {
+    const history: ChatMessage[] = [
+      {
+        id: crypto.randomUUID(),
+        role: 'system',
+        content: selectedModule.prompt,
+        timestamp: new Date(),
+      } as ChatMessage,
+      ...currentMessages,
+      userMessage,
+    ];
+    
+    return history;
+  };
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingContent]);
+  }, [currentMessages, streamingContent]);
 
   const handleEditModule = (module: PromptModule) => {
     setShowModuleEditor(module.id);
@@ -248,7 +288,7 @@ export default function ActionProtocolView() {
       moduleName: selectedModule.name,
     } as ChatMessage;
 
-    setMessages(prev => [...prev, userMessage]);
+    setCurrentMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
     setStreamingContent('');
@@ -259,16 +299,7 @@ export default function ActionProtocolView() {
     let isAborted = false;
 
     try {
-      const conversationHistory: ChatMessage[] = [
-        {
-          id: crypto.randomUUID(),
-          role: 'user',
-          content: selectedModule.prompt,
-          timestamp: new Date(),
-        } as ChatMessage,
-        ...messages,
-        userMessage,
-      ];
+      const conversationHistory = prepareConversationHistory(userMessage);
 
       await apiService.streamChat(
         conversationHistory,
@@ -289,7 +320,7 @@ export default function ActionProtocolView() {
               timestamp: new Date(),
               model,
             };
-            setMessages(prev => [...prev, assistantMessage]);
+            setCurrentMessages(prev => [...prev, assistantMessage]);
           } else {
             const assistantMessage: ChatMessage = {
               id: crypto.randomUUID(),
@@ -298,7 +329,7 @@ export default function ActionProtocolView() {
               timestamp: new Date(),
               model,
             };
-            setMessages(prev => [...prev, assistantMessage]);
+            setCurrentMessages(prev => [...prev, assistantMessage]);
           }
           setStreamingContent('');
           streamingContentRef.current = '';
@@ -316,7 +347,7 @@ export default function ActionProtocolView() {
               content: streamingContentRef.current,
               timestamp: new Date(),
             };
-            setMessages(prev => [...prev, assistantMessage]);
+            setCurrentMessages(prev => [...prev, assistantMessage]);
           }
           setStreamingContent('');
           streamingContentRef.current = '';
@@ -357,11 +388,20 @@ export default function ActionProtocolView() {
           <p className="text-gray-500 mt-1">当前模块：{selectedModule.icon} {selectedModule.name}</p>
         </div>
         <div className="flex-1"></div>
-        {messages.length > 0 && (
+        <button
+          onClick={() => setShowMemorySettings(!showMemorySettings)}
+          className="p-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
+          title="记忆设置"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+          </svg>
+        </button>
+        {currentMessages.length > 0 && (
           <button
             onClick={() => {
-              if (confirm('确定要清空所有对话内容吗？')) {
-                setMessages([]);
+              if (confirm('确定要清空当前模块的对话内容吗？')) {
+                setCurrentMessages([]);
               }
             }}
             className="p-3 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
@@ -406,6 +446,60 @@ export default function ActionProtocolView() {
           >
             前往设置 API
           </button>
+        </div>
+      )}
+
+      {showMemorySettings && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-800">记忆设置</h2>
+            <button
+              onClick={() => setShowMemorySettings(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="space-y-6">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-gray-700">最大记忆字数</label>
+                <span className="text-sm text-gray-500">{memoryConfig.maxWords} 字</span>
+              </div>
+              <input
+                type="range"
+                min="500"
+                max="5000"
+                step="100"
+                value={memoryConfig.maxWords}
+                onChange={(e) => setMemoryConfig((prev: any) => ({ ...prev, maxWords: parseInt(e.target.value) }))}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
+              />
+              <div className="flex justify-between text-xs text-gray-400 mt-1">
+                <span>500字</span>
+                <span>2000字</span>
+                <span>5000字</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="text-sm font-medium text-gray-700">自动提取重要信息</label>
+                <p className="text-xs text-gray-500 mt-1">从对话中自动提取关键点作为摘要</p>
+              </div>
+              <button
+                onClick={() => setMemoryConfig((prev: any) => ({ ...prev, autoExtract: !prev.autoExtract }))}
+                className={`w-12 h-6 rounded-full transition-colors relative ${
+                  memoryConfig.autoExtract ? 'bg-amber-500' : 'bg-gray-300'
+                }`}
+              >
+                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                  memoryConfig.autoExtract ? 'translate-x-7' : 'translate-x-1'
+                }`} />
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -472,7 +566,7 @@ export default function ActionProtocolView() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.length === 0 ? (
+              {currentMessages.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="text-5xl mb-4">🧠</div>
                   <h2 className="text-lg font-semibold text-gray-800 mb-2">选择模块开始对话</h2>
@@ -497,7 +591,7 @@ export default function ActionProtocolView() {
                 </div>
               ) : (
                 <>
-                  {messages.map((message) => (
+                  {currentMessages.map((message) => (
                     <div
                       key={message.id}
                       className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -542,24 +636,41 @@ export default function ActionProtocolView() {
             </div>
 
             <div className="p-4 border-t border-gray-100">
-              {messages.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-3">
-                  <span className="text-xs text-gray-400">切换模块：</span>
-                  {modules.map((module) => (
-                    <button
-                      key={module.id}
-                      onClick={() => setSelectedModuleId(module.id)}
-                      className={`px-3 py-1 rounded-lg text-xs transition-all ${
-                        selectedModuleId === module.id
-                          ? 'bg-golden text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      {module.icon} {module.name}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <div className="flex items-center justify-between mb-3">
+                {currentMessages.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    <span className="text-xs text-gray-400">切换模块：</span>
+                    {modules.map((module) => (
+                      <button
+                        key={module.id}
+                        onClick={() => setSelectedModuleId(module.id)}
+                        className={`px-3 py-1 rounded-lg text-xs transition-all ${
+                          selectedModuleId === module.id
+                            ? 'bg-golden text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {module.icon} {module.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {currentMessages.length > 0 && (
+                  <button
+                    onClick={() => {
+                      if (confirm('确定要开启新聊天吗？当前对话内容将被清空。')) {
+                        setCurrentMessages([]);
+                      }
+                    }}
+                    className="px-3 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-1"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    新聊天
+                  </button>
+                )}
+              </div>
 
               {isLoading && (
                 <div className="flex items-center gap-2 mb-3">
