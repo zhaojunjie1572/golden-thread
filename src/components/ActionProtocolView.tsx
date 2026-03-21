@@ -400,7 +400,7 @@ export default function ActionProtocolView() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col h-[calc(100vh-140px)]">
+    <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex items-center gap-4 mb-6">
         <button
           onClick={() => navigate('/')}
@@ -530,9 +530,9 @@ export default function ActionProtocolView() {
         </div>
       )}
 
-      <div className="flex flex-col lg:flex-row gap-6 flex-1 overflow-hidden">
+      <div className="flex flex-col lg:flex-row gap-6">
         <div className="lg:w-80 flex flex-col">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col flex-1">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col" style={{ maxHeight: '60vh' }}>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <span className="text-xl">🧠</span>
@@ -600,8 +600,8 @@ export default function ActionProtocolView() {
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col min-h-0">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col flex-1 overflow-hidden">
+        <div className="flex-1 flex flex-col">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col" style={{ minHeight: '60vh' }}>
             <div className="p-4 border-b border-gray-100">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
