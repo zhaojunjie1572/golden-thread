@@ -323,7 +323,7 @@ export default function ActionProtocolView() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col h-[calc(100vh-120px)]">
+    <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col h-[calc(100vh-140px)]">
       <div className="flex items-center gap-4 mb-6">
         <button
           onClick={() => navigate('/')}
@@ -415,17 +415,21 @@ export default function ActionProtocolView() {
             <div className="space-y-2 overflow-y-auto flex-1">
               {modules.map((module) => (
                 <div key={module.id} className="group relative">
-                  <button
-                    onClick={() => setSelectedModuleId(module.id)}
-                    className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center gap-3 ${
+                  <div
+                    className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center gap-3 cursor-pointer ${
                       selectedModuleId === module.id
                         ? 'bg-golden/10 border-2 border-golden text-golden'
                         : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100 text-gray-700'
                     }`}
                   >
-                    <span className="text-xl">{module.icon}</span>
-                    <span className="font-medium flex-1 truncate">{module.name}</span>
-                    <div className="flex gap-1">
+                    <button
+                      onClick={() => setSelectedModuleId(module.id)}
+                      className="flex-1 flex items-center gap-3"
+                    >
+                      <span className="text-xl">{module.icon}</span>
+                      <span className="font-medium flex-1 truncate">{module.name}</span>
+                    </button>
+                    <div className="flex gap-1 shrink-0">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -448,7 +452,7 @@ export default function ActionProtocolView() {
                         </svg>
                       </button>
                     </div>
-                  </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -619,9 +623,9 @@ export default function ActionProtocolView() {
       </div>
 
       {showModuleEditor && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] sm:max-h-none flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100 shrink-0">
               <h3 className="text-lg font-semibold text-gray-800">编辑模块</h3>
               <button
                 onClick={() => setShowModuleEditor(null)}
@@ -632,7 +636,7 @@ export default function ActionProtocolView() {
                 </svg>
               </button>
             </div>
-            <div className="p-4 space-y-4">
+            <div className="p-4 space-y-4 overflow-y-auto">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">模块名称</label>
                 <input
@@ -648,11 +652,12 @@ export default function ActionProtocolView() {
                 <textarea
                   value={editModulePrompt}
                   onChange={(e) => setEditModulePrompt(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none resize-none text-sm"
-                  rows={8}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none resize-none text-sm min-h-[200px]"
                   placeholder="输入模块提示词..."
                 />
               </div>
+            </div>
+            <div className="p-4 border-t border-gray-100 shrink-0">
               <button
                 onClick={handleSaveModule}
                 className="w-full px-4 py-3 bg-golden text-white rounded-xl font-semibold hover:opacity-90 transition-colors"
