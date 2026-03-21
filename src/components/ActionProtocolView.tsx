@@ -759,8 +759,11 @@ export default function ActionProtocolView() {
                   onKeyDown={handleKeyPress}
                   placeholder={`使用「${selectedModule.name}」模块，输入你的需求...`}
                   disabled={isLoading || !apiService.hasApiKey()}
-                  className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none resize-none max-h-32"
+                  className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none resize-none max-h-32 text-base"
                   rows={1}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck="false"
                 />
                 <button
                   onClick={isLoading ? handleStopGeneration : handleSend}
