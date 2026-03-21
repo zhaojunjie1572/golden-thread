@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProtocols } from '../context/ProtocolContext';
+import { useMusic } from '../context/MusicContext';
 import { ProtocolModel, goalTypeLabels, triggerTypeLabels, createEmptyProtocol } from '../types/protocol';
 
 const defaultWisdomQuotes = [
@@ -104,41 +105,6 @@ const valueExchangeTemplates = [
   }
 ];
 
-const animations = `
-  @keyframes bloodFall {
-    0% {
-      transform: translateY(0) scale(1);
-      opacity: 1;
-    }
-    70% {
-      opacity: 1;
-    }
-    100% {
-      transform: translateY(80px) scale(0.5);
-      opacity: 0;
-    }
-  }
-  
-  @keyframes goldBounce {
-    0% {
-      transform: translateY(0) scale(0.5) rotate(0deg);
-      opacity: 0;
-    }
-    30% {
-      transform: translateY(-20px) scale(1.2) rotate(180deg);
-      opacity: 1;
-    }
-    60% {
-      transform: translateY(0) scale(1) rotate(360deg);
-      opacity: 1;
-    }
-    100% {
-      transform: translateY(-10px) scale(0.8) rotate(540deg);
-      opacity: 0.8;
-    }
-  }
-`;
-
 function formatDate(date: Date): string {
   const formatter = new Intl.DateTimeFormat('zh-CN', {
     month: 'long',
@@ -147,67 +113,6 @@ function formatDate(date: Date): string {
   });
   return formatter.format(date);
 }
-
-const BloodDrop = ({ x, y }: { x: number; y: number }) => (
-  <div
-    className="absolute"
-    style={{
-      left: `${x}%`,
-      top: `${y}%`,
-      animation: 'bloodFall 0.8s ease-in forwards'
-    }}
-  >
-    <svg width="24" height="32" viewBox="0 0 24 32" fill="none">
-      <path
-        d="M12 0C12 0 0 16 0 22C0 27.5228 5.37258 32 12 32C18.6274 32 24 27.5228 24 22C24 16 12 0 12 0Z"
-        fill="#DC2626"
-      />
-      <ellipse cx="8" cy="18" rx="2" ry="3" fill="#FCA5A5" opacity="0.6" />
-    </svg>
-  </div>
-);
-
-const GoldIngot = ({ x, y, opacity }: { x: number; y: number; opacity: number }) => (
-  <div
-    className="absolute"
-    style={{
-      left: `${x}%`,
-      top: `${y}%`,
-      opacity,
-      animation: 'goldBounce 0.8s ease-out'
-    }}
-  >
-    <svg width="32" height="24" viewBox="0 0 32 24" fill="none">
-      <rect x="4" y="4" width="24" height="16" rx="2" fill="url(#goldGradient)" stroke="#B45309" strokeWidth="2" />
-      <rect x="10" y="8" width="12" height="8" rx="1" fill="#FCD34D" opacity="0.5" />
-      <defs>
-        <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#FCD34D" />
-          <stop offset="50%" stopColor="#F59E0B" />
-          <stop offset="100%" stopColor="#D97706" />
-        </linearGradient>
-      </defs>
-    </svg>
-  </div>
-);
-
-const BloodLevelBar = ({ level }: { level: number }) => (
-  <div className="flex-1 relative">
-    <div className="h-8 bg-gray-200 rounded-full overflow-hidden border-2 border-gray-300">
-      <div 
-        className="h-full bg-gradient-to-r from-red-600 to-red-400 transition-all duration-300 rounded-full"
-        style={{ width: `${level}%` }}
-      >
-        <div className="h-full bg-gradient-to-b from-white/30 to-transparent rounded-full"></div>
-      </div>
-    </div>
-    <div className="absolute inset-0 flex items-center justify-center">
-      <span className="text-sm font-bold text-white drop-shadow-lg">
-        {Math.round(level)}%
-      </span>
-    </div>
-  </div>
-);
 
 const WisdomQuoteCard = ({ 
   quote, 
@@ -404,179 +309,28 @@ const QuoteEditModal = ({
   );
 };
 
-interface MusicTrack {
-  id: string;
-  name: string;
-  file: File;
-  url: string;
-}
-
-const CuteWidget = () => {
-  const [position, setPosition] = useState({ x: 20, y: 200 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [expression, setExpression] = useState('happy');
-  const [clickCount, setClickCount] = useState(0);
-  const [bounce, setBounce] = useState(false);
-  const widgetRef = useRef<HTMLDivElement>(null);
-
-  const expressions = ['happy', 'wink', 'surprised', 'love', 'sleepy'];
-
-  const handleInteractionStart = () => {
-    setIsDragging(true);
-    setClickCount(prev => prev + 1);
-    
-    if (clickCount % 5 === 4) {
-      setExpression(expressions[Math.floor(Math.random() * expressions.length)]);
-    }
-    
-    setBounce(true);
-    setTimeout(() => setBounce(false), 400);
-  };
-
-  const handleMouseDown = (_e: React.MouseEvent) => {
-    handleInteractionStart();
-  };
-
-  const handleTouchStart = (_e: React.TouchEvent) => {
-    handleInteractionStart();
-  };
-
-  const handleMove = useCallback((clientX: number, clientY: number) => {
-    if (!isDragging) return;
-    setPosition({
-      x: clientX - 40,
-      y: clientY - 40,
-    });
-  }, [isDragging]);
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    handleMove(e.clientX, e.clientY);
-  }, [handleMove]);
-
-  const handleTouchMove = useCallback((e: TouchEvent) => {
-    e.preventDefault();
-    if (e.touches.length > 0) {
-      handleMove(e.touches[0].clientX, e.touches[0].clientY);
-    }
-  }, [handleMove]);
-
-  const handleInteractionEnd = () => {
-    setIsDragging(false);
-  };
-
-  useEffect(() => {
-    if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleInteractionEnd);
-      window.addEventListener('touchmove', handleTouchMove as any, { passive: false });
-      window.addEventListener('touchend', handleInteractionEnd);
-    }
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleInteractionEnd);
-      window.removeEventListener('touchmove', handleTouchMove as any);
-      window.removeEventListener('touchend', handleInteractionEnd);
-    };
-  }, [isDragging, handleMouseMove, handleTouchMove]);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      if (!isDragging) {
-        setBounce(true);
-        setTimeout(() => setBounce(false), 400);
-      }
-    }, 3000);
-    return () => clearInterval(timer);
-  }, [isDragging]);
-
-  const getEmoji = () => {
-    switch (expression) {
-      case 'happy': return '😊';
-      case 'wink': return '😉';
-      case 'surprised': return '😮';
-      case 'love': return '😍';
-      case 'sleepy': return '😴';
-      default: return '😊';
-    }
-  };
-
-  return (
-    <div
-      ref={widgetRef}
-      className="fixed cursor-grab active:cursor-grabbing z-50 select-none touch-none"
-      style={{
-        left: position.x,
-        top: position.y,
-        animation: bounce ? 'widgetBounce 0.4s ease-out' : 'widgetFloat 3s ease-in-out infinite',
-      }}
-      onMouseDown={handleMouseDown}
-      onTouchStart={handleTouchStart}
-    >
-      <style>{`
-        @keyframes widgetFloat {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-10px); }
-        }
-        @keyframes widgetBounce {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.2); }
-        }
-      `}</style>
-      <div className="relative">
-        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-pink-300 to-purple-400 rounded-full shadow-lg flex items-center justify-center border-4 border-white">
-          <span className="text-3xl sm:text-4xl">{getEmoji()}</span>
-        </div>
-        {clickCount > 0 && (
-          <div className="absolute -top-2 -right-2 w-5 h-5 sm:w-6 sm:h-6 bg-yellow-400 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold text-white shadow">
-            {clickCount}
-          </div>
-        )}
-        {clickCount % 10 === 0 && clickCount > 0 && (
-          <div className="absolute -top-7 sm:-top-8 left-1/2 transform -translate-x-1/2 bg-white px-2 sm:px-3 py-1 rounded-full shadow text-[10px] sm:text-xs font-medium text-gray-700 whitespace-nowrap">
-            好可爱！
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
 const MusicPlayer = () => {
-  const [tracks, setTracks] = useState<MusicTrack[]>(() => {
-    try {
-      const saved = localStorage.getItem('music-tracks');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [volume, setVolume] = useState(() => {
-    const saved = localStorage.getItem('music-volume');
-    return saved ? parseFloat(saved) : 0.5;
-  });
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const {
+    tracks,
+    currentTrackIndex,
+    isPlaying,
+    volume,
+    currentTime,
+    duration,
+    addTracks,
+    removeTrack,
+    togglePlay,
+    nextTrack,
+    prevTrack,
+    setVolume,
+    setCurrentTrackIndex,
+    seek,
+  } = useMusic();
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    localStorage.setItem('music-volume', volume.toString());
-    if (audioRef.current) {
-      audioRef.current.volume = volume;
-    }
-  }, [volume]);
-
-  useEffect(() => {
-    if (audioRef.current && isPlaying && tracks.length > 0) {
-      audioRef.current.play();
-    }
-  }, [currentTrackIndex, tracks, isPlaying]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const newTracks: MusicTrack[] = [];
+    const newTracks: any[] = [];
     
     files.forEach((file) => {
       if (file.type.startsWith('audio/')) {
@@ -591,40 +345,8 @@ const MusicPlayer = () => {
     });
 
     if (newTracks.length > 0) {
-      const updatedTracks = [...tracks, ...newTracks].slice(0, 3);
-      setTracks(updatedTracks);
+      addTracks(newTracks);
     }
-  };
-
-  const removeTrack = (id: string) => {
-    const updatedTracks = tracks.filter(track => track.id !== id);
-    setTracks(updatedTracks);
-    if (currentTrackIndex >= updatedTracks.length) {
-      setCurrentTrackIndex(0);
-      setIsPlaying(false);
-    }
-  };
-
-  const togglePlay = () => {
-    if (tracks.length === 0) return;
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-      } else {
-        audioRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
-    }
-  };
-
-  const nextTrack = () => {
-    setCurrentTrackIndex((prev) => (prev + 1) % tracks.length);
-    setIsPlaying(true);
-  };
-
-  const prevTrack = () => {
-    setCurrentTrackIndex((prev) => (prev - 1 + tracks.length) % tracks.length);
-    setIsPlaying(true);
   };
 
   const formatTime = (seconds: number) => {
@@ -633,39 +355,15 @@ const MusicPlayer = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleTimeUpdate = () => {
-    if (audioRef.current) {
-      setCurrentTime(audioRef.current.currentTime);
-    }
-  };
-
-  const handleLoadedMetadata = () => {
-    if (audioRef.current) {
-      setDuration(audioRef.current.duration);
-    }
-  };
-
-  const handleEnded = () => {
-    if (tracks.length > 1) {
-      nextTrack();
-    } else {
-      setIsPlaying(false);
-    }
-  };
-
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const time = parseFloat(e.target.value);
-    if (audioRef.current) {
-      audioRef.current.currentTime = time;
-      setCurrentTime(time);
-    }
+    seek(parseFloat(e.target.value));
   };
 
   return (
     <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border-2 border-purple-200 p-5 shadow-lg">
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-2 mb-3">
         <span className="text-2xl">🎵</span>
-        <h2 className="text-lg font-bold text-purple-800">背景音乐</h2>
+        <h2 className="text-lg font-bold text-purple-800">音乐播放器</h2>
         <div className="ml-auto">
           <input
             ref={fileInputRef}
@@ -677,88 +375,62 @@ const MusicPlayer = () => {
           />
           <button
             onClick={() => fileInputRef.current?.click()}
-            disabled={tracks.length >= 3}
-            className="text-xs bg-purple-500 text-white px-2 py-1 rounded-lg hover:bg-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="text-xs bg-purple-500 text-white px-2 py-1 rounded-lg hover:bg-purple-600 transition-colors"
+            title={tracks.length >= 9 ? "添加后将替换最后一首" : "添加音乐"}
           >
-            + 添加音乐
+            + 添加
           </button>
         </div>
       </div>
 
-      {tracks.length === 0 ? (
-        <div className="text-center py-8">
-          <div className="text-4xl mb-4">🎵</div>
-          <p className="text-gray-500">还没有音乐</p>
-          <p className="text-xs text-gray-400 mt-2">点击上方按钮添加最多3首歌</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {tracks.map((track, index) => (
-              <div
-                key={track.id}
-                className={`flex-1 min-w-0 p-3 rounded-xl cursor-pointer transition-colors ${
-                  currentTrackIndex === index
-                    ? 'bg-purple-100 border-2 border-purple-400'
-                    : 'bg-white border-2 border-transparent hover:bg-gray-50'
-                }`}
-                onClick={() => {
-                  setCurrentTrackIndex(index);
-                  setIsPlaying(true);
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">🎶</span>
-                  <span className="text-sm font-medium text-gray-800 truncate flex-1">
-                    {track.name}
+      {tracks.length > 0 && (
+        <>
+          <div className="bg-white/70 rounded-xl p-4 border border-purple-100">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-400 rounded-lg flex items-center justify-center">
+                <span className="text-lg">🎶</span>
+              </div>
+              
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-purple-900 truncate">
+                  {tracks[currentTrackIndex]?.name || '未选择音乐'}
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <input
+                    type="range"
+                    min="0"
+                    max={duration || 100}
+                    value={currentTime}
+                    onChange={handleSeek}
+                    className="flex-1 h-1 bg-purple-200 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                  />
+                  <span className="text-xs text-purple-600 min-w-[80px] text-right">
+                    {formatTime(currentTime)} / {formatTime(duration)}
                   </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeTrack(track.id);
-                    }}
-                    className="p-1 text-gray-400 hover:text-red-500"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
                 </div>
               </div>
-            ))}
-          </div>
 
-          <audio
-            ref={audioRef}
-            src={tracks[currentTrackIndex]?.url}
-            onTimeUpdate={handleTimeUpdate}
-            onLoadedMetadata={handleLoadedMetadata}
-            onEnded={handleEnded}
-          />
-
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
               <button
                 onClick={prevTrack}
                 disabled={tracks.length <= 1}
-                className="p-2 text-purple-700 hover:bg-purple-100 rounded-lg disabled:opacity-30"
+                className="p-1.5 text-purple-700 hover:bg-purple-100 rounded-lg disabled:opacity-30"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
                 </svg>
               </button>
 
               <button
                 onClick={togglePlay}
-                className="p-3 bg-purple-500 text-white rounded-full hover:bg-purple-600"
+                className="p-2 bg-purple-500 text-white rounded-full hover:bg-purple-600"
               >
                 {isPlaying ? (
-                  <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
-                    <rect x="6" y="4" width="4" height="16" />
-                    <rect x="14" y="4" width="4" height="16" />
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <rect x="6" y="4" width="4" height="16" rx="1" />
+                    <rect x="14" y="4" width="4" height="16" rx="1" />
                   </svg>
                 ) : (
-                  <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z" />
                   </svg>
                 )}
@@ -767,18 +439,16 @@ const MusicPlayer = () => {
               <button
                 onClick={nextTrack}
                 disabled={tracks.length <= 1}
-                className="p-2 text-purple-700 hover:bg-purple-100 rounded-lg disabled:opacity-30"
+                className="p-1.5 text-purple-700 hover:bg-purple-100 rounded-lg disabled:opacity-30"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                 </svg>
               </button>
 
-              <div className="flex-1"></div>
-
-              <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-purple-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+              <div className="flex items-center gap-1">
+                <svg className="w-3.5 h-3.5 text-purple-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 0 010 12.728M5.586 15H4a1 0 01-1-1v-4a1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
                 </svg>
                 <input
                   type="range"
@@ -787,26 +457,57 @@ const MusicPlayer = () => {
                   step="0.01"
                   value={volume}
                   onChange={(e) => setVolume(parseFloat(e.target.value))}
-                  className="w-20 accent-purple-500"
+                  className="w-12 h-1 bg-purple-200 rounded-lg appearance-none cursor-pointer accent-purple-500"
                 />
               </div>
             </div>
-
-            <div className="space-y-1">
-              <input
-                type="range"
-                min="0"
-                max={duration || 100}
-                value={currentTime}
-                onChange={handleSeek}
-                className="w-full accent-purple-500"
-              />
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>{formatTime(currentTime)}</span>
-                <span>{formatTime(duration)}</span>
-              </div>
-            </div>
           </div>
+
+          {tracks.length > 0 && (
+            <div className="mt-3 grid grid-cols-3 gap-1.5">
+              {tracks.map((track, index) => (
+                <div
+                  key={track.id}
+                  className={`p-1.5 rounded-lg text-center transition-all duration-200 overflow-hidden relative ${
+                    currentTrackIndex === index
+                      ? 'bg-purple-500 text-white'
+                      : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                  }`}
+                >
+                  <button
+                    onClick={() => {
+                      setCurrentTrackIndex(index);
+                    }}
+                    className="w-full h-full"
+                  >
+                    <div className="text-xs truncate pr-4">{track.name}</div>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeTrack(track.id);
+                    }}
+                    className={`absolute top-0 right-0 p-0.5 rounded-bl-lg ${
+                      currentTrackIndex === index
+                        ? 'text-white hover:bg-white/20'
+                        : 'text-purple-500 hover:bg-purple-300'
+                    }`}
+                    title="删除歌曲"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {tracks.length === 0 && (
+        <div className="bg-white/70 rounded-xl p-4 border border-purple-100 text-center">
+          <p className="text-sm text-purple-600">🎵 点击 + 号添加最多9首背景音乐</p>
         </div>
       )}
     </div>
@@ -1080,12 +781,6 @@ export default function TodayView() {
   const allCompleted = useMemo(() => protocols.length > 0 && todayProtocols.length === 0, [protocols, todayProtocols]);
   
   const [showPermissionPrompt, setShowPermissionPrompt] = useState(!hasNotificationPermission() && protocols.length > 0);
-  const [bloodLevel, setBloodLevel] = useState(100);
-  const [bloodDrops, setBloodDrops] = useState<{ id: number; x: number; y: number; isGold: boolean }[]>([]);
-  const [goldIngots, setGoldIngots] = useState<{ id: number; x: number; y: number; opacity: number }[]>([]);
-  
-  const bloodDropIdRef = useRef(0);
-  const goldIngotIdRef = useRef(0);
   
   const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
   const [wisdomQuotes, setWisdomQuotes] = useState(defaultWisdomQuotes);
@@ -1117,59 +812,13 @@ export default function TodayView() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
   }, []);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setBloodLevel(prev => {
-        const newLevel = Math.max(0, prev - 0.1);
-        if (newLevel < prev && Math.random() < 0.3) {
-          addBloodDrop();
-        }
-        return newLevel;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const addBloodDrop = useCallback(() => {
-    const id = bloodDropIdRef.current++;
-    const x = 50 + (Math.random() - 0.5) * 30;
-    const y = 0;
-    setBloodDrops(prev => [...prev, { id, x, y, isGold: false }]);
-    
-    setTimeout(() => {
-      setBloodDrops(prev => prev.filter(drop => drop.id !== id));
-      addGoldIngot(x, 80);
-    }, 800);
-  }, []);
-
-  const addGoldIngot = useCallback((x: number, y: number) => {
-    const id = goldIngotIdRef.current++;
-    setGoldIngots(prev => [...prev, { id, x, y, opacity: 1 }]);
-    
-    setTimeout(() => {
-      setGoldIngots(prev => prev.filter(ingot => ingot.id !== id));
-    }, 2000);
-  }, []);
-
   const handleSuccess = useCallback((protocol: ProtocolModel) => {
     markProtocolSuccess(protocol.id);
-    setBloodLevel(prev => Math.min(100, prev + 20));
-    for (let i = 0; i < 3; i++) {
-      setTimeout(() => {
-        addGoldIngot(30 + Math.random() * 40, 50);
-      }, i * 200);
-    }
-  }, [markProtocolSuccess, addGoldIngot]);
+  }, [markProtocolSuccess]);
 
   const handleFailure = useCallback((protocol: ProtocolModel) => {
     markProtocolFailure(protocol.id);
-    setBloodLevel(prev => Math.max(0, prev - 10));
-    for (let i = 0; i < 2; i++) {
-      setTimeout(() => {
-        addBloodDrop();
-      }, i * 300);
-    }
-  }, [markProtocolFailure, addBloodDrop]);
+  }, [markProtocolFailure]);
 
   const changeQuote = useCallback(() => {
     setCurrentQuoteIndex((prev) => (prev + 1) % wisdomQuotes.length);
@@ -1235,31 +884,14 @@ export default function TodayView() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      <style>{animations}</style>
-      
-      <div className="flex flex-col lg:flex-row gap-6 mb-8">
-        <div className="flex-1">
-          <div className="flex items-center gap-4 mb-2">
-            <h1 className="text-3xl font-bold text-gray-800">今日执行</h1>
-            <BloodLevelBar level={bloodLevel} />
-          </div>
+      <div className="mb-8">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">今日执行</h1>
           <p className="text-gray-500">{formatDate(new Date())}</p>
-          
-          <div className="relative h-32 mt-2">
-            {bloodDrops.map(drop => (
-              <BloodDrop key={drop.id} x={drop.x} y={drop.y} />
-            ))}
-            {goldIngots.map(ingot => (
-              <GoldIngot key={ingot.id} x={ingot.x} y={ingot.y} opacity={ingot.opacity} />
-            ))}
-          </div>
-          
-          <div className="mt-4">
-            <MusicPlayer />
-          </div>
         </div>
         
-        <div className="w-full lg:w-80">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <MusicPlayer />
           <WisdomQuoteCard 
             quote={currentQuote}
             onAdd={openAddModal}
@@ -1324,7 +956,6 @@ export default function TodayView() {
           ))}
         </div>
       )}
-      <CuteWidget />
     </div>
   );
 }

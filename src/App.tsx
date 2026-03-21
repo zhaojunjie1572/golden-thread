@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 import { ProtocolProvider } from './context/ProtocolContext';
 import { BookProvider } from './context/BookContext';
+import { MusicProvider, useMusic } from './context/MusicContext';
 import { useTheme } from './context/ThemeContext';
 import ThemeWrapper from './components/ThemeWrapper';
 import TodayView from './components/TodayView';
@@ -27,7 +28,7 @@ const themeNames: Record<string, string> = {
   pink: '粉色',
 };
 
-function AppContent() {
+function AppContentWithMusic() {
   const { 
     isDarkMode, 
     toggleDarkMode, 
@@ -40,13 +41,21 @@ function AppContent() {
     brightness,
     setBrightness,
   } = useTheme();
+  const {
+    tracks,
+    currentTrackIndex,
+    isPlaying,
+    togglePlay,
+    nextTrack,
+    prevTrack,
+  } = useMusic();
   const [showThemeSettings, setShowThemeSettings] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <ThemeWrapper>
       <div className="min-h-screen">
-        <header className="sticky top-0 z-30 backdrop-blur-md bg-opacity-80" style={{ backgroundColor: isDarkMode ? '#111827cc' : colors.bgLight + 'cc' }}>
+        <header className="fixed top-0 left-0 right-0 z-30 backdrop-blur-md bg-opacity-80" style={{ backgroundColor: isDarkMode ? '#111827cc' : colors.bgLight + 'cc' }}>
           <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
             <h1 className="text-xl font-bold" style={{ color: colors.primary }}>金线</h1>
             <div className="flex items-center gap-2">
@@ -172,19 +181,68 @@ function AppContent() {
           )}
         </header>
 
-        <nav className="fixed bottom-0 left-0 right-0 z-40 theme-card-bg border-t theme-border-color px-4 py-2">
-          <div className="max-w-xl mx-auto">
-            <div className="flex justify-around items-center">
-              <NavItem to="/action" icon="🚀" label="智库" />
-              <NavItem to="/" icon="☀️" label="今日" />
-              <NavItem to="/protocols" icon="📋" label="协议" />
-              <NavItem to="/books" icon="📚" label="读书" />
-              <NavItem to="/ai" icon="🤖" label="AI助手" />
+        <nav className="fixed bottom-0 left-0 right-0 z-40 theme-card-bg border-t theme-border-color">
+          {tracks.length > 0 && (
+            <div className="border-b theme-border-color px-4 py-2 bg-gradient-to-r from-purple-50 to-pink-50">
+              <div className="max-w-xl mx-auto flex items-center gap-2">
+                <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-400 rounded-md flex items-center justify-center flex-shrink-0">
+                  <span className="text-sm">🎶</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-medium text-purple-900 truncate">
+                    {tracks[currentTrackIndex]?.name}
+                  </div>
+                </div>
+                <button
+                  onClick={prevTrack}
+                  disabled={tracks.length <= 1}
+                  className="p-1 text-purple-700 hover:bg-purple-100 rounded-md disabled:opacity-30"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                  </svg>
+                </button>
+                <button
+                  onClick={togglePlay}
+                  className="p-1.5 bg-purple-500 text-white rounded-full hover:bg-purple-600"
+                >
+                  {isPlaying ? (
+                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                      <rect x="6" y="4" width="4" height="16" rx="1" />
+                      <rect x="14" y="4" width="4" height="16" rx="1" />
+                    </svg>
+                  ) : (
+                    <svg className="w-3.5 h-3.5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  )}
+                </button>
+                <button
+                  onClick={nextTrack}
+                  disabled={tracks.length <= 1}
+                  className="p-1 text-purple-700 hover:bg-purple-100 rounded-md disabled:opacity-30"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+          <div className="px-4 py-2">
+            <div className="max-w-xl mx-auto">
+              <div className="flex justify-around items-center">
+                <NavItem to="/action" icon="🚀" label="智库" />
+                <NavItem to="/" icon="☀️" label="今日" />
+                <NavItem to="/protocols" icon="📋" label="协议" />
+                <NavItem to="/books" icon="📚" label="读书" />
+                <NavItem to="/ai" icon="🤖" label="AI助手" />
+              </div>
             </div>
           </div>
         </nav>
 
-        <main className="pt-4 pb-24">
+        <main className="pt-20 pb-32">
           <Routes>
             <Route path="/" element={<TodayView />} />
             <Route path="/action" element={<ActionProtocolView />} />
@@ -218,6 +276,14 @@ function NavItem({ to, icon, label }: { to: string; icon: string; label: string 
       <span className="text-2xl">{icon}</span>
       <span className="text-xs font-medium">{label}</span>
     </NavLink>
+  );
+}
+
+function AppContent() {
+  return (
+    <MusicProvider>
+      <AppContentWithMusic />
+    </MusicProvider>
   );
 }
 

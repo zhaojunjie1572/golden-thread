@@ -156,11 +156,23 @@ export function BookProvider({ children }: { children: ReactNode }) {
   const loadBooks = () => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
+      console.log('📚 加载书籍数据:', saved);
       if (saved) {
-        setBooks(JSON.parse(saved));
+        const parsedBooks = JSON.parse(saved);
+        console.log('✅ 解析后的书籍:', parsedBooks);
+        if (Array.isArray(parsedBooks)) {
+          setBooks(parsedBooks);
+        } else {
+          console.warn('⚠️ 书籍数据不是数组，重置为空');
+          setBooks([]);
+        }
+      } else {
+        console.log('📭 没有找到保存的书籍');
+        setBooks([]);
       }
     } catch (error) {
-      console.error('加载书籍失败:', error);
+      console.error('❌ 加载书籍失败:', error);
+      setBooks([]);
     } finally {
       setIsLoading(false);
     }
@@ -168,9 +180,11 @@ export function BookProvider({ children }: { children: ReactNode }) {
 
   const saveBooks = () => {
     try {
+      console.log('💾 保存书籍数据:', books);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(books));
+      console.log('✅ 书籍保存成功');
     } catch (error) {
-      console.error('保存书籍失败:', error);
+      console.error('❌ 保存书籍失败:', error);
     }
   };
 
@@ -309,17 +323,20 @@ export function BookProvider({ children }: { children: ReactNode }) {
   }
 
   const importBookFromFile = async (file: File): Promise<Book> => {
+    console.log('📖 开始导入文件:', file.name, file.type, file.size);
     try {
       let text = '';
       let title = '未命名书籍';
       let author = '未知作者';
 
       if (file.name.endsWith('.epub')) {
+        console.log('📚 解析 EPUB 文件');
         const epubData = await parseEpub(file);
         text = epubData.text;
         title = epubData.title;
         author = epubData.author;
       } else if (file.name.endsWith('.zip')) {
+        console.log('📦 解析 ZIP 文件');
         const zip = await JSZip.loadAsync(file);
         const txtFiles = Object.keys(zip.files).filter(name => name.endsWith('.txt'));
         if (txtFiles.length > 0) {
@@ -329,6 +346,7 @@ export function BookProvider({ children }: { children: ReactNode }) {
         }
         title = file.name.replace(/\.zip$/, '');
       } else {
+        console.log('📄 解析文本文件');
         text = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = (e) => resolve(e.target?.result as string);
@@ -339,11 +357,12 @@ export function BookProvider({ children }: { children: ReactNode }) {
         title = file.name.replace(/\.(txt|md)$/, '');
       }
 
+      console.log('✅ 文件解析完成，长度:', text.length, '标题:', title, '作者:', author);
       const book = parseTextToBook(text, title, author);
-      addBook(book);
+      console.log('📖 创建书籍对象:', book);
       return book;
     } catch (error) {
-      console.error('导入书籍失败:', error);
+      console.error('❌ 导入书籍失败:', error);
       throw error;
     }
   };

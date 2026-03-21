@@ -587,7 +587,7 @@ export default function AIAssistantView() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 flex flex-col h-[calc(100vh-120px)]">
+    <div className="max-w-4xl mx-auto px-4 py-8 flex flex-col h-[calc(100vh-140px)]">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">AI 助手</h1>
@@ -683,7 +683,7 @@ export default function AIAssistantView() {
       )}
 
       {showSettings && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 max-h-[70vh] overflow-y-auto">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">设置</h2>
           <div className="space-y-6">
             <div>
