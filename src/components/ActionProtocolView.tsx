@@ -134,10 +134,9 @@ export default function ActionProtocolView() {
   const [showModuleEditor, setShowModuleEditor] = useState<string | null>(null);
   const [editModuleName, setEditModuleName] = useState('');
   const [editModulePrompt, setEditModulePrompt] = useState('');
-  const [longPressModule, setLongPressModule] = useState<PromptModule | null>(null);
-  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const isLongPressingRef = useRef(false);
   const [showMemorySettings, setShowMemorySettings] = useState(false);
+  const [draggedModuleId, setDraggedModuleId] = useState<string | null>(null);
+  const [dragOverModuleId, setDragOverModuleId] = useState<string | null>(null);
   const [memoryConfig, setMemoryConfig] = useState(() => {
     try {
       const saved = localStorage.getItem('think-tank-memory-config');
@@ -226,49 +225,10 @@ export default function ActionProtocolView() {
     setShowModuleEditor(module.id);
     setEditModuleName(module.name);
     setEditModulePrompt(module.prompt);
-    setLongPressModule(null);
-  };
-
-  const handleLongPressStart = (module: PromptModule) => {
-    isLongPressingRef.current = false;
-    longPressTimerRef.current = setTimeout(() => {
-      isLongPressingRef.current = true;
-      setLongPressModule(module);
-    }, 500);
-  };
-
-  const handleLongPressEnd = () => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-  };
-
-  const handleTouchStart = (module: PromptModule) => {
-    handleLongPressStart(module);
-  };
-
-  const handleTouchEnd = () => {
-    handleLongPressEnd();
-  };
-
-  const handleMouseDown = (module: PromptModule) => {
-    handleLongPressStart(module);
-  };
-
-  const handleMouseUp = () => {
-    handleLongPressEnd();
-  };
-
-  const handleMouseLeave = () => {
-    handleLongPressEnd();
   };
 
   const handleModuleClick = (module: PromptModule) => {
-    if (!isLongPressingRef.current) {
-      setSelectedModuleId(module.id);
-    }
-    isLongPressingRef.current = false;
+    setSelectedModuleId(module.id);
   };
 
   const handleSaveModule = () => {
@@ -304,6 +264,44 @@ export default function ActionProtocolView() {
     if (selectedModuleId === id) {
       setSelectedModuleId(modules[0].id);
     }
+  };
+
+  const handleDragStart = (e: React.DragEvent, moduleId: string) => {
+    setDraggedModuleId(moduleId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', moduleId);
+  };
+
+  const handleDragOver = (e: React.DragEvent, moduleId: string) => {
+    e.preventDefault();
+    if (draggedModuleId && draggedModuleId !== moduleId) {
+      setDragOverModuleId(moduleId);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverModuleId(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetModuleId: string) => {
+    e.preventDefault();
+    if (draggedModuleId && draggedModuleId !== targetModuleId) {
+      const draggedIndex = modules.findIndex(m => m.id === draggedModuleId);
+      const targetIndex = modules.findIndex(m => m.id === targetModuleId);
+      
+      const newModules = [...modules];
+      const [draggedModule] = newModules.splice(draggedIndex, 1);
+      newModules.splice(targetIndex, 0, draggedModule);
+      
+      setModules(newModules);
+    }
+    setDraggedModuleId(null);
+    setDragOverModuleId(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedModuleId(null);
+    setDragOverModuleId(null);
   };
 
   const handleStopGeneration = () => {
@@ -565,24 +563,32 @@ export default function ActionProtocolView() {
               </button>
             </div>
             <p className="text-xs text-gray-500 mb-3">
-              点击选择模块，长按编辑/删除
+              点击选择模块，拖拽排序，点击右侧按钮编辑/删除
             </p>
             
             <div className="space-y-2 overflow-y-auto flex-1">
               {modules.map((module) => (
-                <div key={module.id} className="group relative">
+                <div 
+                  key={module.id} 
+                  className="group relative"
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, module.id)}
+                  onDragOver={(e) => handleDragOver(e, module.id)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, module.id)}
+                  onDragEnd={handleDragEnd}
+                >
                   <div
                     className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center gap-3 cursor-pointer select-none ${
                       selectedModuleId === module.id
                         ? 'bg-golden/10 border-2 border-golden text-golden'
+                        : draggedModuleId === module.id
+                        ? 'opacity-50 bg-gray-200 border-2 border-dashed border-gray-400'
+                        : dragOverModuleId === module.id
+                        ? 'border-2 border-dashed border-golden bg-golden/5'
                         : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100 text-gray-700'
                     }`}
                     onClick={() => handleModuleClick(module)}
-                    onTouchStart={() => handleTouchStart(module)}
-                    onTouchEnd={handleTouchEnd}
-                    onMouseDown={() => handleMouseDown(module)}
-                    onMouseUp={handleMouseUp}
-                    onMouseLeave={handleMouseLeave}
                   >
                     <span className="text-xl">{module.icon}</span>
                     <span className="font-medium flex-1 truncate pr-2">{module.name}</span>
@@ -799,62 +805,7 @@ export default function ActionProtocolView() {
         </div>
       </div>
 
-      {longPressModule && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onClick={() => setLongPressModule(null)}>
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <div className="p-4 border-b border-gray-100">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{longPressModule.icon}</span>
-                <div>
-                  <h3 className="font-semibold text-gray-800">{longPressModule.name}</h3>
-                  <p className="text-xs text-gray-500">选择操作</p>
-                </div>
-                <button
-                  onClick={() => setLongPressModule(null)}
-                  className="ml-auto p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-            <div className="p-2">
-              <button
-                onClick={() => handleEditModule(longPressModule)}
-                className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 rounded-xl transition-colors"
-              >
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </div>
-                <div className="text-left">
-                  <div className="font-medium text-gray-800">编辑模块</div>
-                  <div className="text-xs text-gray-500">修改模块名称和提示词</div>
-                </div>
-              </button>
-              <button
-                onClick={(e) => {
-                  handleDeleteModule(longPressModule.id, e as any);
-                  setLongPressModule(null);
-                }}
-                className="w-full px-4 py-3 flex items-center gap-3 hover:bg-red-50 rounded-xl transition-colors"
-              >
-                <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </div>
-                <div className="text-left">
-                  <div className="font-medium text-red-600">删除模块</div>
-                  <div className="text-xs text-red-500">删除这个模块</div>
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {showModuleEditor && (
         <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">

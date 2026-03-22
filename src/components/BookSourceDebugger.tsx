@@ -57,14 +57,17 @@ export default function BookSourceDebugger({ source, onClose, onTestUrl }: BookS
       const result = await onTestUrl(searchUrl);
       setTestResult(result);
       
-      if (source.ruleSearch?.list) {
+      const listRule = source.ruleSearch?.bookList || source.ruleSearch?.list;
+      const nameRule = source.ruleSearch?.name;
+      
+      if (listRule) {
         BookSourceParser.clearLogs();
-        const listHtml = BookSourceParser.parseList(result, source.ruleSearch.list);
+        const listHtml = BookSourceParser.parseList(result, listRule);
         
-        if (listHtml.length > 0 && source.ruleSearch?.name) {
+        if (listHtml.length > 0 && nameRule) {
           const firstItem = listHtml[0];
           BookSourceParser.clearLogs();
-          const name = BookSourceParser.parseRule(firstItem, source.ruleSearch.name);
+          const name = BookSourceParser.parseRule(firstItem, nameRule);
           setRuleResult(name);
           setLogs(BookSourceParser.getLogs());
         }

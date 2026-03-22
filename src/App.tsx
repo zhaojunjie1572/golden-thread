@@ -1,8 +1,9 @@
 import { useState, useRef } from 'react';
-import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, useNavigate } from 'react-router-dom';
 import { ProtocolProvider } from './context/ProtocolContext';
 import { BookProvider } from './context/BookContext';
 import { MusicProvider, useMusic } from './context/MusicContext';
+import { SpeechProvider, useSpeech } from './context/SpeechContext';
 import { useTheme } from './context/ThemeContext';
 import ThemeWrapper from './components/ThemeWrapper';
 import TodayView from './components/TodayView';
@@ -11,6 +12,7 @@ import ActionProtocolView from './components/ActionProtocolView';
 import ProtocolsListView from './components/ProtocolsListView';
 import AIAssistantView from './components/AIAssistantView';
 import BookView from './components/BookView';
+import { SyncManagerView } from './components/SyncManagerView';
 
 const themeColors: Record<string, any> = {
   golden: { primary: '#DAA520' },
@@ -28,7 +30,173 @@ const themeNames: Record<string, string> = {
   pink: '粉色',
 };
 
-function AppContentWithMusic() {
+function SpeechPlayer() {
+  const {
+    speechState,
+    pauseSpeaking,
+    resumeSpeaking,
+    stopSpeaking,
+    nextParagraph: speechNextParagraph,
+    prevParagraph: speechPrevParagraph,
+  } = useSpeech();
+
+  if (!speechState.isPlaying && !speechState.isPaused) return null;
+
+  const progress = speechState.totalParagraphs > 0 
+    ? ((speechState.currentParagraphIndex + 1) / speechState.totalParagraphs) * 100 
+    : 0;
+
+  return (
+    <div className="border-b theme-border-color px-4 py-3 bg-gradient-to-r from-amber-50 to-orange-50 shadow-sm">
+      <div className="max-w-xl mx-auto">
+        <div className="mb-2">
+          <div className="flex justify-between text-xs text-amber-700 mb-1">
+            <span>朗读进度</span>
+            <span>{Math.round(progress)}%</span>
+          </div>
+          <div className="w-full h-1.5 bg-amber-200 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-400 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md ${speechState.isPlaying ? 'animate-pulse' : ''}`}>
+            <span className="text-lg">📖</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold text-amber-900 truncate">
+              {speechState.bookTitle} - {speechState.bookAuthor}
+            </div>
+            <div className="text-xs text-amber-700 truncate mt-0.5">
+              {speechState.currentParagraph.substring(0, 50)}{speechState.currentParagraph.length > 50 ? '...' : ''}
+            </div>
+          </div>
+          <button
+            onClick={speechPrevParagraph}
+            disabled={speechState.currentParagraphIndex <= 0}
+            className="p-2 text-amber-700 hover:bg-amber-100 rounded-full disabled:opacity-30 transition-all hover:scale-110"
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+            </svg>
+          </button>
+          <button
+            onClick={speechState.isPaused ? resumeSpeaking : pauseSpeaking}
+            className="p-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full hover:from-amber-600 hover:to-orange-600 shadow-lg transition-all hover:scale-105 active:scale-95"
+          >
+            {speechState.isPaused ? (
+              <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M6 4h4v16H6zM14 4h4v16h-4z" />
+              </svg>
+            )}
+          </button>
+          <button
+            onClick={speechNextParagraph}
+            disabled={speechState.currentParagraphIndex >= speechState.totalParagraphs - 1}
+            className="p-2 text-amber-700 hover:bg-amber-100 rounded-full disabled:opacity-30 transition-all hover:scale-110"
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+            </svg>
+          </button>
+          <button
+            onClick={stopSpeaking}
+            className="p-2 text-red-600 hover:bg-red-100 rounded-full transition-all hover:scale-110"
+            title="停止朗读"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MusicPlayer() {
+  const {
+    tracks,
+    currentTrackIndex,
+    isPlaying,
+    togglePlay,
+    nextTrack,
+    prevTrack,
+    isMusicPlayerVisible,
+    toggleMusicPlayerVisible,
+  } = useMusic();
+
+  if (tracks.length === 0 || !isMusicPlayerVisible) return null;
+
+  return (
+    <div className="border-b theme-border-color px-4 py-3 bg-gradient-to-r from-purple-50 to-pink-50 shadow-sm">
+      <div className="max-w-xl mx-auto flex items-center gap-3">
+        <div className={`w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-400 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md ${isPlaying ? 'animate-pulse' : ''}`}>
+          <span className="text-lg">🎶</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-semibold text-purple-900 truncate">
+            {tracks[currentTrackIndex]?.name}
+          </div>
+          <div className="text-xs text-purple-600 mt-0.5">
+            {currentTrackIndex + 1} / {tracks.length}
+          </div>
+        </div>
+        <button
+          onClick={prevTrack}
+          disabled={tracks.length <= 1}
+          className="p-2 text-purple-700 hover:bg-purple-100 rounded-full disabled:opacity-30 transition-all hover:scale-110"
+        >
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+          </svg>
+        </button>
+        <button
+          onClick={togglePlay}
+          className="p-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full hover:from-purple-600 hover:to-pink-600 shadow-lg transition-all hover:scale-105 active:scale-95"
+        >
+          {isPlaying ? (
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M6 4h4v16H6zM14 4h4v16h-4z" />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          )}
+        </button>
+        <button
+          onClick={nextTrack}
+          disabled={tracks.length <= 1}
+          className="p-2 text-purple-700 hover:bg-purple-100 rounded-full disabled:opacity-30 transition-all hover:scale-110"
+        >
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+          </svg>
+        </button>
+        <button
+          onClick={toggleMusicPlayerVisible}
+          className="p-2 text-red-600 hover:bg-red-100 rounded-full transition-all hover:scale-110"
+          title="隐藏音乐播放器"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AppContentWithMusicAndSpeech() {
+  const navigate = useNavigate();
   const { 
     isDarkMode, 
     toggleDarkMode, 
@@ -41,14 +209,6 @@ function AppContentWithMusic() {
     brightness,
     setBrightness,
   } = useTheme();
-  const {
-    tracks,
-    currentTrackIndex,
-    isPlaying,
-    togglePlay,
-    nextTrack,
-    prevTrack,
-  } = useMusic();
   const [showThemeSettings, setShowThemeSettings] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -56,29 +216,38 @@ function AppContentWithMusic() {
     <ThemeWrapper>
       <div className="min-h-screen">
         <header className="fixed top-0 left-0 right-0 z-30 backdrop-blur-md bg-opacity-80" style={{ backgroundColor: isDarkMode ? '#111827cc' : colors.bgLight + 'cc' }}>
-          <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-            <h1 className="text-xl font-bold" style={{ color: colors.primary }}>金线</h1>
-            <div className="flex items-center gap-2">
+          <div className="max-w-4xl mx-auto px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between">
+            <h1 className="text-lg sm:text-xl font-bold" style={{ color: colors.primary }}>金线</h1>
+            <div className="flex items-center gap-1 sm:gap-2">
+              <button
+                onClick={() => navigate('/sync')}
+                className="p-2 sm:p-2 rounded-xl transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
+                title="数据同步"
+              >
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
               <button
                 onClick={() => setShowThemeSettings(!showThemeSettings)}
-                className="p-2 rounded-xl transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
+                className="p-2 sm:p-2 rounded-xl transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
                 title="主题设置"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
                 </svg>
               </button>
               <button
                 onClick={toggleDarkMode}
-                className="p-2 rounded-xl transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
+                className="p-2 sm:p-2 rounded-xl transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
                 title={isDarkMode ? '切换到浅色模式' : '切换到深色模式'}
               >
                 {isDarkMode ? (
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                   </svg>
                 ) : (
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                   </svg>
                 )}
@@ -182,54 +351,9 @@ function AppContentWithMusic() {
         </header>
 
         <nav className="fixed bottom-0 left-0 right-0 z-40 theme-card-bg border-t theme-border-color">
-          {tracks.length > 0 && (
-            <div className="border-b theme-border-color px-4 py-2 bg-gradient-to-r from-purple-50 to-pink-50">
-              <div className="max-w-xl mx-auto flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-400 rounded-md flex items-center justify-center flex-shrink-0">
-                  <span className="text-sm">🎶</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-medium text-purple-900 truncate">
-                    {tracks[currentTrackIndex]?.name}
-                  </div>
-                </div>
-                <button
-                  onClick={prevTrack}
-                  disabled={tracks.length <= 1}
-                  className="p-1 text-purple-700 hover:bg-purple-100 rounded-md disabled:opacity-30"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                  </svg>
-                </button>
-                <button
-                  onClick={togglePlay}
-                  className="p-1.5 bg-purple-500 text-white rounded-full hover:bg-purple-600"
-                >
-                  {isPlaying ? (
-                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-                      <rect x="6" y="4" width="4" height="16" rx="1" />
-                      <rect x="14" y="4" width="4" height="16" rx="1" />
-                    </svg>
-                  ) : (
-                    <svg className="w-3.5 h-3.5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                  )}
-                </button>
-                <button
-                  onClick={nextTrack}
-                  disabled={tracks.length <= 1}
-                  className="p-1 text-purple-700 hover:bg-purple-100 rounded-md disabled:opacity-30"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          )}
-          <div className="px-4 py-2">
+          <MusicPlayer />
+          <SpeechPlayer />
+          <div className="px-2 sm:px-4 py-1 sm:py-2">
             <div className="max-w-xl mx-auto">
               <div className="flex justify-around items-center">
                 <NavItem to="/action" icon="🚀" label="智库" />
@@ -242,7 +366,7 @@ function AppContentWithMusic() {
           </div>
         </nav>
 
-        <main className="pt-20 pb-32">
+        <main className="pt-16 sm:pt-20 pb-24 sm:pb-32">
           <Routes>
             <Route path="/" element={<TodayView />} />
             <Route path="/action" element={<ActionProtocolView />} />
@@ -250,6 +374,7 @@ function AppContentWithMusic() {
             <Route path="/protocols" element={<ProtocolsListView />} />
             <Route path="/books" element={<BookView />} />
             <Route path="/ai" element={<AIAssistantView />} />
+            <Route path="/sync" element={<SyncManagerView />} />
           </Routes>
         </main>
       </div>
@@ -264,7 +389,7 @@ function NavItem({ to, icon, label }: { to: string; icon: string; label: string 
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `flex flex-col items-center gap-1 py-2 px-4 rounded-xl transition-colors ${
+        `flex flex-col items-center gap-0.5 sm:gap-1 py-1.5 sm:py-2 px-2 sm:px-4 rounded-xl transition-colors ${
           isActive ? 'theme-primary theme-primary-bg' : 'text-gray-500'
         }`
       }
@@ -273,8 +398,8 @@ function NavItem({ to, icon, label }: { to: string; icon: string; label: string 
         backgroundColor: isActive ? colors.primary : undefined,
       })}
     >
-      <span className="text-2xl">{icon}</span>
-      <span className="text-xs font-medium">{label}</span>
+      <span className="text-xl sm:text-2xl">{icon}</span>
+      <span className="text-[10px] sm:text-xs font-medium">{label}</span>
     </NavLink>
   );
 }
@@ -282,7 +407,9 @@ function NavItem({ to, icon, label }: { to: string; icon: string; label: string 
 function AppContent() {
   return (
     <MusicProvider>
-      <AppContentWithMusic />
+      <SpeechProvider>
+        <AppContentWithMusicAndSpeech />
+      </SpeechProvider>
     </MusicProvider>
   );
 }

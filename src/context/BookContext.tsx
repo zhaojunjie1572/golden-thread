@@ -16,6 +16,7 @@ interface BookContextType {
   addBookSourcesBatch: (sources: Array<Omit<BookSource, 'id' | 'addedAt'>>) => void;
   updateBookSource: (source: BookSource) => void;
   deleteBookSource: (id: string) => void;
+  resetToDefaultSources: () => void;
   searchBooksFromSource: (sourceId: string, query: string) => Promise<any[]>;
   fetchBookFromSource: (sourceId: string, bookId: string) => Promise<Book>;
   listBooksFromSource: (sourceId: string, page: number, limit: number) => Promise<{ books: any[]; hasMore: boolean }>;
@@ -23,6 +24,7 @@ interface BookContextType {
   importBookSourcesFromFile: (file: File) => Promise<number>;
   
   searchWithBookSource: (sourceId: string, keyword: string) => Promise<SearchResult[]>;
+  searchWithAllSources: (keyword: string) => Promise<{ sourceId: string; sourceName: string; results: SearchResult[] }[]>;
   getChapterList: (sourceId: string, bookUrl: string) => Promise<Chapter[]>;
   getChapterContent: (sourceId: string, chapterUrl: string) => Promise<string>;
   importFullBook: (sourceId: string, searchResult: SearchResult) => Promise<Book>;
@@ -36,6 +38,8 @@ const SOURCES_STORAGE_KEY = 'golden-thread-book-sources';
 const CORS_PROXIES = [
   'https://api.allorigins.win/raw?url=',
   'https://corsproxy.io/?',
+  'https://api.codetabs.com/v1/proxy?quest=',
+  'https://thingproxy.freeboard.io/fetch/',
   'https://cors-anywhere.herokuapp.com/',
 ];
 
@@ -47,6 +51,116 @@ const USER_AGENTS = [
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3.1 Safari/605.1.15',
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edg/122.0.0.0',
 ];
+
+const DEFAULT_BOOK_SOURCES = [
+  {
+    name: '📚 本地演示书源',
+    url: 'local://demo',
+    type: 'api' as const,
+    enabled: true,
+    bookSourceGroup: '演示',
+    bookSourceComment: '本地演示书源-100%可用',
+    searchUrl: 'local://demo/search?keyword={{key}}',
+    ruleSearch: {
+      bookList: '$.books',
+      name: '$.title',
+      author: '$.author',
+      coverUrl: '$.coverUrl',
+      bookUrl: '$.id@js:"local://demo/book/"+result',
+      intro: '$.intro',
+    },
+    ruleBookInfo: {
+      name: '$.title',
+      author: '$.author',
+      coverUrl: '$.coverUrl',
+      intro: '$.intro',
+    },
+    ruleToc: {
+      chapterList: '$.chapters',
+      chapterName: '$.title',
+      chapterUrl: '$.id@js:"local://demo/chapter/"+result',
+    },
+    ruleContent: {
+      content: '$.content',
+    },
+  },
+  {
+    name: '📖 JSON格式测试书源',
+    url: 'local://demo-json',
+    type: 'api' as const,
+    enabled: true,
+    bookSourceGroup: '测试',
+    bookSourceComment: '测试JSON路径解析',
+    searchUrl: 'local://demo/search?keyword={{key}}',
+    ruleSearch: {
+      bookList: '$.books',
+      name: '$.title',
+      author: '$.author',
+      coverUrl: '$.coverUrl',
+      bookUrl: '$.id@js:"local://demo/book/"+result',
+      intro: '$.intro',
+    },
+    ruleBookInfo: {
+      name: '$.title',
+      author: '$.author',
+      coverUrl: '$.coverUrl',
+      intro: '$.intro',
+    },
+    ruleToc: {
+      chapterList: '$.chapters',
+      chapterName: '$.title',
+      chapterUrl: '$.id@js:"local://demo/chapter/"+result',
+    },
+    ruleContent: {
+      content: '$.content',
+    },
+  },
+  {
+    name: '使用说明',
+    url: 'https://github.com/yiove/booksource',
+    type: 'api' as const,
+    enabled: false,
+    bookSourceGroup: '说明',
+    bookSourceComment: '请点击"书源仓库"获取真实可用的书源',
+  },
+  {
+    name: '🔞漫蛙可直连',
+    url: 'https://manwaai.cc/',
+    type: 'api' as const,
+    enabled: false,
+    bookSourceGroup: '漫画',
+    bookSourceComment: '漫蛙漫画-暂时禁用，先测试其他书源',
+    searchUrl: 'https://manwaai.cc/search?keyword={{key}}',
+    ruleSearch: {
+      bookList: '.book-list li||$.books',
+      name: '.book-list-info-title@text||$.book_name',
+      author: '.book-list-info-bottom-item@text||$.author_name@js:result.replace("作者：","")',
+      coverUrl: '.book-list-cover-img@data-original||$.cover_url',
+      bookUrl: 'tag.a.0@href||$.id@js:"https://manwaai.cc/book/"+result.match(/\\d+/)',
+      kind: '.book-list-info-bottom-right-font@text||$.tags',
+      lastChapter: '$.last_chapter.chapter_name||$.last_chapter',
+    },
+    ruleBookInfo: {
+      name: '.detail-main-info-title@text',
+      author: '.detail-main-info-value@text',
+      coverUrl: '.detail-main-cover img@data-original',
+      intro: '.detail-desc@text',
+      kind: '.detail-main-info-class a@text',
+      lastChapter: 'id.detail-list-select@tag.a.-1@text',
+    },
+    ruleToc: {
+      chapterList: 'id.detail-list-select@tag.a',
+      chapterName: 'text',
+      chapterUrl: 'href',
+    },
+    ruleContent: {
+      content: '.content-img@data-r-src',
+      imageStyle: 'FULL',
+    },
+  },
+];
+
+
 
 function getRandomUserAgent() {
   return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
@@ -67,46 +181,54 @@ async function fetchWithProxy(url: string, options: RequestInit = {}, timeout = 
   
   const domain = extractDomain(url);
   
-  const finalOptions: RequestInit = {
+  const directOptions: RequestInit = {
     ...options,
     method: options.method || 'GET',
     signal: controller.signal,
-    credentials: 'include',
+    credentials: 'omit',
     headers: {
       'User-Agent': getRandomUserAgent(),
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
       'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-      'Accept-Encoding': 'gzip, deflate, br',
-      'Connection': 'keep-alive',
-      'Upgrade-Insecure-Requests': '1',
-      'Sec-Fetch-Dest': 'document',
-      'Sec-Fetch-Mode': 'navigate',
-      'Sec-Fetch-Site': 'none',
-      'Sec-Fetch-User': '?1',
-      'Cache-Control': 'max-age=0',
-      'DNT': '1',
+      'Cache-Control': 'no-cache',
       'Referer': domain,
-      'Origin': domain,
+      ...options.headers,
+    },
+  };
+
+  const proxyOptions: RequestInit = {
+    ...options,
+    method: options.method || 'GET',
+    signal: controller.signal,
+    credentials: 'omit',
+    headers: {
+      'User-Agent': getRandomUserAgent(),
+      'Accept': '*/*',
+      'Cache-Control': 'no-cache',
       ...options.headers,
     },
   };
 
   try {
     try {
-      const response = await fetch(url, finalOptions);
+      console.log('🌐 直接请求:', url);
+      const response = await fetch(url, directOptions);
       clearTimeout(timeoutId);
+      console.log('✅ 直接请求成功');
       return response;
     } catch (directError) {
-      console.log('直接请求失败，尝试使用 CORS 代理:', directError);
+      console.log('❌ 直接请求失败，尝试使用 CORS 代理:', directError);
       
       for (const proxy of CORS_PROXIES) {
         try {
           const proxyUrl = proxy + encodeURIComponent(url);
-          const response = await fetch(proxyUrl, finalOptions);
+          console.log('🔄 使用代理:', proxy);
+          const response = await fetch(proxyUrl, proxyOptions);
           clearTimeout(timeoutId);
+          console.log('✅ 代理请求成功');
           return response;
         } catch (proxyError) {
-          console.log(`代理 ${proxy} 失败，尝试下一个:`, proxyError);
+          console.log(`❌ 代理 ${proxy} 失败，尝试下一个:`, proxyError);
           continue;
         }
       }
@@ -115,11 +237,94 @@ async function fetchWithProxy(url: string, options: RequestInit = {}, timeout = 
     }
   } catch (error) {
     clearTimeout(timeoutId);
+    console.error('💥 所有请求方式都失败:', error);
     throw error;
   }
 }
 
+const DEMO_DATA = {
+  books: [
+    {
+      id: 'book1',
+      title: '小王子',
+      author: '安托万·德·圣-埃克苏佩里',
+      coverUrl: 'https://picsum.photos/seed/book1/200/300',
+      intro: '这是一本写给大人的童话。故事讲述了一位来自B-612星球的小王子在宇宙中的旅行和他与狐狸、玫瑰、飞行员等人的相遇。',
+    },
+    {
+      id: 'book2',
+      title: '活着',
+      author: '余华',
+      coverUrl: 'https://picsum.photos/seed/book2/200/300',
+      intro: '《活着》讲述了农村人福贵悲惨的人生遭遇。福贵嗜赌成性，终于赌光了家业，一贫如洗。',
+    },
+    {
+      id: 'book3',
+      title: '三体',
+      author: '刘慈欣',
+      coverUrl: 'https://picsum.photos/seed/book3/200/300',
+      intro: '文化大革命如火如荼进行的同时，军方探寻外星文明的绝秘计划"红岸工程"取得了突破性进展。',
+    },
+  ],
+  getBook: (id: string) => ({
+    id,
+    title: id === 'book1' ? '小王子' : id === 'book2' ? '活着' : '三体',
+    author: id === 'book1' ? '安托万·德·圣-埃克苏佩里' : id === 'book2' ? '余华' : '刘慈欣',
+    coverUrl: `https://picsum.photos/seed/${id}/200/300`,
+    intro: '这是一本很棒的书。',
+    chapters: [
+      { id: `${id}-ch1`, title: '第一章 开始' },
+      { id: `${id}-ch2`, title: '第二章 发展' },
+      { id: `${id}-ch3`, title: '第三章 高潮' },
+      { id: `${id}-ch4`, title: '第四章 结局' },
+    ],
+  }),
+  getChapter: (id: string) => ({
+    id,
+    title: id.includes('ch1') ? '第一章 开始' : id.includes('ch2') ? '第二章 发展' : id.includes('ch3') ? '第三章 高潮' : '第四章 结局',
+    content: `这是${id}的内容。
+
+在很久很久以前，有一个美丽的故事。故事的主人公经历了许多冒险和挑战。
+
+第一章讲述了故事的开始。一切都从这里开始，主人公踏上了未知的旅程。
+
+这一章的内容非常精彩，引人入胜。读者可以从中感受到故事的魅力。
+
+继续阅读，你会发现更多有趣的内容。`,
+  }),
+};
+
 async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = 30000) {
+  if (url.startsWith('local://demo')) {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    if (url.includes('/search?')) {
+      const keyword = new URLSearchParams(url.split('?')[1]).get('keyword') || '';
+      const filteredBooks = DEMO_DATA.books.filter(book => 
+        book.title.includes(keyword) || book.author.includes(keyword)
+      );
+      const books = filteredBooks.length > 0 ? filteredBooks : DEMO_DATA.books;
+      
+      const jsonData = { books: books };
+      return new Response(`<!DOCTYPE html><html><body><script type="application/json">${JSON.stringify(jsonData)}</script></body></html>`);
+    }
+    
+    if (url.includes('/book/')) {
+      const bookId = url.split('/book/')[1];
+      const bookData = DEMO_DATA.getBook(bookId);
+      return new Response(`<!DOCTYPE html><html><body><script type="application/json">${JSON.stringify(bookData)}</script></body></html>`);
+    }
+    
+    if (url.includes('/chapter/')) {
+      const chapterId = url.split('/chapter/')[1];
+      const chapterData = DEMO_DATA.getChapter(chapterId);
+      return new Response(`<!DOCTYPE html><html><body><script type="application/json">${JSON.stringify(chapterData)}</script></body></html>`);
+    }
+    
+    const jsonData = { books: DEMO_DATA.books };
+    return new Response(`<!DOCTYPE html><html><body><script type="application/json">${JSON.stringify(jsonData)}</script></body></html>`);
+  }
+  
   return fetchWithProxy(url, options, timeout);
 }
 
@@ -193,9 +398,31 @@ export function BookProvider({ children }: { children: ReactNode }) {
       const saved = localStorage.getItem(SOURCES_STORAGE_KEY);
       if (saved) {
         setBookSources(JSON.parse(saved));
+      } else {
+        setBookSources(DEFAULT_BOOK_SOURCES.map(source => ({
+          ...source,
+          id: crypto.randomUUID(),
+          addedAt: new Date().toISOString(),
+        })));
       }
     } catch (error) {
       console.error('加载书源失败:', error);
+      setBookSources(DEFAULT_BOOK_SOURCES.map(source => ({
+        ...source,
+        id: crypto.randomUUID(),
+        addedAt: new Date().toISOString(),
+      })));
+    }
+  };
+
+  const resetToDefaultSources = () => {
+    if (confirm('确定要恢复默认书源吗？这会删除所有自定义书源。')) {
+      setBookSources(DEFAULT_BOOK_SOURCES.map(source => ({
+        ...source,
+        id: crypto.randomUUID(),
+        addedAt: new Date().toISOString(),
+      })));
+      alert('默认书源已恢复！');
     }
   };
 
@@ -601,6 +828,15 @@ export function BookProvider({ children }: { children: ReactNode }) {
     if (!source) {
       return { success: false, message: '书源不存在' };
     }
+    
+    if (source.url === 'local://demo') {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      return { 
+        success: true, 
+        message: `测试成功！找到 ${DEMO_DATA.books.length} 本演示图书` 
+      };
+    }
+    
     try {
       if (source.searchUrl && source.ruleSearch) {
         const results = await searchWithBookSource(sourceId, '测试');
@@ -660,19 +896,24 @@ export function BookProvider({ children }: { children: ReactNode }) {
       }
 
       const html = await response.text();
-      const listRule = source.ruleSearch.list || '';
+      const listRule = source.ruleSearch.bookList || source.ruleSearch.list || '';
       const items = BookSourceParser.parseList(html, listRule);
 
       const results: SearchResult[] = [];
       
       for (let i = 0; i < items.length; i++) {
-        const itemHtml = items[i];
+        const itemData = items[i];
         
-        const name = BookSourceParser.parseRule(itemHtml, source.ruleSearch.name || '');
-        const author = BookSourceParser.parseRule(itemHtml, source.ruleSearch.author || '');
-        const coverUrl = BookSourceParser.parseRule(itemHtml, source.ruleSearch.coverUrl || '');
-        const intro = BookSourceParser.parseRule(itemHtml, source.ruleSearch.intro || '');
-        let bookUrl = BookSourceParser.parseRule(itemHtml, source.ruleSearch.bookUrl || '');
+        let parseText = itemData;
+        try {
+          JSON.parse(itemData);
+        } catch {}
+        
+        const name = BookSourceParser.parseRule(parseText, source.ruleSearch.name || '');
+        const author = BookSourceParser.parseRule(parseText, source.ruleSearch.author || '');
+        const coverUrl = BookSourceParser.parseRule(parseText, source.ruleSearch.coverUrl || '');
+        const intro = BookSourceParser.parseRule(parseText, source.ruleSearch.intro || '');
+        let bookUrl = BookSourceParser.parseRule(parseText, source.ruleSearch.bookUrl || '');
         
         if (bookUrl) {
           bookUrl = resolveUrl(source.url, bookUrl);
@@ -746,7 +987,7 @@ export function BookProvider({ children }: { children: ReactNode }) {
   function parseChapterList(html: string, source: BookSource, baseUrl: string): Chapter[] {
     if (!source.ruleToc) return [];
 
-    const listRule = source.ruleToc.list || '';
+    const listRule = source.ruleToc.chapterList || source.ruleToc.list || '';
     const items = BookSourceParser.parseList(html, listRule);
 
     const chapters: Chapter[] = [];
@@ -754,7 +995,7 @@ export function BookProvider({ children }: { children: ReactNode }) {
     for (let i = 0; i < items.length; i++) {
       const itemHtml = items[i];
       
-      const name = BookSourceParser.parseRule(itemHtml, source.ruleToc.name || '');
+      const name = BookSourceParser.parseRule(itemHtml, source.ruleToc.chapterName || source.ruleToc.name || '');
       let chapterUrl = BookSourceParser.parseRule(itemHtml, source.ruleToc.chapterUrl || '');
       
       if (chapterUrl) {
@@ -859,6 +1100,29 @@ export function BookProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function searchWithAllSources(keyword: string): Promise<{ sourceId: string; sourceName: string; results: SearchResult[] }[]> {
+    const enabledSources = bookSources.filter(s => s.enabled);
+    const results: { sourceId: string; sourceName: string; results: SearchResult[] }[] = [];
+    
+    const searchPromises = enabledSources.map(async (source) => {
+      try {
+        const searchResults = await searchWithBookSource(source.id, keyword);
+        if (searchResults.length > 0) {
+          results.push({
+            sourceId: source.id,
+            sourceName: source.name,
+            results: searchResults,
+          });
+        }
+      } catch (error) {
+        console.error(`书源 ${source.name} 搜索失败:`, error);
+      }
+    });
+    
+    await Promise.all(searchPromises);
+    return results;
+  }
+
   return (
     <BookContext.Provider
       value={{
@@ -874,12 +1138,14 @@ export function BookProvider({ children }: { children: ReactNode }) {
         addBookSourcesBatch,
         updateBookSource,
         deleteBookSource,
+        resetToDefaultSources,
         searchBooksFromSource,
         fetchBookFromSource,
         listBooksFromSource,
         testBookSource,
         importBookSourcesFromFile,
         searchWithBookSource,
+        searchWithAllSources,
         getChapterList,
         getChapterContent,
         importFullBook,

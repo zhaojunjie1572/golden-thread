@@ -44,11 +44,14 @@ export interface BookSource {
   searchUrl?: string;
   ruleSearch?: {
     list?: string;
+    bookList?: string;
     name?: string;
     author?: string;
     coverUrl?: string;
     intro?: string;
     bookUrl?: string;
+    kind?: string;
+    lastChapter?: string;
   };
   
   ruleBookInfo?: {
@@ -57,11 +60,15 @@ export interface BookSource {
     coverUrl?: string;
     intro?: string;
     tocUrl?: string;
+    kind?: string;
+    lastChapter?: string;
   };
   
   ruleToc?: {
     list?: string;
+    chapterList?: string;
     name?: string;
+    chapterName?: string;
     chapterUrl?: string;
   };
   

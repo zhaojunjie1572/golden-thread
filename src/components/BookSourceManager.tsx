@@ -19,7 +19,8 @@ export default function BookSourceManager({ onClose, onSelectSource }: BookSourc
     deleteBookSource, 
     testBookSource, 
     importBookSourcesFromFile, 
-    testUrl 
+    testUrl,
+    resetToDefaultSources,
   } = useBooks();
   const { colors } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -227,6 +228,24 @@ export default function BookSourceManager({ onClose, onSelectSource }: BookSourc
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
+          <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-200 dark:border-blue-700">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">📚</span>
+              <div className="flex-1">
+                <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-1">实现读书自由</h4>
+                <p className="text-sm text-blue-700 dark:text-blue-300 mb-2">
+                  1. 点击"书源仓库"获取可用的书源
+                </p>
+                <p className="text-sm text-blue-700 dark:text-blue-300 mb-2">
+                  2. 下载书源 JSON 文件或复制内容
+                </p>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  3. 使用"导入文件"或"粘贴 JSON"导入
+                </p>
+              </div>
+            </div>
+          </div>
+          
           <div className="flex justify-end mb-4 gap-2 flex-wrap">
             <input
               ref={fileInputRef}
@@ -235,6 +254,28 @@ export default function BookSourceManager({ onClose, onSelectSource }: BookSourc
               className="hidden"
               onChange={handleImportSources}
             />
+            <button
+              onClick={() => {
+                window.open('https://github.com/yiove/booksource', '_blank');
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30"
+              title="打开书源仓库"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              书源仓库
+            </button>
+            <button
+              onClick={resetToDefaultSources}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-amber-300 dark:border-amber-600 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/30"
+              title="恢复默认书源"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              恢复默认
+            </button>
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isImporting}
@@ -422,7 +463,7 @@ export default function BookSourceManager({ onClose, onSelectSource }: BookSourc
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                         </svg>
                       </button>
-                      {source.enabled && (
+                      {source.enabled && !source.searchUrl && (
                         <button
                           onClick={() => setBrowsingSource(source)}
                           className="p-2 rounded-lg text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"

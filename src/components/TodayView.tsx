@@ -309,6 +309,15 @@ const QuoteEditModal = ({
   );
 };
 
+const defaultMusicWebsites = [
+  { name: '网易云音乐', url: 'https://music.163.com' },
+  { name: 'QQ音乐', url: 'https://y.qq.com' },
+  { name: '酷狗音乐', url: 'https://www.kugou.com' },
+  { name: '酷我音乐', url: 'https://www.kuwo.cn' },
+  { name: 'Spotify', url: 'https://www.spotify.com' },
+  { name: 'Apple Music', url: 'https://music.apple.com' },
+];
+
 const MusicPlayer = () => {
   const {
     tracks,
@@ -325,8 +334,49 @@ const MusicPlayer = () => {
     setVolume,
     setCurrentTrackIndex,
     seek,
+    isMusicPlayerVisible,
+    toggleMusicPlayerVisible,
   } = useMusic();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showWebsites, setShowWebsites] = useState(false);
+  const [showWebsiteEditor, setShowWebsiteEditor] = useState(false);
+  const [editingWebsiteIndex, setEditingWebsiteIndex] = useState<number | null>(null);
+  const [newWebsiteName, setNewWebsiteName] = useState('');
+  const [newWebsiteUrl, setNewWebsiteUrl] = useState('');
+  const [showReloadInfo, setShowReloadInfo] = useState(false);
+  
+  const [savedMusicInfo, setSavedMusicInfo] = useState(() => {
+    try {
+      const saved = localStorage.getItem('music-saved-info');
+      return saved ? JSON.parse(saved) : { trackNames: [], lastReload: null };
+    } catch {
+      return { trackNames: [], lastReload: null };
+    }
+  });
+  
+  const [musicWebsites, setMusicWebsites] = useState(() => {
+    try {
+      const saved = localStorage.getItem('music-websites');
+      return saved ? JSON.parse(saved) : defaultMusicWebsites;
+    } catch {
+      return defaultMusicWebsites;
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('music-websites', JSON.stringify(musicWebsites));
+  }, [musicWebsites]);
+
+  useEffect(() => {
+    if (tracks.length > 0) {
+      const trackNames = tracks.map(t => ({ name: t.name, fileName: t.fileName }));
+      setSavedMusicInfo({ trackNames, lastReload: Date.now() });
+    }
+  }, [tracks]);
+
+  useEffect(() => {
+    localStorage.setItem('music-saved-info', JSON.stringify(savedMusicInfo));
+  }, [savedMusicInfo]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -338,7 +388,7 @@ const MusicPlayer = () => {
         newTracks.push({
           id: crypto.randomUUID(),
           name: file.name.replace(/\.[^/.]+$/, ''),
-          file,
+          fileName: file.name,
           url,
         });
       }
@@ -347,6 +397,51 @@ const MusicPlayer = () => {
     if (newTracks.length > 0) {
       addTracks(newTracks);
     }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const openMusicWebsite = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+    setShowWebsites(false);
+  };
+
+  const openAddWebsiteModal = () => {
+    setEditingWebsiteIndex(null);
+    setNewWebsiteName('');
+    setNewWebsiteUrl('');
+    setShowWebsiteEditor(true);
+  };
+
+  const openEditWebsiteModal = (index: number) => {
+    setEditingWebsiteIndex(index);
+    setNewWebsiteName(musicWebsites[index].name);
+    setNewWebsiteUrl(musicWebsites[index].url);
+    setShowWebsiteEditor(true);
+  };
+
+  const saveWebsite = () => {
+    if (!newWebsiteName.trim() || !newWebsiteUrl.trim()) return;
+    
+    let url = newWebsiteUrl.trim();
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url;
+    }
+
+    const updatedWebsites = [...musicWebsites];
+    if (editingWebsiteIndex !== null) {
+      updatedWebsites[editingWebsiteIndex] = { name: newWebsiteName.trim(), url };
+    } else {
+      updatedWebsites.push({ name: newWebsiteName.trim(), url });
+    }
+    setMusicWebsites(updatedWebsites);
+    setShowWebsiteEditor(false);
+  };
+
+  const deleteWebsite = (index: number) => {
+    const updatedWebsites = musicWebsites.filter((_: any, i: number) => i !== index);
+    setMusicWebsites(updatedWebsites);
   };
 
   const formatTime = (seconds: number) => {
@@ -364,24 +459,188 @@ const MusicPlayer = () => {
       <div className="flex items-center gap-2 mb-3">
         <span className="text-2xl">🎵</span>
         <h2 className="text-lg font-bold text-purple-800">音乐播放器</h2>
-        <div className="ml-auto">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="audio/*"
-            multiple
-            className="hidden"
-            onChange={handleFileUpload}
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="text-xs bg-purple-500 text-white px-2 py-1 rounded-lg hover:bg-purple-600 transition-colors"
-            title={tracks.length >= 9 ? "添加后将替换最后一首" : "添加音乐"}
-          >
-            + 添加
-          </button>
+        <div className="ml-auto flex gap-2">
+          {savedMusicInfo.trackNames.length > 0 && tracks.length === 0 ? (
+            <button
+              onClick={() => setShowReloadInfo(!showReloadInfo)}
+              className="text-xs bg-amber-500 text-white px-2 py-1 rounded-lg hover:bg-amber-600 transition-colors animate-pulse"
+            >
+              ⚠️ 重新加载
+            </button>
+          ) : null}
+          {!isMusicPlayerVisible ? (
+            <button
+              onClick={toggleMusicPlayerVisible}
+              className="text-xs bg-amber-500 text-white px-2 py-1 rounded-lg hover:bg-amber-600 transition-colors"
+            >
+              🎵 显示
+            </button>
+          ) : null}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="audio/*"
+              multiple
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+            <button
+              onClick={() => setShowWebsites(!showWebsites)}
+              className="text-xs bg-green-500 text-white px-2 py-1 rounded-lg hover:bg-green-600 transition-colors"
+            >
+              🌐 网络
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="text-xs bg-purple-500 text-white px-2 py-1 rounded-lg hover:bg-purple-600 transition-colors"
+              title={tracks.length >= 9 ? "最多9首音乐" : "添加本地音乐"}
+            >
+              + 本地
+            </button>
+          </div>
         </div>
-      </div>
+
+        {showReloadInfo && savedMusicInfo.trackNames.length > 0 && tracks.length === 0 && (
+          <div className="mb-3 bg-amber-50 rounded-xl p-3 border border-amber-200">
+            <div className="flex items-start gap-2">
+              <span className="text-xl">⚠️</span>
+              <div className="flex-1">
+                <p className="text-sm text-amber-800 font-medium mb-1">浏览器安全提醒</p>
+                <p className="text-xs text-amber-700 mb-2">
+                  由于浏览器的安全限制，本地文件路径无法在页面刷新后直接恢复。需要重新选择文件。
+                </p>
+                <p className="text-xs text-amber-700 mb-2">
+                  你之前有 <span className="font-bold">{savedMusicInfo.trackNames.length}</span> 首歌：
+                </p>
+                <div className="mb-2 max-h-24 overflow-y-auto bg-white/50 rounded-lg p-2">
+                  {savedMusicInfo.trackNames.map((t: any, i: number) => (
+                    <div key={i} className="text-xs text-amber-600 truncate">
+                      {i + 1}. {t.name}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-xs bg-amber-500 text-white px-3 py-1.5 rounded-lg hover:bg-amber-600 transition-colors"
+                  >
+                    🎵 重新选择文件
+                  </button>
+                  <button
+                    onClick={() => setShowReloadInfo(false)}
+                    className="text-xs bg-gray-300 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-400 transition-colors"
+                  >
+                    稍后再说
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showWebsites && (
+          <div className="mb-3 bg-white/80 rounded-xl p-3 border border-purple-100">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-purple-700">选择音乐网站：</p>
+              <button
+                onClick={openAddWebsiteModal}
+                className="text-xs bg-purple-500 text-white px-2 py-1 rounded-lg hover:bg-purple-600 transition-colors"
+              >
+                + 添加
+              </button>
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              {musicWebsites.map((site: any, index: number) => (
+                <div key={index} className="flex items-center gap-2">
+                  <button
+                    onClick={() => openMusicWebsite(site.url)}
+                    className="flex-1 text-xs bg-purple-100 text-purple-700 px-3 py-2 rounded-lg hover:bg-purple-200 transition-colors text-left truncate"
+                  >
+                    {site.name}
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openEditWebsiteModal(index);
+                    }}
+                    className="p-1.5 text-purple-500 hover:bg-purple-100 rounded-lg"
+                    title="编辑"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteWebsite(index);
+                    }}
+                    className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg"
+                    title="删除"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {showWebsiteEditor && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+              <h3 className="text-xl font-bold text-gray-800 mb-4">
+                {editingWebsiteIndex !== null ? '编辑网站' : '添加网站'}
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">网站名称</label>
+                  <input
+                    type="text"
+                    value={newWebsiteName}
+                    onChange={(e) => setNewWebsiteName(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="例如：网易云音乐"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">网站地址</label>
+                  <input
+                    type="text"
+                    value={newWebsiteUrl}
+                    onChange={(e) => setNewWebsiteUrl(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="例如：https://music.163.com"
+                  />
+                </div>
+                {editingWebsiteIndex !== null && (
+                  <button
+                    onClick={() => deleteWebsite(editingWebsiteIndex!)}
+                    className="w-full bg-red-500 text-white py-2 rounded-lg font-medium hover:bg-red-600 transition-colors"
+                  >
+                    删除这个网站
+                  </button>
+                )}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowWebsiteEditor(false)}
+                    className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-400 transition-colors"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={saveWebsite}
+                    className="flex-1 bg-purple-500 text-white py-2 rounded-lg font-medium hover:bg-purple-600 transition-colors"
+                  >
+                    保存
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
       {tracks.length > 0 && (
         <>

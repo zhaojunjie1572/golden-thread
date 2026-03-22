@@ -12,22 +12,41 @@ export default function BookView() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
   const [showSourceManager, setShowSourceManager] = useState(false);
   const [showOnlineSearch, setShowOnlineSearch] = useState(false);
 
   const handleImportBook = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
 
     setIsImporting(true);
+    setImportProgress(0);
+    let successCount = 0;
+    let failCount = 0;
+
     try {
-      const book = await importBookFromFile(file);
-      addBook(book);
+      for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+        try {
+          const book = await importBookFromFile(file);
+          addBook(book);
+          successCount++;
+        } catch (error) {
+          console.error(`Failed to import ${file.name}:`, error);
+          failCount++;
+        }
+        setImportProgress(Math.round(((i + 1) / files.length) * 100));
+      }
+
+      const message = `导入完成！成功: ${successCount} 本，失败: ${failCount} 本`;
+      alert(message);
     } catch (error) {
-      console.error('Failed to import book:', error);
-      alert('导入书籍失败，请检查文件格式');
+      console.error('批量导入失败:', error);
+      alert('批量导入过程中发生错误');
     } finally {
       setIsImporting(false);
+      setImportProgress(0);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -89,6 +108,7 @@ export default function BookView() {
                 ref={fileInputRef}
                 type="file"
                 accept=".txt,.md,.epub"
+                multiple
                 className="hidden"
                 onChange={handleImportBook}
               />
@@ -117,13 +137,16 @@ export default function BookView() {
                 style={{ backgroundColor: colors.primary }}
               >
                 {isImporting ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>{importProgress}%</span>
+                  </>
                 ) : (
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
                 )}
-                {isImporting ? '导入中...' : '导入书籍'}
+                {isImporting ? `导入中 (${importProgress}%)` : '导入书籍'}
               </button>
             </div>
           </div>
@@ -149,70 +172,97 @@ export default function BookView() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
             {books.map((book) => {
               const progress = book.totalCharacters > 0 
                 ? (book.currentPosition / book.totalCharacters) * 100 
                 : 0;
               
+              const bookColors = [
+                { spine: '#8B4513', cover: '#CD853F' },
+                { spine: '#4A0080', cover: '#8B5CF6' },
+                { spine: '#006400', cover: '#22C55E' },
+                { spine: '#8B0000', cover: '#EF4444' },
+                { spine: '#1E3A5F', cover: '#3B82F6' },
+                { spine: '#704214', cover: '#D97706' },
+                { spine: '#581845', cover: '#EC4899' },
+              ];
+              const colorIndex = book.id.charCodeAt(0) % bookColors.length;
+              const bookColor = bookColors[colorIndex];
+              
               return (
                 <div
                   key={book.id}
-                  onClick={() => handleReadBook(book)}
-                  className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 cursor-pointer hover:shadow-md transition-all group"
+                  className="group"
                 >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 truncate">
-                        {book.title}
-                      </h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                        {book.author}
-                      </p>
+                  <div
+                    onClick={() => handleReadBook(book)}
+                    className="relative cursor-pointer transition-all duration-300 hover:-translate-y-2"
+                  >
+                    <div className="relative">
+                      <div 
+                        className="absolute left-0 top-0 bottom-0 w-3 rounded-l-lg shadow-inner"
+                        style={{ backgroundColor: bookColor.spine }}
+                      />
+                      
+                      <div 
+                        className="ml-3 rounded-r-lg shadow-lg overflow-hidden transition-transform duration-300 group-hover:shadow-xl"
+                        style={{ backgroundColor: bookColor.cover }}
+                      >
+                        {book.coverImage ? (
+                          <div className="aspect-[2/3] relative">
+                            <img 
+                              src={book.coverImage} 
+                              alt={book.title}
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                          </div>
+                        ) : (
+                          <div className="aspect-[2/3] flex flex-col items-center justify-center p-4">
+                            <div className="text-4xl mb-3">📖</div>
+                            <div className="text-center">
+                              <h3 className="font-bold text-white text-sm leading-tight mb-1 line-clamp-2 drop-shadow-md">
+                                {book.title}
+                              </h3>
+                              <p className="text-white/80 text-xs drop-shadow-md">
+                                {book.author}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div className="absolute bottom-0 left-0 right-0">
+                          <div className="h-1.5 bg-black/30">
+                            <div 
+                              className="h-full bg-white/80 transition-all"
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
+                    
                     <button
                       onClick={(e) => handleDeleteBook(book.id, e)}
-                      className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-400 hover:text-red-500 transition-all"
+                      className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-red-600 hover:scale-110 shadow-lg"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
                   </div>
                   
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-                      <span>阅读进度</span>
-                      <span>{Math.round(progress)}%</span>
-                    </div>
-                    <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full rounded-full transition-all"
-                        style={{ 
-                          width: `${progress}%`,
-                          backgroundColor: colors.primary 
-                        }}
-                      />
-                    </div>
-                    
-                    {book.lastReadAt && (
-                      <p className="text-xs text-gray-400 dark:text-gray-500">
-                        上次阅读: {new Date(book.lastReadAt).toLocaleDateString('zh-CN')}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleReadBook(book);
-                      }}
-                      className="w-full py-2 rounded-lg text-sm font-medium transition-colors text-white"
-                      style={{ backgroundColor: colors.primary }}
-                    >
-                      {progress > 0 ? '继续阅读' : '开始阅读'}
-                    </button>
+                  <div className="mt-3 text-center">
+                    <h3 className="font-semibold text-gray-800 dark:text-gray-200 text-sm truncate">
+                      {book.title}
+                    </h3>
+                    <p className="text-gray-500 dark:text-gray-400 text-xs truncate">
+                      {book.author}
+                    </p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                      {Math.round(progress)}%
+                    </p>
                   </div>
                 </div>
               );

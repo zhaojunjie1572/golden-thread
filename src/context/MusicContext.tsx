@@ -3,8 +3,8 @@ import { createContext, useContext, useState, useEffect, useRef, ReactNode } fro
 export interface MusicTrack {
   id: string;
   name: string;
-  file: File;
   url: string;
+  fileName: string;
 }
 
 interface MusicContextType {
@@ -14,6 +14,7 @@ interface MusicContextType {
   volume: number;
   currentTime: number;
   duration: number;
+  isMusicPlayerVisible: boolean;
   addTracks: (newTracks: MusicTrack[]) => void;
   removeTrack: (id: string) => void;
   togglePlay: () => void;
@@ -22,6 +23,7 @@ interface MusicContextType {
   setVolume: (volume: number) => void;
   setCurrentTrackIndex: (index: number) => void;
   seek: (time: number) => void;
+  toggleMusicPlayerVisible: () => void;
 }
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
@@ -41,6 +43,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     const saved = localStorage.getItem('music-volume');
     return saved ? parseFloat(saved) : 0.5;
   });
+  const [isMusicPlayerVisible, setIsMusicPlayerVisible] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -59,7 +62,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   }, [currentTrackIndex, tracks, isPlaying]);
 
   useEffect(() => {
-    localStorage.setItem('music-tracks', JSON.stringify(tracks.map(t => ({ id: t.id, name: t.name }))));
+    localStorage.setItem('music-tracks', JSON.stringify(tracks.map(t => ({ id: t.id, name: t.name, fileName: t.fileName }))));
   }, [tracks]);
 
   const addTracks = (newTracks: MusicTrack[]) => {
@@ -76,6 +79,10 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       setCurrentTrackIndex(0);
       setIsPlaying(false);
     }
+  };
+
+  const toggleMusicPlayerVisible = () => {
+    setIsMusicPlayerVisible(!isMusicPlayerVisible);
   };
 
   const togglePlay = () => {
@@ -133,6 +140,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       volume,
       currentTime,
       duration,
+      isMusicPlayerVisible,
       addTracks,
       removeTrack,
       togglePlay,
@@ -141,6 +149,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       setVolume,
       setCurrentTrackIndex,
       seek,
+      toggleMusicPlayerVisible,
     }}>
       {children}
       {tracks.length > 0 && (
