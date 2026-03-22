@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiService, ChatMessage, ApiConfig } from '../services/apiService';
 import { webSearchService } from '../services/webSearchService';
+import { useSpeech } from '../context/SpeechContext';
 
 interface ChatSession {
   id: string;
@@ -18,6 +19,7 @@ interface AttachedFile {
 }
 
 export default function AIAssistantView() {
+  const { speechState, voices, setSpeechRate, setSelectedVoice: setSelectedVoiceInSpeech, testVoice } = useSpeech();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -31,13 +33,6 @@ export default function AIAssistantView() {
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [selectedVoice, setSelectedVoice] = useState<string>(() => {
-    return localStorage.getItem('selected-voice') || '';
-  });
-  const [speechRate, setSpeechRate] = useState<number>(() => {
-    return parseFloat(localStorage.getItem('speech-rate') || '1');
-  });
   const [currentSessionId, setCurrentSessionId] = useState<string>('');
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
@@ -99,39 +94,6 @@ export default function AIAssistantView() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingContent]);
-
-  useEffect(() => {
-    const loadVoices = () => {
-      const availableVoices = window.speechSynthesis.getVoices();
-      console.log('加载声音数量:', availableVoices.length);
-      setVoices(availableVoices);
-    };
-
-    loadVoices();
-    
-    const timer1 = setTimeout(() => {
-      loadVoices();
-    }, 500);
-    
-    const timer2 = setTimeout(() => {
-      loadVoices();
-    }, 2000);
-
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-    
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-    };
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('speech-rate', speechRate.toString());
-  }, [speechRate]);
-
-  useEffect(() => {
-    localStorage.setItem('selected-voice', selectedVoice);
-  }, [selectedVoice]);
 
   useEffect(() => {
     loadChatSessions();
@@ -534,11 +496,11 @@ export default function AIAssistantView() {
     const formattedText = formatTextForSpeech(message.content);
     const utterance = new SpeechSynthesisUtterance(formattedText);
     utterance.lang = 'zh-CN';
-    utterance.rate = speechRate;
+    utterance.rate = speechState.speechRate;
     utterance.pitch = 1;
 
-    if (selectedVoice) {
-      const voice = voices.find(v => v.name === selectedVoice);
+    if (speechState.selectedVoice) {
+      const voice = voices.find(v => v.name === speechState.selectedVoice);
       if (voice) {
         utterance.voice = voice;
       }
@@ -887,14 +849,14 @@ export default function AIAssistantView() {
               <div className="space-y-4">
                 <div>
                   <label className="text-sm text-gray-500 mb-2 block">
-                    语速: <span className="text-golden font-medium">{speechRate.toFixed(1)}x</span>
+                    语速: <span className="text-golden font-medium">{speechState.speechRate.toFixed(1)}x</span>
                   </label>
                   <input
                     type="range"
                     min="0.5"
                     max="2"
                     step="0.1"
-                    value={speechRate}
+                    value={speechState.speechRate}
                     onChange={(e) => setSpeechRate(parseFloat(e.target.value))}
                     className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-golden"
                   />
@@ -916,22 +878,19 @@ export default function AIAssistantView() {
                         type="radio"
                         name="voice"
                         value=""
-                        checked={selectedVoice === ''}
-                        onChange={() => setSelectedVoice('')}
+                        checked={speechState.selectedVoice === ''}
+                        onChange={() => setSelectedVoiceInSpeech('')}
                         className="w-4 h-4 text-golden"
                       />
                       <div className="flex-1">
                         <p className="text-sm font-medium text-gray-800">自动选择中文</p>
                       </div>
-                      {selectedVoice === '' && (
+                      {speechState.selectedVoice === '' && (
                         <button
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            const utterance = new SpeechSynthesisUtterance('你好，这是当前选中的声音');
-                            utterance.lang = 'zh-CN';
-                            utterance.rate = speechRate;
-                            window.speechSynthesis.speak(utterance);
+                            testVoice('');
                           }}
                           className="text-xs px-2 py-1 bg-golden/10 text-golden rounded hover:bg-golden/20 transition-colors"
                         >
@@ -950,8 +909,8 @@ export default function AIAssistantView() {
                           type="radio"
                           name="voice"
                           value={voice.name}
-                          checked={selectedVoice === voice.name}
-                          onChange={() => setSelectedVoice(voice.name)}
+                          checked={speechState.selectedVoice === voice.name}
+                          onChange={() => setSelectedVoiceInSpeech(voice.name)}
                           className="w-4 h-4 text-golden"
                         />
                         <div className="flex-1 min-w-0">
@@ -961,15 +920,12 @@ export default function AIAssistantView() {
                         {(voice.lang.includes('zh') || voice.lang.includes('CN')) && (
                           <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded">中文</span>
                         )}
-                        {selectedVoice === voice.name && (
+                        {speechState.selectedVoice === voice.name && (
                           <button
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              const utterance = new SpeechSynthesisUtterance('你好，这是当前选中的声音');
-                              utterance.voice = voice;
-                              utterance.rate = speechRate;
-                              window.speechSynthesis.speak(utterance);
+                              testVoice(voice.name);
                             }}
                             className="text-xs px-2 py-1 bg-golden/10 text-golden rounded hover:bg-golden/20 transition-colors flex-shrink-0"
                           >

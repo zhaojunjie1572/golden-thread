@@ -17,18 +17,19 @@ interface Chapter {
 export default function BookReader({ book, onUpdateProgress, onClose }: BookReaderProps) {
   const { 
     speechState, 
+    voices,
     startSpeaking, 
     pauseSpeaking, 
     resumeSpeaking, 
     nextParagraph: speechNextParagraph,
     prevParagraph: speechPrevParagraph,
     setSpeechRate,
-    setSelectedVoice: setSelectedVoiceInSpeech 
+    setSelectedVoice: setSelectedVoiceInSpeech,
+    testVoice 
   } = useSpeech();
   
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [speechRate, setSpeechRateLocal] = useState(1.5);
   const [currentParagraphIndex, setCurrentParagraphIndex] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [paragraphs, setParagraphs] = useState<string[]>([]);
@@ -40,10 +41,6 @@ export default function BookReader({ book, onUpdateProgress, onClose }: BookRead
   const [textColor, setTextColor] = useState(() => {
     return localStorage.getItem('reader-text-color') || '#1f2937';
   });
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [selectedVoice, setSelectedVoiceLocal] = useState<string>(() => {
-    return localStorage.getItem('selected-voice') || '';
-  });
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [_isDraggingProgress, setIsDraggingProgress] = useState(false);
   
@@ -52,7 +49,6 @@ export default function BookReader({ book, onUpdateProgress, onClose }: BookRead
   useEffect(() => {
     setIsSpeaking(speechState.isPlaying);
     setIsPaused(speechState.isPaused);
-    setSpeechRateLocal(speechState.speechRate);
     
     if (speechState.bookTitle === book.title && speechState.isPlaying) {
       setCurrentParagraphIndex(speechState.currentParagraphIndex);
@@ -68,29 +64,6 @@ export default function BookReader({ book, onUpdateProgress, onClose }: BookRead
   }, [textColor]);
 
   useEffect(() => {
-    localStorage.setItem('selected-voice', selectedVoice);
-  }, [selectedVoice]);
-
-  useEffect(() => {
-    const loadVoices = () => {
-      const availableVoices = window.speechSynthesis.getVoices();
-      setVoices(availableVoices);
-    };
-
-    loadVoices();
-    
-    const timer1 = setTimeout(() => loadVoices(), 500);
-    const timer2 = setTimeout(() => loadVoices(), 2000);
-
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-    
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-    };
-  }, []);
-
-  useEffect(() => {
     console.log('=== BookReader 收到书籍数据 ===');
     console.log('书名:', book.title);
     console.log('内容长度:', book.content.length);
@@ -104,11 +77,24 @@ export default function BookReader({ book, onUpdateProgress, onClose }: BookRead
     setParagraphs(parsedParagraphs);
     extractChapters(parsedParagraphs);
     
-    if (parsedParagraphs.length > 0 && book.totalCharacters > 0) {
-      const savedProgress = Math.floor(book.currentPosition / (book.totalCharacters / parsedParagraphs.length));
-      if (savedProgress > 0 && savedProgress < parsedParagraphs.length) {
-        setCurrentParagraphIndex(savedProgress);
+    if (parsedParagraphs.length > 0 && book.totalCharacters > 0 && book.currentPosition > 0) {
+      let charCount = 0;
+      let targetParagraph = 0;
+      
+      for (let i = 0; i < parsedParagraphs.length; i++) {
+        const paragraphLength = parsedParagraphs[i].length + 2;
+        if (charCount + paragraphLength > book.currentPosition) {
+          targetParagraph = i;
+          break;
+        }
+        charCount += paragraphLength;
+        if (i === parsedParagraphs.length - 1) {
+          targetParagraph = i;
+        }
       }
+      
+      console.log('计算目标段落:', targetParagraph);
+      setCurrentParagraphIndex(Math.max(0, Math.min(targetParagraph, parsedParagraphs.length - 1)));
     }
   }, [book]);
 
@@ -160,6 +146,10 @@ export default function BookReader({ book, onUpdateProgress, onClose }: BookRead
   }, [paragraphs, book.totalCharacters, onUpdateProgress]);
 
   const toggleSpeaking = useCallback(() => {
+    console.log('=== toggleSpeaking 被调用');
+    console.log('当前段落索引:', currentParagraphIndex);
+    console.log('段落总数:', paragraphs.length);
+    
     if (isSpeaking) {
       if (isPaused) {
         resumeSpeaking();
@@ -173,9 +163,10 @@ export default function BookReader({ book, onUpdateProgress, onClose }: BookRead
         onUpdateProgress(progress);
       };
       
+      console.log('从段落', currentParagraphIndex, '开始朗读');
       startSpeaking(book.title, book.author, paragraphs, currentParagraphIndex, handleProgress);
     }
-  }, [isSpeaking, isPaused, startSpeaking, resumeSpeaking, pauseSpeaking, book.title, book.author, paragraphs, currentParagraphIndex, onUpdateProgress]);
+  }, [isSpeaking, isPaused, startSpeaking, resumeSpeaking, pauseSpeaking, book.title, book.author, paragraphs, currentParagraphIndex, book.totalCharacters, onUpdateProgress]);
 
   const nextParagraph = useCallback(() => {
     if (currentParagraphIndex < paragraphs.length - 1) {
@@ -491,17 +482,16 @@ export default function BookReader({ book, onUpdateProgress, onClose }: BookRead
                 <div className="space-y-4">
                   <div>
                     <label className="text-sm opacity-70 mb-2 block" style={{ color: textColor }}>
-                      语速: <span className="font-medium">{speechRate.toFixed(1)}x</span>
+                      语速: <span className="font-medium">{speechState.speechRate.toFixed(1)}x</span>
                     </label>
                     <input
                       type="range"
                       min="0.5"
                       max="2"
                       step="0.1"
-                      value={speechRate}
+                      value={speechState.speechRate}
                       onChange={(e) => {
                         const rate = parseFloat(e.target.value);
-                        setSpeechRateLocal(rate);
                         setSpeechRate(rate);
                       }}
                       className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
@@ -524,9 +514,8 @@ export default function BookReader({ book, onUpdateProgress, onClose }: BookRead
                           type="radio"
                           name="voice"
                           value=""
-                          checked={selectedVoice === ''}
+                          checked={speechState.selectedVoice === ''}
                           onChange={() => {
-                            setSelectedVoiceLocal('');
                             setSelectedVoiceInSpeech('');
                           }}
                           className="w-4 h-4 text-amber-500"
@@ -534,6 +523,18 @@ export default function BookReader({ book, onUpdateProgress, onClose }: BookRead
                         <div className="flex-1">
                           <p className="text-sm font-medium" style={{ color: textColor }}>自动选择中文</p>
                         </div>
+                        {speechState.selectedVoice === '' && (
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              testVoice('');
+                            }}
+                            className="text-xs px-2 py-1 bg-amber-500/10 text-amber-500 rounded hover:bg-amber-500/20 transition-colors flex-shrink-0"
+                          >
+                            试听
+                          </button>
+                        )}
                       </label>
                       {voices.map((voice) => (
                         <label
@@ -546,9 +547,8 @@ export default function BookReader({ book, onUpdateProgress, onClose }: BookRead
                             type="radio"
                             name="voice"
                             value={voice.name}
-                            checked={selectedVoice === voice.name}
+                            checked={speechState.selectedVoice === voice.name}
                             onChange={() => {
-                              setSelectedVoiceLocal(voice.name);
                               setSelectedVoiceInSpeech(voice.name);
                             }}
                             className="w-4 h-4 text-amber-500"
@@ -560,15 +560,12 @@ export default function BookReader({ book, onUpdateProgress, onClose }: BookRead
                           {(voice.lang.includes('zh') || voice.lang.includes('CN')) && (
                             <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded">中文</span>
                           )}
-                          {selectedVoice === voice.name && (
+                          {speechState.selectedVoice === voice.name && (
                             <button
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                const utterance = new SpeechSynthesisUtterance('你好，这是当前选中的声音');
-                                utterance.voice = voice;
-                                utterance.rate = speechRate;
-                                window.speechSynthesis.speak(utterance);
+                                testVoice(voice.name);
                               }}
                               className="text-xs px-2 py-1 bg-amber-500/10 text-amber-500 rounded hover:bg-amber-500/20 transition-colors flex-shrink-0"
                             >

@@ -14,6 +14,7 @@ export interface SpeechState {
 
 interface SpeechContextType {
   speechState: SpeechState;
+  voices: SpeechSynthesisVoice[];
   startSpeaking: (bookTitle: string, bookAuthor: string, paragraphs: string[], startIndex: number, onProgress?: (index: number) => void) => void;
   pauseSpeaking: () => void;
   resumeSpeaking: () => void;
@@ -22,6 +23,7 @@ interface SpeechContextType {
   prevParagraph: () => void;
   setSpeechRate: (rate: number) => void;
   setSelectedVoice: (voice: string) => void;
+  testVoice: (voiceName: string, text?: string) => void;
 }
 
 const initialSpeechState: SpeechState = {
@@ -39,7 +41,16 @@ const initialSpeechState: SpeechState = {
 const SpeechContext = createContext<SpeechContextType | undefined>(undefined);
 
 export function SpeechProvider({ children }: { children: ReactNode }) {
-  const [speechState, setSpeechState] = useState<SpeechState>(initialSpeechState);
+  const [speechState, setSpeechState] = useState<SpeechState>(() => {
+    const savedRate = localStorage.getItem('speech-rate');
+    const savedVoice = localStorage.getItem('selected-voice');
+    return {
+      ...initialSpeechState,
+      speechRate: savedRate ? parseFloat(savedRate) : 1.5,
+      selectedVoice: savedVoice || '',
+    };
+  });
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [paragraphs, setParagraphs] = useState<string[]>([]);
   const [onProgressCallback, setOnProgressCallback] = useState<((index: number) => void) | null>(null);
   
@@ -54,6 +65,7 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
     const loadVoices = () => {
       const availableVoices = window.speechSynthesis.getVoices();
       voicesRef.current = availableVoices;
+      setVoices(availableVoices);
     };
 
     loadVoices();
@@ -68,6 +80,40 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
       clearTimeout(timer2);
     };
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('speech-rate', speechState.speechRate.toString());
+  }, [speechState.speechRate]);
+
+  useEffect(() => {
+    localStorage.setItem('selected-voice', speechState.selectedVoice);
+  }, [speechState.selectedVoice]);
+
+  const testVoice = useCallback((voiceName: string, text = '你好，这是当前选中的声音') => {
+    if (!('speechSynthesis' in window)) return;
+    
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = speechState.speechRate;
+    utterance.pitch = 1;
+    utterance.lang = 'zh-CN';
+
+    if (voiceName) {
+      const voice = voicesRef.current.find(v => v.name === voiceName);
+      if (voice) {
+        utterance.voice = voice;
+      }
+    } else {
+      const chineseVoice = voicesRef.current.find(voice => 
+        voice.lang.includes('zh') || voice.lang.includes('CN')
+      );
+      if (chineseVoice) {
+        utterance.voice = chineseVoice;
+      }
+    }
+
+    window.speechSynthesis.speak(utterance);
+  }, [speechState.speechRate]);
 
   const speakParagraph = useCallback((index: number) => {
     if (!('speechSynthesis' in window) || index >= paragraphs.length) {
@@ -138,7 +184,8 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
     setParagraphs(newParagraphs);
     setOnProgressCallback(() => onProgress || null);
     
-    setSpeechState({
+    setSpeechState(prev => ({
+      ...prev,
       isPlaying: true,
       isPaused: false,
       bookTitle,
@@ -146,14 +193,12 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
       currentParagraph: newParagraphs[startIndex] || '',
       currentParagraphIndex: startIndex,
       totalParagraphs: newParagraphs.length,
-      speechRate: speechState.speechRate,
-      selectedVoice: speechState.selectedVoice,
-    });
+    }));
 
     isSpeakingRef.current = true;
     isPausedRef.current = false;
     speakParagraph(startIndex);
-  }, [speechState.speechRate, speechState.selectedVoice, speakParagraph]);
+  }, [speakParagraph]);
 
   const pauseSpeaking = useCallback(() => {
     if ('speechSynthesis' in window) {
@@ -177,7 +222,11 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
     }
     isSpeakingRef.current = false;
     isPausedRef.current = false;
-    setSpeechState(initialSpeechState);
+    setSpeechState(prev => ({
+      ...initialSpeechState,
+      speechRate: prev.speechRate,
+      selectedVoice: prev.selectedVoice,
+    }));
     setParagraphs([]);
     setOnProgressCallback(null);
   }, []);
@@ -228,6 +277,7 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
   return (
     <SpeechContext.Provider value={{
       speechState,
+      voices,
       startSpeaking,
       pauseSpeaking,
       resumeSpeaking,
@@ -236,6 +286,7 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
       prevParagraph,
       setSpeechRate,
       setSelectedVoice,
+      testVoice,
     }}>
       {children}
     </SpeechContext.Provider>
