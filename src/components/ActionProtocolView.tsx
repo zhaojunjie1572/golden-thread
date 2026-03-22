@@ -214,6 +214,15 @@ export default function ActionProtocolView() {
   const streamingContentRef = useRef('');
   const [streamingContent, setStreamingContent] = useState('');
   const abortControllerRef = useRef<AbortController | null>(null);
+  const [selectedMemoryModuleIds, setSelectedMemoryModuleIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('think-tank-selected-memory-modules');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [showMemorySelector, setShowMemorySelector] = useState(false);
 
   const selectedModule = modules.find(m => m.id === selectedModuleId) || modules[0];
   const currentMessages = moduleMessages[selectedModuleId] || [];
@@ -266,6 +275,10 @@ export default function ActionProtocolView() {
     localStorage.setItem('think-tank-text-scale', textScale.toString());
   }, [textScale]);
 
+  useEffect(() => {
+    localStorage.setItem('think-tank-selected-memory-modules', JSON.stringify(selectedMemoryModuleIds));
+  }, [selectedMemoryModuleIds]);
+
   const prepareConversationHistory = (userMessage: ChatMessage): ChatMessage[] => {
     const history: ChatMessage[] = [
       {
@@ -274,9 +287,27 @@ export default function ActionProtocolView() {
         content: selectedModule.prompt,
         timestamp: new Date(),
       } as ChatMessage,
-      ...currentMessages,
-      userMessage,
     ];
+
+    selectedMemoryModuleIds.forEach(moduleId => {
+      if (moduleId === selectedModuleId) return;
+      const module = modules.find(m => m.id === moduleId);
+      const moduleMsgs = moduleMessages[moduleId];
+      if (module && moduleMsgs && moduleMsgs.length > 0) {
+        history.push({
+          id: crypto.randomUUID(),
+          role: 'system',
+          content: `--- 来自「${module.icon} ${module.name}」模块的记忆 ---`,
+          timestamp: new Date(),
+        } as ChatMessage);
+        moduleMsgs.forEach(msg => {
+          history.push(msg);
+        });
+      }
+    });
+
+    history.push(...currentMessages);
+    history.push(userMessage);
     
     return history;
   };
@@ -825,7 +856,79 @@ export default function ActionProtocolView() {
                     新聊天
                   </button>
                 )}
+                <div className="flex-1"></div>
+                <button
+                  onClick={() => setShowMemorySelector(!showMemorySelector)}
+                  className="px-2.5 py-1 text-xs rounded-lg transition-colors flex items-center gap-1"
+                  style={{
+                    backgroundColor: selectedMemoryModuleIds.length > 0 ? '#DAA520' : '#F3F4F6',
+                    color: selectedMemoryModuleIds.length > 0 ? '#FFF' : '#6B7280'
+                  }}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                  </svg>
+                  引用记忆
+                  {selectedMemoryModuleIds.length > 0 && (
+                    <span className="bg-white/30 px-1.5 rounded-full text-[10px]">
+                      {selectedMemoryModuleIds.length}
+                    </span>
+                  )}
+                </button>
               </div>
+
+              {showMemorySelector && (
+                <div className="mb-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-medium text-gray-700">选择要引用的模块记忆：</p>
+                    <button
+                      onClick={() => setSelectedMemoryModuleIds([])}
+                      className="text-xs text-red-500 hover:text-red-600"
+                    >
+                      清空
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {modules.filter(m => m.id !== selectedModuleId).map(module => {
+                      const hasMessages = (moduleMessages[module.id]?.length || 0) > 0;
+                      const isSelected = selectedMemoryModuleIds.includes(module.id);
+                      return (
+                        <button
+                          key={module.id}
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedMemoryModuleIds(prev => prev.filter(id => id !== module.id));
+                            } else {
+                              setSelectedMemoryModuleIds(prev => [...prev, module.id]);
+                            }
+                          }}
+                          disabled={!hasMessages}
+                          className={`px-2 py-1 rounded-lg text-xs transition-all flex items-center gap-1 ${
+                            isSelected
+                              ? 'bg-golden text-white'
+                              : hasMessages
+                                ? 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                          }`}
+                        >
+                          <span>{module.icon}</span>
+                          <span>{module.name}</span>
+                          {hasMessages && (
+                            <span className={`text-[10px] px-1 rounded-full ${
+                              isSelected ? 'bg-white/30' : 'bg-gray-300 text-gray-600'
+                            }`}>
+                              {moduleMessages[module.id]?.length || 0}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {modules.filter(m => m.id !== selectedModuleId && (moduleMessages[m.id]?.length || 0) > 0).length === 0 && (
+                    <p className="text-xs text-gray-500 mt-2">暂无其他模块的记忆可以引用</p>
+                  )}
+                </div>
+              )}
 
               {isLoading && (
                 <div className="flex items-center gap-2 mb-2">
@@ -1040,6 +1143,80 @@ export default function ActionProtocolView() {
           </div>
 
           <div className={`relative z-10 ${inputBarTransparent ? 'bg-transparent border-t border-transparent' : 'bg-white border-t border-gray-200'} shrink-0 px-3 py-2.5`}>
+            <div className="flex items-center justify-between mb-2">
+              <button
+                onClick={() => setShowMemorySelector(!showMemorySelector)}
+                className="px-2.5 py-1 text-xs rounded-lg transition-colors flex items-center gap-1"
+                style={{
+                  backgroundColor: selectedMemoryModuleIds.length > 0 ? '#DAA520' : '#F3F4F6',
+                  color: selectedMemoryModuleIds.length > 0 ? '#FFF' : '#6B7280'
+                }}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                </svg>
+                引用记忆
+                {selectedMemoryModuleIds.length > 0 && (
+                  <span className="bg-white/30 px-1.5 rounded-full text-[10px]">
+                    {selectedMemoryModuleIds.length}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {showMemorySelector && (
+              <div className="mb-3 p-3 bg-white/90 backdrop-blur-sm rounded-xl border border-gray-200">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-medium text-gray-700">选择要引用的模块记忆：</p>
+                  <button
+                    onClick={() => setSelectedMemoryModuleIds([])}
+                    className="text-xs text-red-500 hover:text-red-600"
+                  >
+                    清空
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {modules.filter(m => m.id !== selectedModuleId).map(module => {
+                    const hasMessages = (moduleMessages[module.id]?.length || 0) > 0;
+                    const isSelected = selectedMemoryModuleIds.includes(module.id);
+                    return (
+                      <button
+                        key={module.id}
+                        onClick={() => {
+                          if (isSelected) {
+                            setSelectedMemoryModuleIds(prev => prev.filter(id => id !== module.id));
+                          } else {
+                            setSelectedMemoryModuleIds(prev => [...prev, module.id]);
+                          }
+                        }}
+                        disabled={!hasMessages}
+                        className={`px-2 py-1 rounded-lg text-xs transition-all flex items-center gap-1 ${
+                          isSelected
+                            ? 'bg-golden text-white'
+                            : hasMessages
+                              ? 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
+                              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        }`}
+                      >
+                        <span>{module.icon}</span>
+                        <span>{module.name}</span>
+                        {hasMessages && (
+                          <span className={`text-[10px] px-1 rounded-full ${
+                            isSelected ? 'bg-white/30' : 'bg-gray-300 text-gray-600'
+                          }`}>
+                            {moduleMessages[module.id]?.length || 0}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                {modules.filter(m => m.id !== selectedModuleId && (moduleMessages[m.id]?.length || 0) > 0).length === 0 && (
+                  <p className="text-xs text-gray-500 mt-2">暂无其他模块的记忆可以引用</p>
+                )}
+              </div>
+            )}
+
             {isLoading && (
               <div className="flex items-center gap-2 mb-2 py-1">
                 <div className="w-4 h-4 border-2 border-golden/30 border-t-golden rounded-full animate-spin" />

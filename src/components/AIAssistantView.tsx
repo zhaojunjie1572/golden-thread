@@ -55,6 +55,24 @@ export default function AIAssistantView() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
+  const [backgroundImage, setBackgroundImage] = useState<string>(() => {
+    return localStorage.getItem('ai-assistant-background') || '';
+  });
+  const [userTextColor, setUserTextColor] = useState<string>(() => {
+    return localStorage.getItem('ai-assistant-user-text-color') || '#000000';
+  });
+  const [aiTextColor, setAiTextColor] = useState<string>(() => {
+    return localStorage.getItem('ai-assistant-ai-text-color') || '#000000';
+  });
+  const [textScale, setTextScale] = useState<number>(() => {
+    const saved = localStorage.getItem('ai-assistant-text-scale');
+    return saved ? parseFloat(saved) : 1;
+  });
+  const [showColorSettings, setShowColorSettings] = useState(false);
+
+  const topBarTransparent = !!backgroundImage;
+  const inputBarTransparent = !!backgroundImage;
+
   useEffect(() => {
     localStorage.setItem('web-search-enabled', webSearchEnabled.toString());
   }, [webSearchEnabled]);
@@ -63,6 +81,39 @@ export default function AIAssistantView() {
     webSearchService.setSerpApiKey(serpApiKey);
     webSearchService.setOpenWeatherApiKey(openWeatherApiKey);
   }, [serpApiKey, openWeatherApiKey]);
+
+  useEffect(() => {
+    localStorage.setItem('ai-assistant-background', backgroundImage);
+  }, [backgroundImage]);
+
+  useEffect(() => {
+    localStorage.setItem('ai-assistant-user-text-color', userTextColor);
+  }, [userTextColor]);
+
+  useEffect(() => {
+    localStorage.setItem('ai-assistant-ai-text-color', aiTextColor);
+  }, [aiTextColor]);
+
+  useEffect(() => {
+    localStorage.setItem('ai-assistant-text-scale', textScale.toString());
+  }, [textScale]);
+
+  const handleBackgroundImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        setBackgroundImage(dataUrl);
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = '';
+  };
+
+  const removeBackgroundImage = () => {
+    setBackgroundImage('');
+  };
 
   const handleStopGeneration = () => {
     if (abortControllerRef.current) {
@@ -549,48 +600,64 @@ export default function AIAssistantView() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 flex flex-col h-[calc(100vh-140px)]">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800">AI 助手</h1>
-          <p className="text-gray-500 mt-1">实时解答你的疑问</p>
+    <div className="fixed inset-0 flex flex-col bg-[#ededed]" style={{
+      backgroundImage: backgroundImage ? `url(${backgroundImage})` : 'none',
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+    }}>
+      {!backgroundImage && (
+        <div className="absolute inset-0 bg-[#ededed]" />
+      )}
+      
+      <div className={`relative z-10 flex items-center px-3 py-2 ${topBarTransparent ? 'bg-transparent border-b border-transparent' : 'bg-white/95 backdrop-blur-sm border-b border-gray-200'} shrink-0`}>
+        <div className="flex-1 flex items-center justify-center gap-2">
+          <span className="text-lg">🤖</span>
+          <h1 className="text-base font-semibold text-gray-800">AI 助手</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <button
-            onClick={() => {
-              if (!isLoading) {
-                createNewSession();
-              }
-            }}
-            disabled={isLoading}
-            className="p-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-50"
-            title="新建对话"
+            onClick={() => setShowColorSettings(!showColorSettings)}
+            className="p-2 text-gray-700 hover:text-gray-900 transition-colors"
+            title="文字颜色"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
             </svg>
           </button>
           <button
-            onClick={() => setShowChatHistory(!showChatHistory)}
-            className={`p-3 rounded-xl transition-colors ${
-              showChatHistory 
-                ? 'text-golden bg-golden/10' 
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-            }`}
-            title="聊天历史"
+            onClick={() => document.getElementById('ai-bg-image-upload')?.click()}
+            className="p-2 text-gray-700 hover:text-gray-900 transition-colors"
+            title="设置背景"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2zM9 9h6v6H9V9z" />
             </svg>
           </button>
+          <input
+            id="ai-bg-image-upload"
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleBackgroundImageUpload}
+          />
+          {backgroundImage && (
+            <button
+              onClick={removeBackgroundImage}
+              className="p-2 text-gray-700 hover:text-gray-900 transition-colors"
+              title="移除背景"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          )}
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className="p-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
+            className="p-2 text-gray-700 hover:text-gray-900 transition-colors"
             title="设置"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.065c-1.543.94-3.31-.826-2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
             </svg>
           </button>
         </div>
@@ -957,16 +1024,16 @@ export default function AIAssistantView() {
       )}
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-4">
+        <div className="relative z-10 bg-red-50/90 backdrop-blur-sm border border-red-200 text-red-700 px-4 py-3 rounded-xl m-3">
           {error}
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto mb-6 space-y-4">
+      <div className="relative z-10 flex-1 overflow-y-auto p-3 space-y-3">
         {messages.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="text-6xl mb-6">🤖</div>
-            <h2 className="text-xl font-semibold text-gray-800 mb-2">你好，我是金线 AI 助手</h2>
+          <div className="text-center py-12">
+            <div className="text-5xl mb-4">🤖</div>
+            <h2 className="text-lg font-semibold text-gray-700 mb-2">你好，我是金线 AI 助手</h2>
             <p className="text-gray-500 mb-4">
               我可以帮你：<br />
               设计行动协议 · 优化习惯养成 · 解决执行卡点
@@ -978,7 +1045,7 @@ export default function AIAssistantView() {
                 </p>
               </div>
             )}
-            <div className="flex flex-col gap-3 max-w-md mx-auto">
+            <div className="flex flex-wrap gap-2 justify-center max-w-md mx-auto">
               <QuickQuestion
                 text="如何设计一个好的行动协议？"
                 onClick={() => setInput('如何设计一个好的行动协议？')}
@@ -996,49 +1063,156 @@ export default function AIAssistantView() {
         ) : (
           <>
             {messages.map((message) => (
-              <ChatBubble
+              <div
                 key={message.id}
-                message={message}
-                isSpeaking={speakingId === message.id}
-                isPaused={isPaused && speakingId === message.id}
-                onSpeak={() => handleSpeak(message)}
-                onStop={handleStopSpeaking}
-                onPause={handlePauseSpeaking}
-              />
+                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} px-1`}
+              >
+                <div className={`max-w-[75%] flex items-start gap-2 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                  {message.role === 'assistant' && (
+                    <div className={`w-10 h-10 rounded-full ${backgroundImage ? 'bg-white/60' : 'bg-white/80'} backdrop-blur-sm flex items-center justify-center text-lg shrink-0 shadow-sm`}>
+                      🤖
+                    </div>
+                  )}
+                  <div className={`relative ${message.role === 'user' ? 'items-end' : 'items-start'} flex flex-col`}>
+                    <div
+                      className={`px-3.5 py-2.5 ${
+                        backgroundImage 
+                          ? `shadow-none`
+                          : `${message.role === 'user' ? 'bg-[#95ec69] rounded-br-sm' : 'bg-white rounded-bl-sm'} rounded-xl shadow-sm`
+                      }`}
+                      style={{
+                        color: message.role === 'user' ? userTextColor : aiTextColor,
+                      }}
+                    >
+                      {message.attachments && message.attachments.length > 0 && (
+                        <div className="mb-2 flex flex-wrap gap-2">
+                          {message.attachments.map((attachment) => (
+                            <div
+                              key={attachment.id}
+                              className="bg-white/20 rounded-lg p-2 border border-white/30"
+                            >
+                              {attachment.type === 'image' && attachment.preview ? (
+                                <img
+                                  src={attachment.preview}
+                                  alt={attachment.name}
+                                  className="w-32 h-32 object-cover rounded"
+                                />
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
+                                  <div>
+                                    <p className="text-xs text-gray-700">{attachment.name}</p>
+                                    <p className="text-xs text-gray-400">{formatFileSize(attachment.size)}</p>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <p className="whitespace-pre-wrap font-medium" style={{ fontSize: `${14 * textScale}px` }}>{message.content}</p>
+                      {!message.role === 'user' && !isStreaming && message.model && (
+                        <div className="mt-2">
+                          <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-500">
+                            模型: {message.model}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    {!message.role === 'user' && !isStreaming && onSpeak && (
+                      <div className="flex items-center gap-2 mt-2">
+                        {!isSpeaking ? (
+                          <button
+                            onClick={() => handleSpeak(message)}
+                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors bg-gray-100 hover:bg-gray-200 text-gray-700"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                            </svg>
+                            朗读
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={isPaused ? handlePauseSpeaking : handlePauseSpeaking}
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors bg-gray-100 hover:bg-gray-200 text-gray-700"
+                            >
+                              {isPaused ? (
+                                <>
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  继续
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  暂停
+                                </>
+                              )}
+                            </button>
+                            <button
+                              onClick={handleStopSpeaking}
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors bg-gray-100 hover:bg-gray-200 text-gray-700"
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                              </svg>
+                              停止
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {message.role === 'user' && (
+                    <div className={`w-10 h-10 rounded-full ${backgroundImage ? 'bg-[#95ec69]/60' : 'bg-[#95ec69]/80'} backdrop-blur-sm flex items-center justify-center text-lg shrink-0 shadow-sm`}>
+                      👤
+                    </div>
+                  )}
+                </div>
+              </div>
             ))}
             {streamingContent && (
-              <ChatBubble
-                message={{
-                  id: 'streaming',
-                  role: 'assistant',
-                  content: streamingContent,
-                  timestamp: new Date(),
-                }}
-                isStreaming
-              />
+              <div className="flex justify-start px-1">
+                <div className="max-w-[75%] flex items-start gap-2">
+                  <div className={`w-10 h-10 rounded-full ${backgroundImage ? 'bg-white/60' : 'bg-white/80'} backdrop-blur-sm flex items-center justify-center text-lg shrink-0 shadow-sm`}>
+                    🤖
+                  </div>
+                  <div className="relative items-start flex flex-col">
+                    <div 
+                      className={`px-3.5 py-2.5 ${backgroundImage ? 'shadow-none' : 'bg-white rounded-bl-sm rounded-xl shadow-sm'}`}
+                      style={{ color: aiTextColor }}
+                    >
+                      <p className="whitespace-pre-wrap font-medium" style={{ fontSize: `${14 * textScale}px` }}>{streamingContent}</p>
+                      <span className="inline-block w-1.5 h-4 ml-1 align-middle animate-pulse" style={{ backgroundColor: aiTextColor }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
           </>
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+      <div className={`relative z-10 ${inputBarTransparent ? 'bg-transparent border-t border-transparent' : 'bg-white border-t border-gray-200'} shrink-0 px-3 py-2.5`}>
         {isLoading && (
-          <div className="flex items-center justify-between mb-3 px-1">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-golden/30 border-t-golden rounded-full animate-spin" />
-              <span className="text-sm text-gray-600">
-                {isSearching ? '搜索网络中...' : '思考中...'}
-              </span>
-            </div>
+          <div className="flex items-center gap-2 mb-2 py-1">
+            <div className="w-4 h-4 border-2 border-golden/30 border-t-golden rounded-full animate-spin" />
+            <span className={`text-sm ${inputBarTransparent ? 'text-white' : 'text-gray-600'}`}>
+              {isSearching ? '搜索网络中...' : '思考中...'}
+            </span>
             <button
               onClick={handleStopGeneration}
-              className="text-sm text-red-500 hover:text-red-600 hover:bg-red-50 px-3 py-1 rounded-lg transition-colors flex items-center gap-1"
+              className={`ml-auto text-sm ${inputBarTransparent ? 'text-white hover:text-white/80 hover:bg-white/20' : 'text-red-500 hover:text-red-600 hover:bg-red-50'} px-2.5 py-1 rounded-lg transition-colors`}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
-              </svg>
               中断
             </button>
           </div>
@@ -1049,16 +1223,14 @@ export default function AIAssistantView() {
             {attachedFiles.map((file) => (
               <div
                 key={file.id}
-                className="relative group bg-gray-50 rounded-lg p-2 border border-gray-200"
+                className="relative group bg-white/80 backdrop-blur-sm rounded-lg p-2 border border-gray-200"
               >
                 {file.type === 'image' && file.preview ? (
-                  <div className="relative">
-                    <img
-                      src={file.preview}
-                      alt={file.file.name}
-                      className="w-20 h-20 object-cover rounded"
-                    />
-                  </div>
+                  <img
+                    src={file.preview}
+                    alt={file.file.name}
+                    className="w-20 h-20 object-cover rounded"
+                  />
                 ) : (
                   <div className="flex items-center gap-2 w-32">
                     <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1083,7 +1255,7 @@ export default function AIAssistantView() {
           </div>
         )}
         
-        <div className="flex gap-2 mb-2">
+        <div className="flex gap-2">
           <input
             ref={imageInputRef}
             type="file"
@@ -1095,12 +1267,11 @@ export default function AIAssistantView() {
           <button
             onClick={() => imageInputRef.current?.click()}
             disabled={isLoading}
-            className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
+            className="p-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2zM9 9h6v6H9V9z" />
             </svg>
-            <span className="text-sm">图片</span>
           </button>
           
           <input
@@ -1113,37 +1284,21 @@ export default function AIAssistantView() {
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isLoading}
-            className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
+            className="p-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <span className="text-sm">文件</span>
           </button>
-        </div>
-        
-        <div className="flex gap-3">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyPress}
-            placeholder={isListening ? "正在听你说话..." : "输入你的问题..."}
-            disabled={isLoading || !apiService.hasApiKey()}
-            className={`flex-1 px-4 py-3 rounded-xl border transition-colors focus:ring-2 focus:ring-golden/20 outline-none resize-none max-h-32 ${
-              isListening 
-                ? 'border-red-400 bg-red-50 focus:border-red-400' 
-                : 'border-gray-200 focus:border-golden'
-            }`}
-            rows={1}
-          />
+          
           {(typeof window !== 'undefined' && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)) && (
             <button
               onClick={toggleListening}
               disabled={isLoading}
-              className={`px-4 py-3 rounded-xl font-semibold transition-all flex items-center gap-2 ${
+              className={`p-2.5 rounded-lg transition-colors ${
                 isListening
                   ? 'bg-red-500 text-white hover:bg-red-600 animate-pulse'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  : 'text-gray-600 hover:bg-gray-100'
               } disabled:opacity-50 disabled:cursor-not-allowed`}
               title={isListening ? "停止录音" : "语音输入"}
             >
@@ -1156,15 +1311,33 @@ export default function AIAssistantView() {
               </svg>
             </button>
           )}
+          
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyPress}
+            placeholder=""
+            disabled={isLoading || !apiService.hasApiKey()}
+            className={`flex-1 px-3 py-2.5 rounded-lg outline-none resize-none max-h-28 text-base ${
+              inputBarTransparent 
+                ? 'bg-white/80 backdrop-blur-sm border border-white/30 text-black placeholder-gray-500' 
+                : 'border border-gray-300 text-black placeholder-gray-500'
+            }`}
+            rows={1}
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck="false"
+          />
+          
           <button
             onClick={isLoading ? handleStopGeneration : handleSend}
-            disabled={!isLoading && (!input.trim() && attachedFiles.length === 0) || !apiService.hasApiKey()}
-            className={`px-6 py-3 rounded-xl font-semibold transition-colors flex items-center gap-2 ${
+            disabled={!isLoading && !input.trim() || !apiService.hasApiKey()}
+            className={`px-4 py-2.5 rounded-lg font-semibold transition-colors flex items-center gap-1.5 ${
               isLoading
                 ? 'bg-red-500 text-white hover:bg-red-600'
-                : (!input.trim() && attachedFiles.length === 0) || !apiService.hasApiKey()
+                : !input.trim() || !apiService.hasApiKey()
                 ? 'bg-gray-300 text-gray-50 cursor-not-allowed'
-                : 'bg-golden text-white hover:bg-golden-dark'
+                : 'bg-[#07c160] text-white hover:opacity-90'
             }`}
           >
             {isLoading ? (
@@ -1180,12 +1353,23 @@ export default function AIAssistantView() {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                 </svg>
-                发送
               </>
             )}
           </button>
         </div>
       </div>
+
+      {showColorSettings && (
+        <ColorSettingsPanel
+          userTextColor={userTextColor}
+          setUserTextColor={setUserTextColor}
+          aiTextColor={aiTextColor}
+          setAiTextColor={setAiTextColor}
+          textScale={textScale}
+          setTextScale={setTextScale}
+          onClose={() => setShowColorSettings(false)}
+        />
+      )}
     </div>
   );
 }
@@ -1194,159 +1378,150 @@ function QuickQuestion({ text, onClick }: { text: string; onClick: () => void })
   return (
     <button
       onClick={onClick}
-      className="w-full text-left px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-gray-700 transition-colors"
+      className="px-4 py-2 rounded-lg bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white transition-all shadow-sm text-sm"
     >
       {text}
     </button>
   );
 }
 
-function ChatBubble({ 
-  message, 
-  isStreaming = false, 
-  isSpeaking = false, 
-  isPaused = false, 
-  onSpeak, 
-  onStop, 
-  onPause 
-}: { 
-  message: ChatMessage; 
-  isStreaming?: boolean; 
-  isSpeaking?: boolean; 
-  isPaused?: boolean; 
-  onSpeak?: () => void; 
-  onStop?: () => void; 
-  onPause?: () => void; 
+function ColorSettingsPanel({
+  userTextColor,
+  setUserTextColor,
+  aiTextColor,
+  setAiTextColor,
+  textScale,
+  setTextScale,
+  onClose
+}: {
+  userTextColor: string;
+  setUserTextColor: (color: string) => void;
+  aiTextColor: string;
+  setAiTextColor: (color: string) => void;
+  textScale: number;
+  setTextScale: (scale: number) => void;
+  onClose: () => void;
 }) {
-  const isUser = message.role === 'user';
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-  };
+  const presetColors = [
+    '#000000', '#FFFFFF', '#333333', '#666666', 
+    '#DAA520', '#07C160', '#1AAD19', '#07C160',
+    '#FF5722', '#E91E63', '#9C27B0', '#673AB7',
+    '#3F51B5', '#2196F3', '#03A9F4', '#00BCD4',
+    '#009688', '#4CAF50', '#8BC34A', '#CDDC39',
+    '#FFEB3B', '#FFC107', '#FF9800', '#FF5722'
+  ];
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div
-        className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-          isUser
-            ? 'bg-golden text-white'
-            : 'bg-white border border-gray-100 shadow-sm'
-        }`}
-      >
-        <div className="flex items-start gap-3">
-          <div className={`text-2xl ${isUser ? 'order-2' : 'order-1'}`}>
-            {isUser ? '👤' : '🤖'}
-          </div>
-          <div className={`flex-1 ${isUser ? 'text-right' : 'text-left'} order-1`}>
-            {message.attachments && message.attachments.length > 0 && (
-              <div className={`mb-2 flex flex-wrap gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
-                {message.attachments.map((attachment) => (
-                  <div
-                    key={attachment.id}
-                    className={`${isUser ? 'bg-white/20' : 'bg-gray-50'} rounded-lg p-2 border ${isUser ? 'border-white/30' : 'border-gray-200'}`}
-                  >
-                    {attachment.type === 'image' && attachment.preview ? (
-                      <img
-                        src={attachment.preview}
-                        alt={attachment.name}
-                        className="w-32 h-32 object-cover rounded"
-                      />
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <svg className={`w-6 h-6 ${isUser ? 'text-white/70' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <div>
-                          <p className={`text-xs ${isUser ? 'text-white/90' : 'text-gray-700'}`}>{attachment.name}</p>
-                          <p className={`text-xs ${isUser ? 'text-white/70' : 'text-gray-400'}`}>{formatFileSize(attachment.size)}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
+    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onClick={onClose}>
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] sm:max-h-none flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-gray-100 shrink-0">
+          <h3 className="text-lg font-semibold text-gray-800">文字颜色设置</h3>
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="p-4 space-y-6 overflow-y-auto">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <span className="text-lg">👤</span>
+                我的文字颜色
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={userTextColor}
+                  onChange={(e) => setUserTextColor(e.target.value)}
+                  className="w-8 h-8 rounded cursor-pointer border-0"
+                />
+                <span className="text-xs text-gray-500 font-mono">{userTextColor}</span>
               </div>
-            )}
-            <div
-              className={`text-sm ${isUser ? 'text-white/95' : 'text-gray-800'} whitespace-pre-wrap`}
-            >
-              {message.content}
             </div>
-            {isStreaming && <span className="inline-block w-2 h-4 bg-golden animate-pulse ml-1" />}
-            
-            {!isUser && !isStreaming && message.model && (
-              <div className="mt-2">
-                <span className={`text-xs px-2 py-1 rounded-full ${
-                  isUser ? 'bg-white/20 text-white/80' : 'bg-gray-100 text-gray-500'
-                }`}>
-                  模型: {message.model}
-                </span>
-              </div>
-            )}
-            
-            {!isUser && !isStreaming && onSpeak && (
-              <div className="flex items-center gap-2 mt-3">
-                {!isSpeaking ? (
-                  <button
-                    onClick={onSpeak}
-                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                      isUser
-                        ? 'bg-white/20 hover:bg-white/30 text-white'
-                        : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                    }`}
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                    </svg>
-                    朗读
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      onClick={onPause}
-                      className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                        isUser
-                          ? 'bg-white/20 hover:bg-white/30 text-white'
-                          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                      }`}
-                    >
-                      {isPaused ? (
-                        <>
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          继续
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          暂停
-                        </>
-                      )}
-                    </button>
-                    <button
-                      onClick={onStop}
-                      className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                        isUser
-                          ? 'bg-white/20 hover:bg-white/30 text-white'
-                          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                      }`}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
-                      </svg>
-                      停止
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
+            <div className="grid grid-cols-6 gap-2">
+              {presetColors.map((color) => (
+                <button
+                  key={color}
+                  onClick={() => setUserTextColor(color)}
+                  className={`w-full aspect-square rounded-lg transition-all ${
+                    userTextColor === color ? 'ring-2 ring-golden scale-110' : 'hover:scale-105'
+                  }`}
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
           </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <span className="text-lg">🤖</span>
+                AI 文字颜色
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={aiTextColor}
+                  onChange={(e) => setAiTextColor(e.target.value)}
+                  className="w-8 h-8 rounded cursor-pointer border-0"
+                />
+                <span className="text-xs text-gray-500 font-mono">{aiTextColor}</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-6 gap-2">
+              {presetColors.map((color) => (
+                <button
+                  key={color}
+                  onClick={() => setAiTextColor(color)}
+                  className={`w-full aspect-square rounded-lg transition-all ${
+                    aiTextColor === color ? 'ring-2 ring-golden scale-110' : 'hover:scale-105'
+                  }`}
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+                文字大小
+              </label>
+              <span className="text-xs text-golden font-medium">{textScale.toFixed(1)}x</span>
+            </div>
+            <input
+              type="range"
+              min="0.7"
+              max="1.8"
+              step="0.1"
+              value={textScale}
+              onChange={(e) => setTextScale(parseFloat(e.target.value))}
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-golden"
+            />
+            <div className="flex justify-between text-xs text-gray-400 mt-1">
+              <span>小</span>
+              <span>中</span>
+              <span>大</span>
+            </div>
+          </div>
+
+          <button
+            onClick={() => {
+              setUserTextColor('#000000');
+              setAiTextColor('#000000');
+              setTextScale(1);
+            }}
+            className="w-full py-2.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors"
+          >
+            恢复默认
+          </button>
         </div>
       </div>
     </div>
