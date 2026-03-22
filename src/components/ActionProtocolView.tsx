@@ -544,29 +544,29 @@ export default function ActionProtocolView() {
         </div>
       )}
 
-      <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
-        <div className="lg:w-80 flex flex-col shrink-0">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col flex-1 min-h-0">
-            <div className="flex items-center justify-between mb-3 shrink-0">
+      <div className="flex flex-col lg:flex-row gap-4 flex-1 min-h-0">
+        <div className="lg:w-64 flex flex-col shrink-0 hidden lg:flex">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3 flex flex-col flex-1 min-h-0">
+            <div className="flex items-center justify-between mb-2 shrink-0">
               <div className="flex items-center gap-2">
-                <span className="text-xl">🧠</span>
-                <h3 className="font-semibold text-gray-800">模块</h3>
+                <span className="text-lg">🧠</span>
+                <h3 className="font-semibold text-gray-800 text-sm">模块</h3>
               </div>
               <button
                 onClick={handleAddModule}
-                className="p-2 text-gray-400 hover:text-golden hover:bg-golden/10 rounded-lg transition-colors"
+                className="p-1.5 text-gray-400 hover:text-golden hover:bg-golden/10 rounded-lg transition-colors"
                 title="添加模块"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
               </button>
             </div>
-            <p className="text-xs text-gray-500 mb-3 shrink-0">
-              点击选择模块，拖拽排序，点击右侧按钮编辑/删除
+            <p className="text-xs text-gray-500 mb-2 shrink-0">
+              点击选择模块，拖拽排序
             </p>
             
-            <div className="space-y-2 overflow-y-auto flex-1">
+            <div className="space-y-1.5 overflow-y-auto flex-1">
               {modules.map((module) => (
                 <div 
                   key={module.id} 
@@ -579,7 +579,7 @@ export default function ActionProtocolView() {
                   onDragEnd={handleDragEnd}
                 >
                   <div
-                    className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center gap-3 cursor-pointer select-none ${
+                    className={`w-full text-left px-3 py-2.5 rounded-xl transition-all flex items-center gap-2.5 cursor-pointer select-none ${
                       selectedModuleId === module.id
                         ? 'bg-golden/10 border-2 border-golden text-golden'
                         : draggedModuleId === module.id
@@ -590,27 +590,27 @@ export default function ActionProtocolView() {
                     }`}
                     onClick={() => handleModuleClick(module)}
                   >
-                    <span className="text-xl">{module.icon}</span>
-                    <span className="font-medium flex-1 truncate pr-2">{module.name}</span>
-                    <div className="flex items-center gap-1 shrink-0">
+                    <span className="text-lg">{module.icon}</span>
+                    <span className="font-medium flex-1 truncate pr-1 text-sm">{module.name}</span>
+                    <div className="flex items-center gap-0.5 shrink-0">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleEditModule(module);
                         }}
-                        className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                        className="p-1 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded transition-colors"
                         title="编辑"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
                       </button>
                       <button
                         onClick={(e) => handleDeleteModule(module.id, e)}
-                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
                         title="删除"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
                       </button>
@@ -624,35 +624,49 @@ export default function ActionProtocolView() {
 
         <div className="flex-1 flex flex-col min-h-0">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col flex-1 min-h-0">
-            <div className="p-4 border-b border-gray-100 shrink-0">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-xl">💬</span>
+            <div className="p-3 border-b border-gray-100 shrink-0">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">💬</span>
                   <h3 className="font-semibold text-gray-800">对话</h3>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500">当前使用：</span>
-                  <span className="px-3 py-1 bg-golden/10 text-golden rounded-lg text-sm font-medium">
-                    {selectedModule.icon} {selectedModule.name}
-                  </span>
+                  <div className="lg:hidden">
+                    <button
+                      onClick={() => setShowModuleEditor('mobile-select')}
+                      className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm flex items-center gap-1.5 hover:bg-gray-200"
+                    >
+                      <span>{selectedModule.icon}</span>
+                      <span className="truncate max-w-[100px]">{selectedModule.name}</span>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="hidden lg:flex items-center gap-2">
+                    <span className="text-xs text-gray-500">当前使用：</span>
+                    <span className="px-2.5 py-1 bg-golden/10 text-golden rounded-lg text-xs font-medium">
+                      {selectedModule.icon} {selectedModule.name}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-3 space-y-3">
               {currentMessages.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="text-5xl mb-4">🧠</div>
-                  <h2 className="text-lg font-semibold text-gray-800 mb-2">选择模块开始对话</h2>
-                  <p className="text-gray-500 max-w-md mx-auto mb-6">
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-3">🧠</div>
+                  <h2 className="text-base font-semibold text-gray-800 mb-1.5">选择模块开始对话</h2>
+                  <p className="text-gray-500 max-w-md mx-auto mb-4 text-sm">
                     从左侧选择一个模块，或创建新模块，然后开始对话
                   </p>
-                  <div className="flex flex-wrap gap-2 justify-center max-w-md mx-auto">
+                  <div className="flex flex-wrap gap-1.5 justify-center max-w-md mx-auto">
                     {modules.map((module) => (
                       <button
                         key={module.id}
                         onClick={() => setSelectedModuleId(module.id)}
-                        className={`px-4 py-2 rounded-xl text-sm transition-all ${
+                        className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                           selectedModuleId === module.id
                             ? 'bg-golden text-white'
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -670,21 +684,21 @@ export default function ActionProtocolView() {
                       key={message.id}
                       className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
-                      <div className="max-w-[80%]">
+                      <div className="max-w-[85%]">
                         {(message as any).moduleName && message.role === 'user' && (
-                          <div className="text-xs text-gray-400 mb-1 ml-2">
+                          <div className="text-xs text-gray-400 mb-1 ml-1">
                             {(message as any).moduleName}
                           </div>
                         )}
                         <div
-                          className={`px-4 py-3 rounded-2xl ${
+                          className={`px-3 py-2.5 rounded-2xl ${
                             message.role === 'user'
                               ? 'bg-golden text-white'
                               : 'bg-gray-100 text-gray-800'
                           }`}
                         >
-                          <p className="whitespace-pre-wrap">{message.content}</p>
-                          <p className={`text-xs mt-2 ${message.role === 'user' ? 'text-white/70' : 'text-gray-500'}`}>
+                          <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                          <p className={`text-xs mt-1.5 ${message.role === 'user' ? 'text-white/70' : 'text-gray-500'}`}>
                             {new Date(message.timestamp).toLocaleTimeString('zh-CN', {
                               hour: '2-digit',
                               minute: '2-digit',
@@ -696,10 +710,10 @@ export default function ActionProtocolView() {
                   ))}
                   {streamingContent && (
                     <div className="flex justify-start">
-                      <div className="max-w-[80%]">
-                        <div className="px-4 py-3 rounded-2xl bg-gray-100 text-gray-800">
-                          <p className="whitespace-pre-wrap">{streamingContent}</p>
-                          <span className="inline-block w-2 h-5 bg-gray-400 ml-1 align-middle animate-pulse" />
+                      <div className="max-w-[85%]">
+                        <div className="px-3 py-2.5 rounded-2xl bg-gray-100 text-gray-800">
+                          <p className="whitespace-pre-wrap text-sm">{streamingContent}</p>
+                          <span className="inline-block w-1.5 h-4 bg-gray-400 ml-1 align-middle animate-pulse" />
                         </div>
                       </div>
                     </div>
@@ -709,26 +723,8 @@ export default function ActionProtocolView() {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="p-4 border-t border-gray-100 shrink-0">
-              <div className="flex items-center justify-between mb-3">
-                {currentMessages.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    <span className="text-xs text-gray-400">切换模块：</span>
-                    {modules.map((module) => (
-                      <button
-                        key={module.id}
-                        onClick={() => setSelectedModuleId(module.id)}
-                        className={`px-3 py-1 rounded-lg text-xs transition-all ${
-                          selectedModuleId === module.id
-                            ? 'bg-golden text-white'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                      >
-                        {module.icon} {module.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
+            <div className="p-3 border-t border-gray-100 shrink-0">
+              <div className="flex items-center justify-between mb-2">
                 {currentMessages.length > 0 && (
                   <button
                     onClick={() => {
@@ -736,9 +732,9 @@ export default function ActionProtocolView() {
                         setCurrentMessages([]);
                       }
                     }}
-                    className="px-3 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-1"
+                    className="px-2.5 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-1"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
                     新聊天
@@ -747,25 +743,25 @@ export default function ActionProtocolView() {
               </div>
 
               {isLoading && (
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-4 h-4 border-2 border-golden/30 border-t-golden rounded-full animate-spin" />
-                  <span className="text-sm text-gray-600">思考中...</span>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-3.5 h-3.5 border-2 border-golden/30 border-t-golden rounded-full animate-spin" />
+                  <span className="text-xs text-gray-600">思考中...</span>
                   <button
                     onClick={handleStopGeneration}
-                    className="ml-auto text-sm text-red-500 hover:text-red-600 hover:bg-red-50 px-3 py-1 rounded-lg transition-colors"
+                    className="ml-auto text-xs text-red-500 hover:text-red-600 hover:bg-red-50 px-2.5 py-1 rounded-lg transition-colors"
                   >
                     中断
                   </button>
                 </div>
               )}
-              <div className="flex gap-3">
+              <div className="flex gap-2.5">
                 <textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyPress}
-                  placeholder={`使用「${selectedModule.name}」模块，输入你的需求...`}
+                  placeholder={`使用「${selectedModule.name}」模块...`}
                   disabled={isLoading || !apiService.hasApiKey()}
-                  className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none resize-none max-h-32 text-base"
+                  className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none resize-none max-h-28 text-sm"
                   rows={1}
                   autoComplete="off"
                   autoCorrect="off"
@@ -774,7 +770,7 @@ export default function ActionProtocolView() {
                 <button
                   onClick={isLoading ? handleStopGeneration : handleSend}
                   disabled={!isLoading && !input.trim() || !apiService.hasApiKey()}
-                  className={`px-6 py-3 rounded-xl font-semibold transition-colors flex items-center gap-2 ${
+                  className={`px-4 py-2.5 rounded-xl font-semibold transition-colors flex items-center gap-1.5 ${
                     isLoading
                       ? 'bg-red-500 text-white hover:bg-red-600'
                       : !input.trim() || !apiService.hasApiKey()
@@ -784,7 +780,7 @@ export default function ActionProtocolView() {
                 >
                   {isLoading ? (
                     <>
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
                       </svg>
@@ -792,7 +788,7 @@ export default function ActionProtocolView() {
                     </>
                   ) : (
                     <>
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                       </svg>
                       发送
@@ -810,46 +806,88 @@ export default function ActionProtocolView() {
       {showModuleEditor && (
         <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
           <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] sm:max-h-none flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-gray-100 shrink-0">
-              <h3 className="text-lg font-semibold text-gray-800">编辑模块</h3>
-              <button
-                onClick={() => setShowModuleEditor(null)}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="p-4 space-y-4 overflow-y-auto">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">模块名称</label>
-                <input
-                  type="text"
-                  value={editModuleName}
-                  onChange={(e) => setEditModuleName(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none"
-                  placeholder="输入模块名称"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">提示词</label>
-                <textarea
-                  value={editModulePrompt}
-                  onChange={(e) => setEditModulePrompt(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none resize-none text-sm min-h-[200px]"
-                  placeholder="输入模块提示词..."
-                />
-              </div>
-            </div>
-            <div className="p-4 border-t border-gray-100 shrink-0">
-              <button
-                onClick={handleSaveModule}
-                className="w-full px-4 py-3 bg-golden text-white rounded-xl font-semibold hover:opacity-90 transition-colors"
-              >
-                保存
-              </button>
-            </div>
+            {showModuleEditor === 'mobile-select' ? (
+              <>
+                <div className="flex items-center justify-between p-4 border-b border-gray-100 shrink-0">
+                  <h3 className="text-lg font-semibold text-gray-800">选择模块</h3>
+                  <button
+                    onClick={() => setShowModuleEditor(null)}
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="p-3 space-y-2 overflow-y-auto flex-1">
+                  {modules.map((module) => (
+                    <button
+                      key={module.id}
+                      onClick={() => {
+                        setSelectedModuleId(module.id);
+                        setShowModuleEditor(null);
+                      }}
+                      className={`w-full px-4 py-3 rounded-xl transition-all flex items-center gap-3 text-left ${
+                        selectedModuleId === module.id
+                          ? 'bg-golden/10 border-2 border-golden text-golden'
+                          : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100 text-gray-700'
+                      }`}
+                    >
+                      <span className="text-xl">{module.icon}</span>
+                      <span className="font-medium">{module.name}</span>
+                      {selectedModuleId === module.id && (
+                        <svg className="w-5 h-5 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-between p-4 border-b border-gray-100 shrink-0">
+                  <h3 className="text-lg font-semibold text-gray-800">编辑模块</h3>
+                  <button
+                    onClick={() => setShowModuleEditor(null)}
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="p-4 space-y-4 overflow-y-auto">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">模块名称</label>
+                    <input
+                      type="text"
+                      value={editModuleName}
+                      onChange={(e) => setEditModuleName(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none"
+                      placeholder="输入模块名称"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">提示词</label>
+                    <textarea
+                      value={editModulePrompt}
+                      onChange={(e) => setEditModulePrompt(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none resize-none text-sm min-h-[200px]"
+                      placeholder="输入模块提示词..."
+                    />
+                  </div>
+                </div>
+                <div className="p-4 border-t border-gray-100 shrink-0">
+                  <button
+                    onClick={handleSaveModule}
+                    className="w-full px-4 py-3 bg-golden text-white rounded-xl font-semibold hover:opacity-90 transition-colors"
+                  >
+                    保存
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
