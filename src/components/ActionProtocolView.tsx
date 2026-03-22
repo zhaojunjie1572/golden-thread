@@ -118,6 +118,42 @@ export default function ActionProtocolView() {
       return null;
     }
   });
+  const [userTextColor, setUserTextColor] = useState<string>(() => {
+    try {
+      return localStorage.getItem('think-tank-user-text-color') || '#000000';
+    } catch {
+      return '#000000';
+    }
+  });
+  const [aiTextColor, setAiTextColor] = useState<string>(() => {
+    try {
+      return localStorage.getItem('think-tank-ai-text-color') || '#ffffff';
+    } catch {
+      return '#ffffff';
+    }
+  });
+  const [showColorSettings, setShowColorSettings] = useState(false);
+  const [topBarTransparent, setTopBarTransparent] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('think-tank-topbar-transparent') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [inputBarTransparent, setInputBarTransparent] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('think-tank-inputbar-transparent') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [textScale, setTextScale] = useState<number>(() => {
+    try {
+      return parseFloat(localStorage.getItem('think-tank-text-scale') || '1');
+    } catch {
+      return 1;
+    }
+  });
   
   const [modules, setModules] = useState<PromptModule[]>(() => {
     try {
@@ -209,6 +245,26 @@ export default function ActionProtocolView() {
   useEffect(() => {
     localStorage.setItem('think-tank-module-messages', JSON.stringify(moduleMessages));
   }, [moduleMessages]);
+
+  useEffect(() => {
+    localStorage.setItem('think-tank-user-text-color', userTextColor);
+  }, [userTextColor]);
+
+  useEffect(() => {
+    localStorage.setItem('think-tank-ai-text-color', aiTextColor);
+  }, [aiTextColor]);
+
+  useEffect(() => {
+    localStorage.setItem('think-tank-topbar-transparent', topBarTransparent.toString());
+  }, [topBarTransparent]);
+
+  useEffect(() => {
+    localStorage.setItem('think-tank-inputbar-transparent', inputBarTransparent.toString());
+  }, [inputBarTransparent]);
+
+  useEffect(() => {
+    localStorage.setItem('think-tank-text-scale', textScale.toString());
+  }, [textScale]);
 
   const prepareConversationHistory = (userMessage: ChatMessage): ChatMessage[] => {
     const history: ChatMessage[] = [
@@ -845,7 +901,7 @@ export default function ActionProtocolView() {
             <div className="absolute inset-0 bg-[#ededed]" />
           )}
           
-          <div className="relative z-10 flex items-center px-3 py-2 bg-white/95 backdrop-blur-sm border-b border-gray-200 shrink-0">
+          <div className={`relative z-10 flex items-center px-3 py-2 ${topBarTransparent ? 'bg-transparent border-b border-transparent' : 'bg-white/95 backdrop-blur-sm border-b border-gray-200'} shrink-0`}>
             <button
               onClick={() => setIsMaximized(false)}
               className="p-2 text-gray-700 hover:text-gray-900 transition-colors"
@@ -860,6 +916,15 @@ export default function ActionProtocolView() {
               <h1 className="text-base font-semibold text-gray-800">{selectedModule.name}</h1>
             </div>
             <div className="flex items-center gap-1">
+              <button
+                onClick={() => setShowColorSettings(!showColorSettings)}
+                className="p-2 text-gray-700 hover:text-gray-900 transition-colors"
+                title="文字颜色"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                </svg>
+              </button>
               <button
                 onClick={() => document.getElementById('bg-image-upload')?.click()}
                 className="p-2 text-gray-700 hover:text-gray-900 transition-colors"
@@ -933,11 +998,14 @@ export default function ActionProtocolView() {
                         <div
                           className={`px-3.5 py-2.5 ${
                             backgroundImage 
-                              ? `${message.role === 'user' ? 'text-black font-medium' : 'text-white font-medium'} shadow-none`
-                              : `${message.role === 'user' ? 'bg-[#95ec69] text-black rounded-br-sm' : 'bg-white text-black rounded-bl-sm'} rounded-xl shadow-sm`
+                              ? `shadow-none`
+                              : `${message.role === 'user' ? 'bg-[#95ec69] rounded-br-sm' : 'bg-white rounded-bl-sm'} rounded-xl shadow-sm`
                           }`}
+                          style={{
+                            color: message.role === 'user' ? userTextColor : aiTextColor,
+                          }}
                         >
-                          <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                          <p className="whitespace-pre-wrap font-medium" style={{ fontSize: `${14 * textScale}px` }}>{message.content}</p>
                         </div>
                       </div>
                       {message.role === 'user' && (
@@ -955,9 +1023,12 @@ export default function ActionProtocolView() {
                         🤖
                       </div>
                       <div className="relative items-start flex flex-col">
-                        <div className={`px-3.5 py-2.5 ${backgroundImage ? 'text-white font-medium shadow-none' : 'bg-white text-black rounded-bl-sm rounded-xl shadow-sm'}`}>
-                          <p className="whitespace-pre-wrap text-sm">{streamingContent}</p>
-                          <span className={`inline-block w-1.5 h-4 ${backgroundImage ? 'bg-white' : 'bg-gray-400'} ml-1 align-middle animate-pulse`} />
+                        <div 
+                          className={`px-3.5 py-2.5 ${backgroundImage ? 'shadow-none' : 'bg-white rounded-bl-sm rounded-xl shadow-sm'}`}
+                          style={{ color: aiTextColor }}
+                        >
+                          <p className="whitespace-pre-wrap font-medium" style={{ fontSize: `${14 * textScale}px` }}>{streamingContent}</p>
+                          <span className="inline-block w-1.5 h-4 ml-1 align-middle animate-pulse" style={{ backgroundColor: aiTextColor }} />
                         </div>
                       </div>
                     </div>
@@ -968,14 +1039,14 @@ export default function ActionProtocolView() {
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="relative z-10 bg-white border-t border-gray-200 shrink-0 px-3 py-2.5">
+          <div className={`relative z-10 ${inputBarTransparent ? 'bg-transparent border-t border-transparent' : 'bg-white border-t border-gray-200'} shrink-0 px-3 py-2.5`}>
             {isLoading && (
               <div className="flex items-center gap-2 mb-2 py-1">
                 <div className="w-4 h-4 border-2 border-golden/30 border-t-golden rounded-full animate-spin" />
-                <span className="text-sm text-gray-600">思考中...</span>
+                <span className={`text-sm ${inputBarTransparent ? 'text-white' : 'text-gray-600'}`}>思考中...</span>
                 <button
                   onClick={handleStopGeneration}
-                  className="ml-auto text-sm text-red-500 hover:text-red-600 hover:bg-red-50 px-2.5 py-1 rounded-lg transition-colors"
+                  className={`ml-auto text-sm ${inputBarTransparent ? 'text-white hover:text-white/80 hover:bg-white/20' : 'text-red-500 hover:text-red-600 hover:bg-red-50'} px-2.5 py-1 rounded-lg transition-colors`}
                 >
                   中断
                 </button>
@@ -988,7 +1059,11 @@ export default function ActionProtocolView() {
                 onKeyDown={handleKeyPress}
                 placeholder=""
                 disabled={isLoading || !apiService.hasApiKey()}
-                className="flex-1 px-3 py-2.5 rounded-lg border border-gray-300 outline-none resize-none max-h-28 text-base"
+                className={`flex-1 px-3 py-2.5 rounded-lg outline-none resize-none max-h-28 text-base ${
+                  inputBarTransparent 
+                    ? 'bg-white/80 backdrop-blur-sm border border-white/30' 
+                    : 'border border-gray-300'
+                }`}
                 rows={1}
                 autoComplete="off"
                 autoCorrect="off"
@@ -1021,6 +1096,174 @@ export default function ActionProtocolView() {
                     发送
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {showColorSettings && (
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onClick={() => setShowColorSettings(false)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] sm:max-h-none flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-gray-100 shrink-0">
+              <h3 className="text-lg font-semibold text-gray-800">文字颜色设置</h3>
+              <button
+                onClick={() => setShowColorSettings(false)}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-4 space-y-6 overflow-y-auto">
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <span>👤</span>
+                    用户文字颜色
+                  </label>
+                  <div 
+                    className="w-8 h-8 rounded-full border-2 border-gray-200"
+                    style={{ backgroundColor: userTextColor }}
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={userTextColor}
+                    onChange={(e) => setUserTextColor(e.target.value)}
+                    className="w-12 h-10 rounded-lg border-0 cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={userTextColor}
+                    onChange={(e) => setUserTextColor(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono"
+                  />
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {['#000000', '#ffffff', '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#dfe6e9', '#fd79a8', '#a29bfe'].map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => setUserTextColor(color)}
+                      className={`w-8 h-8 rounded-full border-2 transition-all ${
+                        userTextColor === color ? 'border-gray-800 scale-110' : 'border-gray-200'
+                      }`}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <span>🤖</span>
+                    AI 文字颜色
+                  </label>
+                  <div 
+                    className="w-8 h-8 rounded-full border-2 border-gray-200"
+                    style={{ backgroundColor: aiTextColor }}
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={aiTextColor}
+                    onChange={(e) => setAiTextColor(e.target.value)}
+                    className="w-12 h-10 rounded-lg border-0 cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={aiTextColor}
+                    onChange={(e) => setAiTextColor(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono"
+                  />
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {['#ffffff', '#000000', '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#dfe6e9', '#fd79a8', '#a29bfe'].map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => setAiTextColor(color)}
+                      className={`w-8 h-8 rounded-full border-2 transition-all ${
+                        aiTextColor === color ? 'border-gray-800 scale-110' : 'border-gray-200'
+                      }`}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <span>📐</span>
+                    顶部栏透明
+                  </label>
+                  <button
+                    onClick={() => setTopBarTransparent(!topBarTransparent)}
+                    className={`w-12 h-6 rounded-full transition-colors relative ${
+                      topBarTransparent ? 'bg-golden' : 'bg-gray-300'
+                    }`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                      topBarTransparent ? 'translate-x-7' : 'translate-x-1'
+                    }`} />
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <span>📝</span>
+                    输入栏透明
+                  </label>
+                  <button
+                    onClick={() => setInputBarTransparent(!inputBarTransparent)}
+                    className={`w-12 h-6 rounded-full transition-colors relative ${
+                      inputBarTransparent ? 'bg-golden' : 'bg-gray-300'
+                    }`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                      inputBarTransparent ? 'translate-x-7' : 'translate-x-1'
+                    }`} />
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <span>🔍</span>
+                    文字大小
+                  </label>
+                  <span className="text-sm text-gray-500">{(textScale * 100).toFixed(0)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.8"
+                  max="2"
+                  step="0.1"
+                  value={textScale}
+                  onChange={(e) => setTextScale(parseFloat(e.target.value))}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                />
+                <div className="flex justify-between text-xs text-gray-400 mt-1">
+                  <span>80%</span>
+                  <span>100%</span>
+                  <span>150%</span>
+                  <span>200%</span>
+                </div>
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-100 shrink-0">
+              <button
+                onClick={() => setShowColorSettings(false)}
+                className="w-full px-4 py-3 bg-golden text-white rounded-xl font-semibold hover:opacity-90 transition-colors"
+              >
+                完成
               </button>
             </div>
           </div>
