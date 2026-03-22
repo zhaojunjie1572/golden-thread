@@ -110,6 +110,7 @@ const DEFAULT_MODULES: PromptModule[] = [
 
 export default function ActionProtocolView() {
   const navigate = useNavigate();
+  const [isMaximized, setIsMaximized] = useState(false);
   
   const [modules, setModules] = useState<PromptModule[]>(() => {
     try {
@@ -229,6 +230,7 @@ export default function ActionProtocolView() {
 
   const handleModuleClick = (module: PromptModule) => {
     setSelectedModuleId(module.id);
+    setIsMaximized(true);
   };
 
   const handleSaveModule = () => {
@@ -414,8 +416,9 @@ export default function ActionProtocolView() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col h-[calc(100vh-140px)]">
-      <div className="flex items-center gap-4 mb-6 shrink-0">
+    <div className={`${isMaximized ? 'lg:hidden' : ''} ${isMaximized ? '' : 'max-w-6xl mx-auto px-4 py-8'} flex flex-col ${isMaximized ? 'h-[calc(100vh-120px)]' : 'h-[calc(100vh-140px)]'}`}>
+      {!isMaximized && (
+        <div className="flex items-center gap-4 mb-6 shrink-0">
         <button
           onClick={() => navigate('/')}
           className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -463,9 +466,41 @@ export default function ActionProtocolView() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
         </button>
-      </div>
+        </div>
+      )}
+      
+      {isMaximized && (
+        <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 shrink-0">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsMaximized(false)}
+              className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              title="退出最大化"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{selectedModule.icon}</span>
+              <span className="font-medium text-gray-800">{selectedModule.name}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowModuleEditor('mobile-select')}
+              className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              title="切换模块"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
 
-      {showSettings && (
+      {!isMaximized && showSettings && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 shrink-0">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-800">API 设置</h2>
@@ -490,7 +525,7 @@ export default function ActionProtocolView() {
         </div>
       )}
 
-      {showMemorySettings && (
+      {!isMaximized && showMemorySettings && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 shrink-0">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-800">记忆设置</h2>
@@ -810,37 +845,73 @@ export default function ActionProtocolView() {
               <>
                 <div className="flex items-center justify-between p-4 border-b border-gray-100 shrink-0">
                   <h3 className="text-lg font-semibold text-gray-800">选择模块</h3>
-                  <button
-                    onClick={() => setShowModuleEditor(null)}
-                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleAddModule}
+                      className="p-2 text-gray-400 hover:text-golden hover:bg-golden/10 rounded-lg transition-colors"
+                      title="添加模块"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => setShowModuleEditor(null)}
+                      className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
                 <div className="p-3 space-y-2 overflow-y-auto flex-1">
                   {modules.map((module) => (
-                    <button
-                      key={module.id}
-                      onClick={() => {
-                        setSelectedModuleId(module.id);
-                        setShowModuleEditor(null);
-                      }}
-                      className={`w-full px-4 py-3 rounded-xl transition-all flex items-center gap-3 text-left ${
-                        selectedModuleId === module.id
-                          ? 'bg-golden/10 border-2 border-golden text-golden'
-                          : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100 text-gray-700'
-                      }`}
-                    >
-                      <span className="text-xl">{module.icon}</span>
-                      <span className="font-medium">{module.name}</span>
-                      {selectedModuleId === module.id && (
-                        <svg className="w-5 h-5 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </button>
+                    <div key={module.id} className="relative">
+                      <div
+                        className={`w-full px-4 py-3 rounded-xl transition-all flex items-center gap-3 cursor-pointer ${
+                          selectedModuleId === module.id
+                            ? 'bg-golden/10 border-2 border-golden text-golden'
+                            : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100 text-gray-700'
+                        }`}
+                        onClick={() => {
+                          setSelectedModuleId(module.id);
+                          setShowModuleEditor(null);
+                          setIsMaximized(true);
+                        }}
+                      >
+                        <span className="text-xl">{module.icon}</span>
+                        <span className="font-medium flex-1">{module.name}</span>
+                        {selectedModuleId === module.id && (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                        <div className="flex items-center gap-1 ml-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditModule(module);
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded transition-colors"
+                            title="编辑"
+                          >
+                            <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={(e) => handleDeleteModule(module.id, e)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                            title="删除"
+                          >
+                            <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   ))}
                 </div>
               </>
