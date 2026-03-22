@@ -470,30 +470,27 @@ export default function ActionProtocolView() {
       )}
       
       {isMaximized && (
-        <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 shrink-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0 bg-white">
+          <button
+            onClick={() => setIsMaximized(false)}
+            className="p-1.5 text-gray-700 hover:text-gray-900 transition-colors"
+            title="返回"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <div className="flex-1 text-center">
+            <h1 className="text-base font-semibold text-gray-800">{selectedModule.name}</h1>
+          </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setIsMaximized(false)}
-              className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-              title="退出最大化"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <div className="flex items-center gap-2">
-              <span className="text-lg">{selectedModule.icon}</span>
-              <span className="font-medium text-gray-800">{selectedModule.name}</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-1">
-            <button
               onClick={() => setShowModuleEditor('mobile-select')}
-              className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-              title="切换模块"
+              className="p-1.5 text-gray-700 hover:text-gray-900 transition-colors"
+              title="更多"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
               </svg>
             </button>
           </div>
@@ -658,37 +655,39 @@ export default function ActionProtocolView() {
         </div>
 
         <div className="flex-1 flex flex-col min-h-0">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col flex-1 min-h-0">
-            <div className="p-3 border-b border-gray-100 shrink-0">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">💬</span>
-                  <h3 className="font-semibold text-gray-800">对话</h3>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="lg:hidden">
-                    <button
-                      onClick={() => setShowModuleEditor('mobile-select')}
-                      className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm flex items-center gap-1.5 hover:bg-gray-200"
-                    >
-                      <span>{selectedModule.icon}</span>
-                      <span className="truncate max-w-[100px]">{selectedModule.name}</span>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
+          <div className={`${isMaximized ? 'bg-[#ededed]' : 'bg-white rounded-2xl shadow-sm border border-gray-100'} flex flex-col flex-1 min-h-0`}>
+            {!isMaximized && (
+              <div className="p-3 border-b border-gray-100 shrink-0">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">💬</span>
+                    <h3 className="font-semibold text-gray-800">对话</h3>
                   </div>
-                  <div className="hidden lg:flex items-center gap-2">
-                    <span className="text-xs text-gray-500">当前使用：</span>
-                    <span className="px-2.5 py-1 bg-golden/10 text-golden rounded-lg text-xs font-medium">
-                      {selectedModule.icon} {selectedModule.name}
-                    </span>
+                  <div className="flex items-center gap-2">
+                    <div className="lg:hidden">
+                      <button
+                        onClick={() => setShowModuleEditor('mobile-select')}
+                        className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm flex items-center gap-1.5 hover:bg-gray-200"
+                      >
+                        <span>{selectedModule.icon}</span>
+                        <span className="truncate max-w-[100px]">{selectedModule.name}</span>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="hidden lg:flex items-center gap-2">
+                      <span className="text-xs text-gray-500">当前使用：</span>
+                      <span className="px-2.5 py-1 bg-golden/10 text-golden rounded-lg text-xs font-medium">
+                        {selectedModule.icon} {selectedModule.name}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            <div className="flex-1 overflow-y-auto p-3 space-y-3">
+            <div className={`flex-1 overflow-y-auto ${isMaximized ? 'p-3' : 'p-3'} space-y-3`}>
               {currentMessages.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="text-4xl mb-3">🧠</div>
@@ -717,38 +716,53 @@ export default function ActionProtocolView() {
                   {currentMessages.map((message) => (
                     <div
                       key={message.id}
-                      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} px-2`}
                     >
-                      <div className="max-w-[85%]">
-                        {(message as any).moduleName && message.role === 'user' && (
-                          <div className="text-xs text-gray-400 mb-1 ml-1">
-                            {(message as any).moduleName}
+                      <div className={`max-w-[75%] flex items-start gap-2 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                        {message.role === 'assistant' && (
+                          <div className="w-10 h-10 rounded-full bg-golden/10 flex items-center justify-center text-lg shrink-0">
+                            🤖
                           </div>
                         )}
-                        <div
-                          className={`px-3 py-2.5 rounded-2xl ${
-                            message.role === 'user'
-                              ? 'bg-golden text-white'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}
-                        >
-                          <p className="whitespace-pre-wrap text-sm">{message.content}</p>
-                          <p className={`text-xs mt-1.5 ${message.role === 'user' ? 'text-white/70' : 'text-gray-500'}`}>
-                            {new Date(message.timestamp).toLocaleTimeString('zh-CN', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </p>
+                        <div className={`relative ${message.role === 'user' ? 'items-end' : 'items-start'} flex flex-col`}>
+                          {(message as any).moduleName && message.role === 'user' && (
+                            <div className="text-xs text-gray-500 mb-1">
+                              {(message as any).moduleName}
+                            </div>
+                          )}
+                          <div
+                            className={`px-3.5 py-2.5 ${isMaximized ? (message.role === 'user' ? 'bg-[#95ec69] text-black' : 'bg-white text-black') : (message.role === 'user' ? 'bg-golden text-white' : 'bg-gray-100 text-gray-800')} ${isMaximized ? (message.role === 'user' ? 'rounded-br-sm' : 'rounded-bl-sm') : ''} rounded-xl`}
+                          >
+                            <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                            {!isMaximized && (
+                              <p className={`text-xs mt-1.5 ${message.role === 'user' ? 'text-white/70' : 'text-gray-500'}`}>
+                                {new Date(message.timestamp).toLocaleTimeString('zh-CN', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </p>
+                            )}
+                          </div>
                         </div>
+                        {message.role === 'user' && (
+                          <div className="w-10 h-10 rounded-full bg-golden flex items-center justify-center text-lg shrink-0">
+                            👤
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
                   {streamingContent && (
-                    <div className="flex justify-start">
-                      <div className="max-w-[85%]">
-                        <div className="px-3 py-2.5 rounded-2xl bg-gray-100 text-gray-800">
-                          <p className="whitespace-pre-wrap text-sm">{streamingContent}</p>
-                          <span className="inline-block w-1.5 h-4 bg-gray-400 ml-1 align-middle animate-pulse" />
+                    <div className="flex justify-start px-2">
+                      <div className="max-w-[75%] flex items-start gap-2">
+                        <div className="w-10 h-10 rounded-full bg-golden/10 flex items-center justify-center text-lg shrink-0">
+                          🤖
+                        </div>
+                        <div className={`relative items-start flex flex-col`}>
+                          <div className={`px-3.5 py-2.5 ${isMaximized ? 'bg-white text-black rounded-bl-sm' : 'bg-gray-100 text-gray-800'} rounded-xl`}>
+                            <p className="whitespace-pre-wrap text-sm">{streamingContent}</p>
+                            <span className="inline-block w-1.5 h-4 bg-gray-400 ml-1 align-middle animate-pulse" />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -758,45 +772,47 @@ export default function ActionProtocolView() {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="p-3 border-t border-gray-100 shrink-0">
-              <div className="flex items-center justify-between mb-2">
-                {currentMessages.length > 0 && (
-                  <button
-                    onClick={() => {
-                      if (confirm('确定要开启新聊天吗？当前对话内容将被清空。')) {
-                        setCurrentMessages([]);
-                      }
-                    }}
-                    className="px-2.5 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-1"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    新聊天
-                  </button>
-                )}
-              </div>
+            <div className={`${isMaximized ? 'bg-white border-t border-gray-200' : 'p-3 border-t border-gray-100'} shrink-0 ${isMaximized ? 'px-3 py-2.5' : ''}`}>
+              {!isMaximized && (
+                <div className="flex items-center justify-between mb-2">
+                  {currentMessages.length > 0 && (
+                    <button
+                      onClick={() => {
+                        if (confirm('确定要开启新聊天吗？当前对话内容将被清空。')) {
+                          setCurrentMessages([]);
+                        }
+                      }}
+                      className="px-2.5 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-1"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      新聊天
+                    </button>
+                  )}
+                </div>
+              )}
 
               {isLoading && (
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-3.5 h-3.5 border-2 border-golden/30 border-t-golden rounded-full animate-spin" />
-                  <span className="text-xs text-gray-600">思考中...</span>
+                <div className={`flex items-center gap-2 ${isMaximized ? 'mb-2 py-1' : 'mb-2'}`}>
+                  <div className={`${isMaximized ? 'w-4 h-4' : 'w-3.5 h-3.5'} border-2 border-golden/30 border-t-golden rounded-full animate-spin`} />
+                  <span className={`${isMaximized ? 'text-sm' : 'text-xs'} text-gray-600`}>思考中...</span>
                   <button
                     onClick={handleStopGeneration}
-                    className="ml-auto text-xs text-red-500 hover:text-red-600 hover:bg-red-50 px-2.5 py-1 rounded-lg transition-colors"
+                    className={`ml-auto ${isMaximized ? 'text-sm' : 'text-xs'} text-red-500 hover:text-red-600 hover:bg-red-50 px-2.5 py-1 rounded-lg transition-colors`}
                   >
                     中断
                   </button>
                 </div>
               )}
-              <div className="flex gap-2.5">
+              <div className={`flex ${isMaximized ? 'gap-2' : 'gap-2.5'}`}>
                 <textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyPress}
-                  placeholder={`使用「${selectedModule.name}」模块...`}
+                  placeholder={isMaximized ? '' : `使用「${selectedModule.name}」模块...`}
                   disabled={isLoading || !apiService.hasApiKey()}
-                  className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none resize-none max-h-28 text-sm"
+                  className={`flex-1 ${isMaximized ? 'px-3 py-2.5 rounded-lg border border-gray-300' : 'px-3 py-2.5 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20'} outline-none resize-none max-h-28 ${isMaximized ? 'text-base' : 'text-sm'}`}
                   rows={1}
                   autoComplete="off"
                   autoCorrect="off"
@@ -805,17 +821,19 @@ export default function ActionProtocolView() {
                 <button
                   onClick={isLoading ? handleStopGeneration : handleSend}
                   disabled={!isLoading && !input.trim() || !apiService.hasApiKey()}
-                  className={`px-4 py-2.5 rounded-xl font-semibold transition-colors flex items-center gap-1.5 ${
+                  className={`${isMaximized ? 'px-4 py-2.5 rounded-lg' : 'px-4 py-2.5 rounded-xl'} font-semibold transition-colors flex items-center gap-1.5 ${
                     isLoading
                       ? 'bg-red-500 text-white hover:bg-red-600'
                       : !input.trim() || !apiService.hasApiKey()
                       ? 'bg-gray-300 text-gray-50 cursor-not-allowed'
+                      : isMaximized
+                      ? 'bg-[#07c160] text-white hover:opacity-90'
                       : 'bg-golden text-white hover:opacity-90'
                   }`}
                 >
                   {isLoading ? (
                     <>
-                      <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className={`${isMaximized ? 'w-5 h-5' : 'w-4.5 h-4.5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
                       </svg>
@@ -823,7 +841,7 @@ export default function ActionProtocolView() {
                     </>
                   ) : (
                     <>
-                      <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className={`${isMaximized ? 'w-5 h-5' : 'w-4.5 h-4.5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                       </svg>
                       发送
