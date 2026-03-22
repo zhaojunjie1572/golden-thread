@@ -111,6 +111,7 @@ const DEFAULT_MODULES: PromptModule[] = [
 export default function ActionProtocolView() {
   const navigate = useNavigate();
   const [isMaximized, setIsMaximized] = useState(false);
+  const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
   
   const [modules, setModules] = useState<PromptModule[]>(() => {
     try {
@@ -415,89 +416,76 @@ export default function ActionProtocolView() {
     }
   };
 
+  const handleBackgroundImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setBackgroundImage(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeBackgroundImage = () => {
+    setBackgroundImage(null);
+  };
+
   return (
-    <div className={`${isMaximized ? 'lg:hidden' : ''} ${isMaximized ? '' : 'max-w-6xl mx-auto px-4 py-8'} flex flex-col ${isMaximized ? 'h-[calc(100vh-120px)]' : 'h-[calc(100vh-140px)]'}`}>
+    <>
       {!isMaximized && (
-        <div className="flex items-center gap-4 mb-6 shrink-0">
-        <button
-          onClick={() => navigate('/')}
-          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800">智库</h1>
-          <p className="text-gray-500 mt-1">当前模块：{selectedModule.icon} {selectedModule.name}</p>
-        </div>
-        <div className="flex-1"></div>
-        <button
-          onClick={() => setShowMemorySettings(!showMemorySettings)}
-          className="p-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
-          title="记忆设置"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-          </svg>
-        </button>
-        {currentMessages.length > 0 && (
+        <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col h-[calc(100vh-140px)]">
+          <div className="flex items-center gap-4 mb-6 shrink-0">
           <button
-            onClick={() => {
-              if (confirm('确定要清空当前模块的对话内容吗？')) {
-                setCurrentMessages([]);
-              }
-            }}
-            className="p-3 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
-            title="清空对话"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
-        )}
-        <button
-          onClick={() => setShowSettings(!showSettings)}
-          className="p-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
-          title="设置"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 0 00-1.066 2.573c-.94 1.543-.826 3.31-2.37 2.37.996.608 2.296.07 2.572-1.065z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-        </button>
-        </div>
-      )}
-      
-      {isMaximized && (
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0 bg-white">
-          <button
-            onClick={() => setIsMaximized(false)}
-            className="p-1.5 text-gray-700 hover:text-gray-900 transition-colors"
-            title="返回"
+            onClick={() => navigate('/')}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <div className="flex-1 text-center">
-            <h1 className="text-base font-semibold text-gray-800">{selectedModule.name}</h1>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800">智库</h1>
+            <p className="text-gray-500 mt-1">当前模块：{selectedModule.icon} {selectedModule.name}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex-1"></div>
+          <button
+            onClick={() => setShowMemorySettings(!showMemorySettings)}
+            className="p-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
+            title="记忆设置"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+            </svg>
+          </button>
+          {currentMessages.length > 0 && (
             <button
-              onClick={() => setShowModuleEditor('mobile-select')}
-              className="p-1.5 text-gray-700 hover:text-gray-900 transition-colors"
-              title="更多"
+              onClick={() => {
+                if (confirm('确定要清空当前模块的对话内容吗？')) {
+                  setCurrentMessages([]);
+                }
+              }}
+              className="p-3 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+              title="清空对话"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
             </button>
+          )}
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className="p-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
+            title="设置"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 0 00-1.066 2.573c-.94 1.543-.826 3.31-2.37 2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
           </div>
-        </div>
-      )}
 
-      {!isMaximized && showSettings && (
+      {showSettings && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 shrink-0">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-800">API 设置</h2>
@@ -522,7 +510,7 @@ export default function ActionProtocolView() {
         </div>
       )}
 
-      {!isMaximized && showMemorySettings && (
+      {showMemorySettings && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 shrink-0">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-800">记忆设置</h2>
@@ -655,39 +643,37 @@ export default function ActionProtocolView() {
         </div>
 
         <div className="flex-1 flex flex-col min-h-0">
-          <div className={`${isMaximized ? 'bg-[#ededed]' : 'bg-white rounded-2xl shadow-sm border border-gray-100'} flex flex-col flex-1 min-h-0`}>
-            {!isMaximized && (
-              <div className="p-3 border-b border-gray-100 shrink-0">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">💬</span>
-                    <h3 className="font-semibold text-gray-800">对话</h3>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col flex-1 min-h-0">
+            <div className="p-3 border-b border-gray-100 shrink-0">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">💬</span>
+                  <h3 className="font-semibold text-gray-800">对话</h3>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="lg:hidden">
+                    <button
+                      onClick={() => setShowModuleEditor('mobile-select')}
+                      className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm flex items-center gap-1.5 hover:bg-gray-200"
+                    >
+                      <span>{selectedModule.icon}</span>
+                      <span className="truncate max-w-[100px]">{selectedModule.name}</span>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="lg:hidden">
-                      <button
-                        onClick={() => setShowModuleEditor('mobile-select')}
-                        className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm flex items-center gap-1.5 hover:bg-gray-200"
-                      >
-                        <span>{selectedModule.icon}</span>
-                        <span className="truncate max-w-[100px]">{selectedModule.name}</span>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </button>
-                    </div>
-                    <div className="hidden lg:flex items-center gap-2">
-                      <span className="text-xs text-gray-500">当前使用：</span>
-                      <span className="px-2.5 py-1 bg-golden/10 text-golden rounded-lg text-xs font-medium">
-                        {selectedModule.icon} {selectedModule.name}
-                      </span>
-                    </div>
+                  <div className="hidden lg:flex items-center gap-2">
+                    <span className="text-xs text-gray-500">当前使用：</span>
+                    <span className="px-2.5 py-1 bg-golden/10 text-golden rounded-lg text-xs font-medium">
+                      {selectedModule.icon} {selectedModule.name}
+                    </span>
                   </div>
                 </div>
               </div>
-            )}
+            </div>
 
-            <div className={`flex-1 overflow-y-auto ${isMaximized ? 'p-3' : 'p-3'} space-y-3`}>
+            <div className="flex-1 overflow-y-auto p-3 space-y-3">
               {currentMessages.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="text-4xl mb-3">🧠</div>
@@ -718,51 +704,36 @@ export default function ActionProtocolView() {
                       key={message.id}
                       className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} px-2`}
                     >
-                      <div className={`max-w-[75%] flex items-start gap-2 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                        {message.role === 'assistant' && (
-                          <div className="w-10 h-10 rounded-full bg-golden/10 flex items-center justify-center text-lg shrink-0">
-                            🤖
+                      <div className="max-w-[75%]">
+                        {(message as any).moduleName && message.role === 'user' && (
+                          <div className="text-xs text-gray-400 mb-1 ml-1">
+                            {(message as any).moduleName}
                           </div>
                         )}
-                        <div className={`relative ${message.role === 'user' ? 'items-end' : 'items-start'} flex flex-col`}>
-                          {(message as any).moduleName && message.role === 'user' && (
-                            <div className="text-xs text-gray-500 mb-1">
-                              {(message as any).moduleName}
-                            </div>
-                          )}
-                          <div
-                            className={`px-3.5 py-2.5 ${isMaximized ? (message.role === 'user' ? 'bg-[#95ec69] text-black' : 'bg-white text-black') : (message.role === 'user' ? 'bg-golden text-white' : 'bg-gray-100 text-gray-800')} ${isMaximized ? (message.role === 'user' ? 'rounded-br-sm' : 'rounded-bl-sm') : ''} rounded-xl`}
-                          >
-                            <p className="whitespace-pre-wrap text-sm">{message.content}</p>
-                            {!isMaximized && (
-                              <p className={`text-xs mt-1.5 ${message.role === 'user' ? 'text-white/70' : 'text-gray-500'}`}>
-                                {new Date(message.timestamp).toLocaleTimeString('zh-CN', {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })}
-                              </p>
-                            )}
-                          </div>
+                        <div
+                          className={`px-3 py-2.5 rounded-2xl ${
+                            message.role === 'user'
+                              ? 'bg-golden text-white'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                          <p className={`text-xs mt-1.5 ${message.role === 'user' ? 'text-white/70' : 'text-gray-500'}`}>
+                            {new Date(message.timestamp).toLocaleTimeString('zh-CN', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </p>
                         </div>
-                        {message.role === 'user' && (
-                          <div className="w-10 h-10 rounded-full bg-golden flex items-center justify-center text-lg shrink-0">
-                            👤
-                          </div>
-                        )}
                       </div>
                     </div>
                   ))}
                   {streamingContent && (
-                    <div className="flex justify-start px-2">
-                      <div className="max-w-[75%] flex items-start gap-2">
-                        <div className="w-10 h-10 rounded-full bg-golden/10 flex items-center justify-center text-lg shrink-0">
-                          🤖
-                        </div>
-                        <div className={`relative items-start flex flex-col`}>
-                          <div className={`px-3.5 py-2.5 ${isMaximized ? 'bg-white text-black rounded-bl-sm' : 'bg-gray-100 text-gray-800'} rounded-xl`}>
-                            <p className="whitespace-pre-wrap text-sm">{streamingContent}</p>
-                            <span className="inline-block w-1.5 h-4 bg-gray-400 ml-1 align-middle animate-pulse" />
-                          </div>
+                    <div className="flex justify-start">
+                      <div className="max-w-[75%]">
+                        <div className="px-3 py-2.5 rounded-2xl bg-gray-100 text-gray-800">
+                          <p className="whitespace-pre-wrap text-sm">{streamingContent}</p>
+                          <span className="inline-block w-1.5 h-4 bg-gray-400 ml-1 align-middle animate-pulse" />
                         </div>
                       </div>
                     </div>
@@ -772,47 +743,45 @@ export default function ActionProtocolView() {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className={`${isMaximized ? 'bg-white border-t border-gray-200' : 'p-3 border-t border-gray-100'} shrink-0 ${isMaximized ? 'px-3 py-2.5' : ''}`}>
-              {!isMaximized && (
-                <div className="flex items-center justify-between mb-2">
-                  {currentMessages.length > 0 && (
-                    <button
-                      onClick={() => {
-                        if (confirm('确定要开启新聊天吗？当前对话内容将被清空。')) {
-                          setCurrentMessages([]);
-                        }
-                      }}
-                      className="px-2.5 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-1"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      新聊天
-                    </button>
-                  )}
-                </div>
-              )}
+            <div className="p-3 border-t border-gray-100 shrink-0">
+              <div className="flex items-center justify-between mb-2">
+                {currentMessages.length > 0 && (
+                  <button
+                    onClick={() => {
+                      if (confirm('确定要开启新聊天吗？当前对话内容将被清空。')) {
+                        setCurrentMessages([]);
+                      }
+                    }}
+                    className="px-2.5 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-1"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    新聊天
+                  </button>
+                )}
+              </div>
 
               {isLoading && (
-                <div className={`flex items-center gap-2 ${isMaximized ? 'mb-2 py-1' : 'mb-2'}`}>
-                  <div className={`${isMaximized ? 'w-4 h-4' : 'w-3.5 h-3.5'} border-2 border-golden/30 border-t-golden rounded-full animate-spin`} />
-                  <span className={`${isMaximized ? 'text-sm' : 'text-xs'} text-gray-600`}>思考中...</span>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-3.5 h-3.5 border-2 border-golden/30 border-t-golden rounded-full animate-spin" />
+                  <span className="text-xs text-gray-600">思考中...</span>
                   <button
                     onClick={handleStopGeneration}
-                    className={`ml-auto ${isMaximized ? 'text-sm' : 'text-xs'} text-red-500 hover:text-red-600 hover:bg-red-50 px-2.5 py-1 rounded-lg transition-colors`}
+                    className="ml-auto text-xs text-red-500 hover:text-red-600 hover:bg-red-50 px-2.5 py-1 rounded-lg transition-colors"
                   >
                     中断
                   </button>
                 </div>
               )}
-              <div className={`flex ${isMaximized ? 'gap-2' : 'gap-2.5'}`}>
+              <div className="flex gap-2.5">
                 <textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyPress}
-                  placeholder={isMaximized ? '' : `使用「${selectedModule.name}」模块...`}
+                  placeholder={`使用「${selectedModule.name}」模块...`}
                   disabled={isLoading || !apiService.hasApiKey()}
-                  className={`flex-1 ${isMaximized ? 'px-3 py-2.5 rounded-lg border border-gray-300' : 'px-3 py-2.5 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20'} outline-none resize-none max-h-28 ${isMaximized ? 'text-base' : 'text-sm'}`}
+                  className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none resize-none max-h-28 text-sm"
                   rows={1}
                   autoComplete="off"
                   autoCorrect="off"
@@ -821,19 +790,17 @@ export default function ActionProtocolView() {
                 <button
                   onClick={isLoading ? handleStopGeneration : handleSend}
                   disabled={!isLoading && !input.trim() || !apiService.hasApiKey()}
-                  className={`${isMaximized ? 'px-4 py-2.5 rounded-lg' : 'px-4 py-2.5 rounded-xl'} font-semibold transition-colors flex items-center gap-1.5 ${
+                  className={`px-4 py-2.5 rounded-xl font-semibold transition-colors flex items-center gap-1.5 ${
                     isLoading
                       ? 'bg-red-500 text-white hover:bg-red-600'
                       : !input.trim() || !apiService.hasApiKey()
                       ? 'bg-gray-300 text-gray-50 cursor-not-allowed'
-                      : isMaximized
-                      ? 'bg-[#07c160] text-white hover:opacity-90'
                       : 'bg-golden text-white hover:opacity-90'
                   }`}
                 >
                   {isLoading ? (
                     <>
-                      <svg className={`${isMaximized ? 'w-5 h-5' : 'w-4.5 h-4.5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
                       </svg>
@@ -841,7 +808,7 @@ export default function ActionProtocolView() {
                     </>
                   ) : (
                     <>
-                      <svg className={`${isMaximized ? 'w-5 h-5' : 'w-4.5 h-4.5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                       </svg>
                       发送
@@ -853,9 +820,200 @@ export default function ActionProtocolView() {
           </div>
         </div>
       </div>
+      </div>
+      )}
       
+      {isMaximized && (
+        <div 
+          className="fixed inset-0 z-40 flex flex-col"
+          style={{
+            backgroundImage: backgroundImage ? `url(${backgroundImage})` : undefined,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+        >
+          {!backgroundImage && (
+            <div className="absolute inset-0 bg-[#ededed]" />
+          )}
+          
+          <div className="relative z-10 flex items-center px-3 py-2 bg-white/95 backdrop-blur-sm border-b border-gray-200 shrink-0">
+            <button
+              onClick={() => setIsMaximized(false)}
+              className="p-2 text-gray-700 hover:text-gray-900 transition-colors"
+              title="返回"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <div className="flex-1 flex items-center justify-center gap-2">
+              <span className="text-lg">{selectedModule.icon}</span>
+              <h1 className="text-base font-semibold text-gray-800">{selectedModule.name}</h1>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => document.getElementById('bg-image-upload')?.click()}
+                className="p-2 text-gray-700 hover:text-gray-900 transition-colors"
+                title="设置背景"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </button>
+              <input
+                id="bg-image-upload"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleBackgroundImageUpload}
+              />
+              {backgroundImage && (
+                <button
+                  onClick={removeBackgroundImage}
+                  className="p-2 text-gray-700 hover:text-gray-900 transition-colors"
+                  title="移除背景"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              )}
+              <button
+                onClick={() => setShowModuleEditor('mobile-select')}
+                className="p-2 text-gray-700 hover:text-gray-900 transition-colors"
+                title="更多"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                </svg>
+              </button>
+            </div>
+          </div>
 
+          <div className="relative z-10 flex-1 overflow-y-auto p-3 space-y-3">
+            {currentMessages.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="text-5xl mb-4">🧠</div>
+                <h2 className="text-lg font-semibold text-gray-700 mb-2">选择模块开始对话</h2>
+                <div className="flex flex-wrap gap-2 justify-center max-w-md mx-auto">
+                  {modules.map((module) => (
+                    <button
+                      key={module.id}
+                      onClick={() => setSelectedModuleId(module.id)}
+                      className="px-4 py-2 rounded-lg bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white transition-all shadow-sm"
+                    >
+                      {module.icon} {module.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <>
+                {currentMessages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} px-1`}
+                  >
+                    <div className={`max-w-[75%] flex items-start gap-2 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                      {message.role === 'assistant' && (
+                        <div className="w-10 h-10 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center text-lg shrink-0 shadow-sm">
+                          🤖
+                        </div>
+                      )}
+                      <div className={`relative ${message.role === 'user' ? 'items-end' : 'items-start'} flex flex-col`}>
+                        <div
+                          className={`px-3.5 py-2.5 ${message.role === 'user' ? 'bg-[#95ec69] text-black rounded-br-sm' : 'bg-white text-black rounded-bl-sm'} rounded-xl shadow-sm`}
+                        >
+                          <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                        </div>
+                      </div>
+                      {message.role === 'user' && (
+                        <div className="w-10 h-10 rounded-full bg-[#95ec69]/80 backdrop-blur-sm flex items-center justify-center text-lg shrink-0 shadow-sm">
+                          👤
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {streamingContent && (
+                  <div className="flex justify-start px-1">
+                    <div className="max-w-[75%] flex items-start gap-2">
+                      <div className="w-10 h-10 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center text-lg shrink-0 shadow-sm">
+                        🤖
+                      </div>
+                      <div className="relative items-start flex flex-col">
+                        <div className="px-3.5 py-2.5 bg-white text-black rounded-bl-sm rounded-xl shadow-sm">
+                          <p className="whitespace-pre-wrap text-sm">{streamingContent}</p>
+                          <span className="inline-block w-1.5 h-4 bg-gray-400 ml-1 align-middle animate-pulse" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
 
+          <div className="relative z-10 bg-white border-t border-gray-200 shrink-0 px-3 py-2.5">
+            {isLoading && (
+              <div className="flex items-center gap-2 mb-2 py-1">
+                <div className="w-4 h-4 border-2 border-golden/30 border-t-golden rounded-full animate-spin" />
+                <span className="text-sm text-gray-600">思考中...</span>
+                <button
+                  onClick={handleStopGeneration}
+                  className="ml-auto text-sm text-red-500 hover:text-red-600 hover:bg-red-50 px-2.5 py-1 rounded-lg transition-colors"
+                >
+                  中断
+                </button>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyPress}
+                placeholder=""
+                disabled={isLoading || !apiService.hasApiKey()}
+                className="flex-1 px-3 py-2.5 rounded-lg border border-gray-300 outline-none resize-none max-h-28 text-base"
+                rows={1}
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck="false"
+              />
+              <button
+                onClick={isLoading ? handleStopGeneration : handleSend}
+                disabled={!isLoading && !input.trim() || !apiService.hasApiKey()}
+                className={`px-4 py-2.5 rounded-lg font-semibold transition-colors flex items-center gap-1.5 ${
+                  isLoading
+                    ? 'bg-red-500 text-white hover:bg-red-600'
+                    : !input.trim() || !apiService.hasApiKey()
+                    ? 'bg-gray-300 text-gray-50 cursor-not-allowed'
+                    : 'bg-[#07c160] text-white hover:opacity-90'
+                }`}
+              >
+                {isLoading ? (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                    </svg>
+                    中断
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                    发送
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {showModuleEditor && (
         <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
           <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] sm:max-h-none flex flex-col">
@@ -980,6 +1138,6 @@ export default function ActionProtocolView() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
