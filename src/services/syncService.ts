@@ -18,6 +18,12 @@ interface SyncData {
     selectedModule: string | null;
     memoryConfig: any;
     moduleMessages: any;
+    backgroundImage: string | null;
+    userTextColor: string;
+    aiTextColor: string;
+    topBarTransparent: boolean;
+    inputBarTransparent: boolean;
+    textScale: number;
   };
   customProtocolThemes: any[];
   reader: {
@@ -42,6 +48,12 @@ const STORAGE_KEYS = {
   thinkTankSelectedModule: 'think-tank-selected-module',
   thinkTankMemoryConfig: 'think-tank-memory-config',
   thinkTankModuleMessages: 'think-tank-module-messages',
+  thinkTankBackgroundImage: 'think-tank-background-image',
+  thinkTankUserTextColor: 'think-tank-user-text-color',
+  thinkTankAiTextColor: 'think-tank-ai-text-color',
+  thinkTankTopbarTransparent: 'think-tank-topbar-transparent',
+  thinkTankInputbarTransparent: 'think-tank-inputbar-transparent',
+  thinkTankTextScale: 'think-tank-text-scale',
   customProtocolThemes: 'custom-protocol-themes',
   readerBgColor: 'reader-bg-color',
   readerTextColor: 'reader-text-color',
@@ -72,6 +84,12 @@ export class SyncService {
         selectedModule: this.getFromLocalStorage(STORAGE_KEYS.thinkTankSelectedModule, null),
         memoryConfig: this.getFromLocalStorage(STORAGE_KEYS.thinkTankMemoryConfig, { maxWords: 2000, autoExtract: true }),
         moduleMessages: this.getFromLocalStorage(STORAGE_KEYS.thinkTankModuleMessages, {}),
+        backgroundImage: this.getFromLocalStorage(STORAGE_KEYS.thinkTankBackgroundImage, null),
+        userTextColor: this.getFromLocalStorage(STORAGE_KEYS.thinkTankUserTextColor, '#000000'),
+        aiTextColor: this.getFromLocalStorage(STORAGE_KEYS.thinkTankAiTextColor, '#ffffff'),
+        topBarTransparent: this.getFromLocalStorage(STORAGE_KEYS.thinkTankTopbarTransparent, 'false') === 'true',
+        inputBarTransparent: this.getFromLocalStorage(STORAGE_KEYS.thinkTankInputbarTransparent, 'false') === 'true',
+        textScale: parseFloat(this.getFromLocalStorage(STORAGE_KEYS.thinkTankTextScale, '1')),
       },
       customProtocolThemes: this.getFromLocalStorage(STORAGE_KEYS.customProtocolThemes, []),
       reader: {
@@ -105,6 +123,14 @@ export class SyncService {
       }
       this.saveToLocalStorage(STORAGE_KEYS.thinkTankMemoryConfig, data.thinkTank.memoryConfig);
       this.saveToLocalStorage(STORAGE_KEYS.thinkTankModuleMessages, data.thinkTank.moduleMessages);
+      if (data.thinkTank.backgroundImage) {
+        this.saveToLocalStorage(STORAGE_KEYS.thinkTankBackgroundImage, data.thinkTank.backgroundImage);
+      }
+      this.saveToLocalStorage(STORAGE_KEYS.thinkTankUserTextColor, data.thinkTank.userTextColor || '#000000');
+      this.saveToLocalStorage(STORAGE_KEYS.thinkTankAiTextColor, data.thinkTank.aiTextColor || '#ffffff');
+      this.saveToLocalStorage(STORAGE_KEYS.thinkTankTopbarTransparent, (data.thinkTank.topBarTransparent || false).toString());
+      this.saveToLocalStorage(STORAGE_KEYS.thinkTankInputbarTransparent, (data.thinkTank.inputBarTransparent || false).toString());
+      this.saveToLocalStorage(STORAGE_KEYS.thinkTankTextScale, (data.thinkTank.textScale || 1).toString());
     }
     
     if (data.customProtocolThemes) {
