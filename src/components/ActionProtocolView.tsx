@@ -111,7 +111,13 @@ const DEFAULT_MODULES: PromptModule[] = [
 export default function ActionProtocolView() {
   const navigate = useNavigate();
   const [isMaximized, setIsMaximized] = useState(false);
-  const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
+  const [backgroundImage, setBackgroundImage] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('think-tank-background-image');
+    } catch {
+      return null;
+    }
+  });
   
   const [modules, setModules] = useState<PromptModule[]>(() => {
     try {
@@ -421,7 +427,9 @@ export default function ActionProtocolView() {
     if (file) {
       const reader = new FileReader();
       reader.onload = (event) => {
-        setBackgroundImage(event.target?.result as string);
+        const result = event.target?.result as string;
+        setBackgroundImage(result);
+        localStorage.setItem('think-tank-background-image', result);
       };
       reader.readAsDataURL(file);
     }
@@ -429,6 +437,7 @@ export default function ActionProtocolView() {
 
   const removeBackgroundImage = () => {
     setBackgroundImage(null);
+    localStorage.removeItem('think-tank-background-image');
   };
 
   return (
@@ -916,19 +925,23 @@ export default function ActionProtocolView() {
                   >
                     <div className={`max-w-[75%] flex items-start gap-2 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}>
                       {message.role === 'assistant' && (
-                        <div className="w-10 h-10 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center text-lg shrink-0 shadow-sm">
+                        <div className={`w-10 h-10 rounded-full ${backgroundImage ? 'bg-white/60' : 'bg-white/80'} backdrop-blur-sm flex items-center justify-center text-lg shrink-0 shadow-sm`}>
                           🤖
                         </div>
                       )}
                       <div className={`relative ${message.role === 'user' ? 'items-end' : 'items-start'} flex flex-col`}>
                         <div
-                          className={`px-3.5 py-2.5 ${message.role === 'user' ? 'bg-[#95ec69] text-black rounded-br-sm' : 'bg-white text-black rounded-bl-sm'} rounded-xl shadow-sm`}
+                          className={`px-3.5 py-2.5 ${
+                            backgroundImage 
+                              ? `${message.role === 'user' ? 'text-black font-medium' : 'text-white font-medium'} shadow-none`
+                              : `${message.role === 'user' ? 'bg-[#95ec69] text-black rounded-br-sm' : 'bg-white text-black rounded-bl-sm'} rounded-xl shadow-sm`
+                          }`}
                         >
                           <p className="whitespace-pre-wrap text-sm">{message.content}</p>
                         </div>
                       </div>
                       {message.role === 'user' && (
-                        <div className="w-10 h-10 rounded-full bg-[#95ec69]/80 backdrop-blur-sm flex items-center justify-center text-lg shrink-0 shadow-sm">
+                        <div className={`w-10 h-10 rounded-full ${backgroundImage ? 'bg-[#95ec69]/60' : 'bg-[#95ec69]/80'} backdrop-blur-sm flex items-center justify-center text-lg shrink-0 shadow-sm`}>
                           👤
                         </div>
                       )}
@@ -938,13 +951,13 @@ export default function ActionProtocolView() {
                 {streamingContent && (
                   <div className="flex justify-start px-1">
                     <div className="max-w-[75%] flex items-start gap-2">
-                      <div className="w-10 h-10 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center text-lg shrink-0 shadow-sm">
+                      <div className={`w-10 h-10 rounded-full ${backgroundImage ? 'bg-white/60' : 'bg-white/80'} backdrop-blur-sm flex items-center justify-center text-lg shrink-0 shadow-sm`}>
                         🤖
                       </div>
                       <div className="relative items-start flex flex-col">
-                        <div className="px-3.5 py-2.5 bg-white text-black rounded-bl-sm rounded-xl shadow-sm">
+                        <div className={`px-3.5 py-2.5 ${backgroundImage ? 'text-white font-medium shadow-none' : 'bg-white text-black rounded-bl-sm rounded-xl shadow-sm'}`}>
                           <p className="whitespace-pre-wrap text-sm">{streamingContent}</p>
-                          <span className="inline-block w-1.5 h-4 bg-gray-400 ml-1 align-middle animate-pulse" />
+                          <span className={`inline-block w-1.5 h-4 ${backgroundImage ? 'bg-white' : 'bg-gray-400'} ml-1 align-middle animate-pulse`} />
                         </div>
                       </div>
                     </div>
