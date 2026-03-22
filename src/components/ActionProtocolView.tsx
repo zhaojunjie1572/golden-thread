@@ -1061,8 +1061,8 @@ export default function ActionProtocolView() {
                 disabled={isLoading || !apiService.hasApiKey()}
                 className={`flex-1 px-3 py-2.5 rounded-lg outline-none resize-none max-h-28 text-base ${
                   inputBarTransparent 
-                    ? 'bg-white/80 backdrop-blur-sm border border-white/30' 
-                    : 'border border-gray-300'
+                    ? 'bg-white/80 backdrop-blur-sm border border-white/30 text-black placeholder-gray-500' 
+                    : 'border border-gray-300 text-black placeholder-gray-500'
                 }`}
                 rows={1}
                 autoComplete="off"
