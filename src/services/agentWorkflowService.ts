@@ -11,6 +11,11 @@ import {
   WORKFLOW_TEMPLATES,
   TARGET_PERSONAS,
   TaskPriority,
+  PsychologicalAssessment,
+  MentalBoundary,
+  CourageAssessment,
+  PermissionAssessment,
+  ResourceType,
 } from '../types/agent';
 import { apiService } from './apiService';
 import { ChatMessage } from './apiService';
@@ -285,7 +290,7 @@ export class AgentWorkflowService {
       const verificationCriteria = verifyMatch?.[1]?.trim() || '按描述完成';
 
       // 提取资源需求
-      const resources: ResourceRequirement[] = [];
+      const resources: { type: ResourceType; description: string; isEssential: boolean }[] = [];
       const resourceMatch = taskText.match(/(?:资源|需要)[：:]([\s\S]*?)(?=时间|验收|$)/i);
       if (resourceMatch) {
         const resourceLines = resourceMatch[1].split('\n');
@@ -427,7 +432,7 @@ ${userContext ? `用户背景：${userContext}` : ''}
     const skillMatch = response.match(/技能可行性[：:]\s*(\d+)/i);
     const riskMatch = response.match(/风险等级[：:]\s*(低|中|高)/i);
 
-    const conditions: ConditionMatch[] = [];
+    const conditions: { condition: string; isMet: boolean; confidence: number; evidence?: string; gap?: string }[] = [];
     const conditionSection = response.match(/条件匹配[：:]([\s\S]*?)(?=缺失资源|改进建议|$)/i);
     if (conditionSection) {
       const lines = conditionSection[1].split('\n');
@@ -446,7 +451,7 @@ ${userContext ? `用户背景：${userContext}` : ''}
       }
     }
 
-    const missingResources: ResourceRequirement[] = [];
+    const missingResources: { type: ResourceType; description: string; isEssential: boolean; amount?: number; unit?: string; alternatives?: string[] }[] = [];
     const resourceSection = response.match(/缺失资源[：:]([\s\S]*?)(?=改进建议|$)/i);
     if (resourceSection) {
       const lines = resourceSection[1].split('\n');
@@ -491,7 +496,7 @@ ${userContext ? `用户背景：${userContext}` : ''}
   static async assessValueExchange(
     tasks: ExecutableTask[],
     goal: string
-  ): Promise<ValueExchangeAssessment> {
+  ): Promise<{ inputResources: { type: ResourceType; description: string; isEssential: boolean }[]; outputValue: string[]; roi: number; sustainability: 'short' | 'medium' | 'long'; marketFit: number; breakEvenTime?: number }> {
     const totalTime = tasks.reduce((sum, t) => sum + t.estimatedTime, 0);
     const allResources = tasks.flatMap(t => t.requiredResources);
 
@@ -501,6 +506,280 @@ ${userContext ? `用户背景：${userContext}` : ''}
       roi: 100, // 简化计算
       sustainability: totalTime < 60 ? 'short' : totalTime < 300 ? 'medium' : 'long',
       marketFit: 75,
+    };
+  }
+
+  // ========== 心理评估 - 心理边界、勇气/动机、权力允许 ==========
+
+  static async assessPsychologicalFactors(
+    task: ExecutableTask,
+    userContext?: string
+  ): Promise<ExecutableTask> {
+    const prompt = `请对以下任务进行深度心理评估，分析执行者的心理边界、勇气和权力许可：
+
+任务名称：${task.title}
+任务描述：${task.description}
+预计耗时：${task.estimatedTime}分钟
+所需资源：${task.requiredResources.map(r => r.description).join('、') || '未明确'}
+
+${userContext ? `用户背景：${userContext}` : ''}
+
+请从以下三个维度进行深度分析：
+
+## 1. 心理边界评估（敢不敢做）
+分析执行这个任务需要突破哪些心理边界：
+- 恐惧因素（失败恐惧、社交恐惧、未知恐惧等）
+- 习惯边界（舒适区、惯性思维等）
+- 信念限制（自我设限、能力怀疑等）
+- 触发场景（什么情况下会感到不适）
+
+## 2. 勇气/动机评估（有没有勇气挑战）
+分析执行者挑战这个困难的内在动力：
+- 总体勇气值（0-100）
+- 动机水平（0-100）及来源
+- 挑战准备度（0-100）
+- 心理韧性（0-100）
+- 成长型思维程度（0-100）
+- 恐惧因素及克服策略
+- 历史成功经验参考
+
+## 3. 权力/许可评估（有没有权力做）
+分析执行者是否有权限执行此任务：
+- 是否有决策权
+- 权力等级（0-100）
+- 是否需要上级/他人批准
+- 组织约束条件
+- 法律/合规约束
+- 伦理考量
+- 越权风险评估（0-100）
+
+输出格式：
+
+【心理边界】
+- 边界1：描述 | 类型(fear/habit/belief/comfort_zone) | 严重程度(0-100) | 触发场景 | 影响
+- 边界2：...
+
+【勇气评估】
+总体勇气值：（0-100）
+动机水平：（0-100）
+动机来源：来源1、来源2...
+挑战准备度：（0-100）
+心理韧性：（0-100）
+成长型思维：（0-100）
+恐惧因素：
+- 恐惧1：描述 | 强度(0-100) | 可克服(是/否) | 克服策略
+- 恐惧2：...
+历史成功经验：
+- 经验1：场景 | 成就 | 信心提升值(0-100)
+
+【权力许可】
+是否有决策权：（是/否）
+权力等级：（0-100）
+是否需要批准：（是/否）
+需要批准人：批准人1、批准人2...
+组织约束：约束1、约束2...
+法律约束：约束1、约束2...
+伦理考量：考量1、考量2...
+越权风险：（0-100）
+
+【综合评估】
+总体心理准备度：（0-100）
+限制因素：因素1、因素2...
+促进因素：因素1、因素2...
+心理建设建议：建议1、建议2...
+需要的支持：支持1、支持2...`;
+
+    const messages: ChatMessage[] = [
+      {
+        id: crypto.randomUUID(),
+        role: 'system',
+        content: '你是专业的心理评估专家，擅长分析个人在执行任务时的心理状态、内在障碍和权限边界。',
+        timestamp: new Date(),
+      },
+      {
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: prompt,
+        timestamp: new Date(),
+      },
+    ];
+
+    let fullResponse = '';
+
+    return new Promise((resolve) => {
+      apiService.streamChat(
+        messages,
+        (chunk) => {
+          fullResponse += chunk;
+        },
+        () => {
+          const psychologicalAssessment = this.parsePsychologicalAssessmentFromResponse(fullResponse);
+          resolve({
+            ...task,
+            psychologicalAssessment,
+          });
+        },
+        () => {
+          // 评估失败时返回基础评估
+          resolve({
+            ...task,
+            psychologicalAssessment: this.getDefaultPsychologicalAssessment(),
+          });
+        }
+      );
+    });
+  }
+
+  static parsePsychologicalAssessmentFromResponse(response: string): PsychologicalAssessment {
+    // 解析心理边界
+    const mentalBoundaries: MentalBoundary[] = [];
+    const boundarySection = response.match(/【心理边界】([\s\S]*?)(?=【勇气评估】|$)/i);
+    if (boundarySection) {
+      const lines = boundarySection[1].split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('-') || trimmed.startsWith('•')) {
+          const parts = trimmed.substring(1).split('|').map(p => p.trim());
+          if (parts.length >= 2) {
+            mentalBoundaries.push({
+              boundary: parts[0],
+              type: (parts[1] as MentalBoundary['type']) || 'fear',
+              severity: parseInt(parts[2]) || 50,
+              triggers: parts[3] ? parts[3].split('、') : [],
+              impact: parts[4] || '影响任务执行',
+            });
+          }
+        }
+      }
+    }
+
+    // 解析勇气评估
+    const courageMatch = response.match(/总体勇气值[：:]\s*(\d+)/i);
+    const motivationMatch = response.match(/动机水平[：:]\s*(\d+)/i);
+    const readinessMatch = response.match(/挑战准备度[：:]\s*(\d+)/i);
+    const resilienceMatch = response.match(/心理韧性[：:]\s*(\d+)/i);
+    const growthMatch = response.match(/成长型思维[：:]\s*(\d+)/i);
+    const motivationSourcesMatch = response.match(/动机来源[：:]\s*(.+)/i);
+
+    const fearFactors: CourageAssessment['fearFactors'] = [];
+    const fearSection = response.match(/恐惧因素[：:]([\s\S]*?)(?=历史成功经验|$)/i);
+    if (fearSection) {
+      const lines = fearSection[1].split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('-') || trimmed.startsWith('•')) {
+          const parts = trimmed.substring(1).split('|').map(p => p.trim());
+          if (parts.length >= 2) {
+            fearFactors.push({
+              factor: parts[0],
+              intensity: parseInt(parts[1]) || 50,
+              canOvercome: parts[2]?.includes('是') || false,
+              overcomingStrategy: parts[3],
+            });
+          }
+        }
+      }
+    }
+
+    const historicalSuccess: CourageAssessment['historicalSuccess'] = [];
+    const successSection = response.match(/历史成功经验[：:]([\s\S]*?)(?=【权力许可】|$)/i);
+    if (successSection) {
+      const lines = successSection[1].split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('-') || trimmed.startsWith('•')) {
+          const parts = trimmed.substring(1).split('|').map(p => p.trim());
+          if (parts.length >= 2) {
+            historicalSuccess.push({
+              context: parts[0],
+              achievement: parts[1],
+              confidenceBoost: parseInt(parts[2]) || 50,
+            });
+          }
+        }
+      }
+    }
+
+    const courage: CourageAssessment = {
+      overallCourage: courageMatch ? parseInt(courageMatch[1]) : 70,
+      motivationLevel: motivationMatch ? parseInt(motivationMatch[1]) : 70,
+      motivationSources: motivationSourcesMatch ? motivationSourcesMatch[1].split('、') : ['内在驱动'],
+      challengeReadiness: readinessMatch ? parseInt(readinessMatch[1]) : 70,
+      resilience: resilienceMatch ? parseInt(resilienceMatch[1]) : 70,
+      growthMindset: growthMatch ? parseInt(growthMatch[1]) : 70,
+      fearFactors: fearFactors.length > 0 ? fearFactors : [{ factor: '未知恐惧', intensity: 50, canOvercome: true }],
+      historicalSuccess: historicalSuccess.length > 0 ? historicalSuccess : [],
+    };
+
+    // 解析权力许可
+    const authorityMatch = response.match(/是否有决策权[：:]\s*(是|否)/i);
+    const authorityLevelMatch = response.match(/权力等级[：:]\s*(\d+)/i);
+    const approvalMatch = response.match(/是否需要批准[：:]\s*(是|否)/i);
+    const riskMatch = response.match(/越权风险[：:]\s*(\d+)/i);
+    const approversMatch = response.match(/需要批准人[：:]\s*(.+)/i);
+    const orgConstraintsMatch = response.match(/组织约束[：:]\s*(.+)/i);
+    const legalConstraintsMatch = response.match(/法律约束[：:]\s*(.+)/i);
+    const ethicalMatch = response.match(/伦理考量[：:]\s*(.+)/i);
+
+    const permission: PermissionAssessment = {
+      hasAuthority: authorityMatch ? authorityMatch[1] === '是' : true,
+      authorityLevel: authorityLevelMatch ? parseInt(authorityLevelMatch[1]) : 80,
+      requiresApproval: approvalMatch ? approvalMatch[1] === '是' : false,
+      approvers: approversMatch ? approversMatch[1].split('、') : undefined,
+      organizationalConstraints: orgConstraintsMatch ? orgConstraintsMatch[1].split('、') : [],
+      legalConstraints: legalConstraintsMatch ? legalConstraintsMatch[1].split('、') : [],
+      ethicalConsiderations: ethicalMatch ? ethicalMatch[1].split('、') : [],
+      implicitPermissions: [],
+      riskOfOverstepping: riskMatch ? parseInt(riskMatch[1]) : 20,
+    };
+
+    // 解析综合评估
+    const overallReadinessMatch = response.match(/总体心理准备度[：:]\s*(\d+)/i);
+    const limitingMatch = response.match(/限制因素[：:]\s*(.+)/i);
+    const enablingMatch = response.match(/促进因素[：:]\s*(.+)/i);
+    const recommendationsMatch = response.match(/心理建设建议[：:]\s*(.+)/i);
+    const supportMatch = response.match(/需要的支持[：:]\s*(.+)/i);
+
+    return {
+      mentalBoundaries: mentalBoundaries.length > 0 ? mentalBoundaries : [],
+      courage,
+      permission,
+      overallReadiness: overallReadinessMatch ? parseInt(overallReadinessMatch[1]) : 70,
+      limitingFactors: limitingMatch ? limitingMatch[1].split('、') : [],
+      enablingFactors: enablingMatch ? enablingMatch[1].split('、') : ['内在动机'],
+      recommendations: recommendationsMatch ? recommendationsMatch[1].split('、') : ['逐步建立信心'],
+      supportNeeded: supportMatch ? supportMatch[1].split('、') : [],
+    };
+  }
+
+  static getDefaultPsychologicalAssessment(): PsychologicalAssessment {
+    return {
+      mentalBoundaries: [],
+      courage: {
+        overallCourage: 70,
+        motivationLevel: 70,
+        motivationSources: ['目标驱动'],
+        challengeReadiness: 70,
+        resilience: 70,
+        growthMindset: 70,
+        fearFactors: [{ factor: '一般性焦虑', intensity: 30, canOvercome: true }],
+        historicalSuccess: [],
+      },
+      permission: {
+        hasAuthority: true,
+        authorityLevel: 80,
+        requiresApproval: false,
+        organizationalConstraints: [],
+        legalConstraints: [],
+        ethicalConsiderations: [],
+        implicitPermissions: [],
+        riskOfOverstepping: 20,
+      },
+      overallReadiness: 70,
+      limitingFactors: [],
+      enablingFactors: ['积极态度'],
+      recommendations: ['循序渐进'],
+      supportNeeded: [],
     };
   }
 
