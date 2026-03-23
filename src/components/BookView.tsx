@@ -5,6 +5,7 @@ import BookReader from './BookReader';
 import { useTheme } from '../context/ThemeContext';
 import BookSourceManager from './BookSourceManager';
 import OnlineBookSearchView from './OnlineBookSearchView';
+import { BuiltInLibrary } from './BuiltInLibrary';
 
 export default function BookView() {
   const { books, addBook, updateBook, deleteBook, importBookFromFile, isLoading } = useBooks();
@@ -15,6 +16,7 @@ export default function BookView() {
   const [importProgress, setImportProgress] = useState(0);
   const [showSourceManager, setShowSourceManager] = useState(false);
   const [showOnlineSearch, setShowOnlineSearch] = useState(false);
+  const [showBuiltInLibrary, setShowBuiltInLibrary] = useState(false);
 
   const handleImportBook = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
