@@ -28,6 +28,31 @@ export interface ExecutableTask {
   assignee?: string;            // 执行人
 }
 
+// 目标对象（模拟用户/测试对象）
+export interface TargetPersona {
+  id: string;
+  name: string;
+  description: string;          // 目标对象描述
+  characteristics: string[];    // 特征标签
+  painPoints: string[];         // 痛点/关注点
+  expectations: string[];       // 期望
+  feedbackStyle: 'critical' | 'supportive' | 'neutral' | 'detailed'; // 反馈风格
+}
+
+// 模拟反馈
+export interface SimulatedFeedback {
+  id: string;
+  agentId: string;
+  targetPersonaId: string;
+  originalOutput: string;       // 原始输出
+  feedback: string;             // 反馈内容
+  score: number;                // 评分 0-100
+  concerns: string[];           // 关注点
+  suggestions: string[];        // 改进建议
+  timestamp: Date;
+  iteration: number;            // 第几次迭代
+}
+
 // 智能体模块（增强版）
 export interface AgentModule {
   id: string;
@@ -49,6 +74,15 @@ export interface AgentModule {
   // 工作流连接
   dependencies: string[];       // 依赖的前置模块ID
   outputsTo: string[];          // 输出到哪些模块
+  
+  // 目标对象模拟反馈配置
+  simulationConfig: {
+    enabled: boolean;
+    targetPersonas: string[];   // 使用的目标对象ID列表
+    maxIterations: number;      // 最大迭代次数
+    minScoreThreshold: number;  // 最低通过分数
+    autoIterate: boolean;       // 是否自动迭代优化
+  };
   
   // 任务生成配置
   taskGeneration: {
@@ -333,5 +367,54 @@ export const WORKFLOW_TEMPLATES: Omit<Workflow, 'id' | 'createdAt' | 'updatedAt'
       { from: 'reviewer', to: 'synthesizer', dataMapping: { '审查报告': '输入' } }
     ],
     autoExecute: false
+  }
+];
+
+// 预设目标对象（模拟用户）
+export const TARGET_PERSONAS: TargetPersona[] = [
+  {
+    id: 'busy-professional',
+    name: '💼 忙碌的职场人士',
+    description: '工作繁忙、时间碎片化、追求效率的职场人',
+    characteristics: ['时间敏感', '结果导向', '实用主义', '抗压能力强'],
+    painPoints: ['时间不够用', '难以坚持', '信息过载', '精力分散'],
+    expectations: ['快速见效', '操作简单', '灵活调整', '明确指导'],
+    feedbackStyle: 'critical'
+  },
+  {
+    id: 'perfectionist',
+    name: '🎯 完美主义者',
+    description: '追求高标准、注重细节、容易拖延的完美主义者',
+    characteristics: ['高标准', '注重细节', '自我要求高', '深思熟虑'],
+    painPoints: ['过度准备', '害怕失败', '难以开始', '容易 burnout'],
+    expectations: ['系统完善', '质量保障', '风险控制', '专业指导'],
+    feedbackStyle: 'detailed'
+  },
+  {
+    id: 'beginner',
+    name: '🌱 初学者',
+    description: '刚开始尝试、缺乏经验、需要引导的新手',
+    characteristics: ['学习意愿强', '开放心态', '需要鼓励', '循序渐进'],
+    painPoints: ['不知从何开始', '缺乏信心', '容易放弃', '方法不当'],
+    expectations: ['简单易懂', '循序渐进', '及时反馈', '正向激励'],
+    feedbackStyle: 'supportive'
+  },
+  {
+    id: 'skeptical-analyst',
+    name: '🧐 理性分析师',
+    description: '逻辑严谨、数据驱动、质疑一切的理性派',
+    characteristics: ['逻辑严谨', '数据驱动', '质疑精神', '追求证据'],
+    painPoints: ['过度分析', '行动迟缓', '难以决策', '忽视直觉'],
+    expectations: ['逻辑严密', '数据支持', '风险评估', '可验证性'],
+    feedbackStyle: 'neutral'
+  },
+  {
+    id: 'creative-explorer',
+    name: '🎨 创意探索者',
+    description: '富有创意、喜欢尝试、追求多样性的探索者',
+    characteristics: ['创意丰富', '好奇心强', '灵活多变', '享受过程'],
+    painPoints: ['难以专注', '缺乏条理', '容易分心', '执行困难'],
+    expectations: ['有趣好玩', '灵活自由', '创意空间', '多样选择'],
+    feedbackStyle: 'supportive'
   }
 ];

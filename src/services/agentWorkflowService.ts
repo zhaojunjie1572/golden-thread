@@ -5,8 +5,11 @@ import {
   WorkflowContext,
   ExecutableTask,
   AgentMemory,
+  SimulatedFeedback,
+  TargetPersona,
   AGENT_TEMPLATES,
   WORKFLOW_TEMPLATES,
+  TARGET_PERSONAS,
   TaskPriority,
 } from '../types/agent';
 import { apiService } from './apiService';
@@ -18,6 +21,8 @@ export class AgentWorkflowService {
   private static INSTANCE_STORAGE_KEY = 'agent-workflow-instances';
   private static AGENT_STORAGE_KEY = 'agent-modules';
   private static MEMORY_STORAGE_KEY = 'agent-memories';
+  private static FEEDBACK_STORAGE_KEY = 'agent-feedbacks';
+  private static PERSONA_STORAGE_KEY = 'agent-personas';
 
   // ========== 智能体模块管理 ==========
 
@@ -397,6 +402,256 @@ export class AgentWorkflowService {
     // 暂时返回成功，实际实现需要调用 ProtocolContext 的方法
     console.log('导入任务到系统:', tasks);
     return true;
+  }
+
+  // ========== 目标对象管理 ==========
+
+  static getTargetPersonas(): TargetPersona[] {
+    try {
+      const saved = localStorage.getItem(this.PERSONA_STORAGE_KEY);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (error) {
+      console.error('加载目标对象失败:', error);
+    }
+    return TARGET_PERSONAS;
+  }
+
+  static saveTargetPersonas(personas: TargetPersona[]) {
+    try {
+      localStorage.setItem(this.PERSONA_STORAGE_KEY, JSON.stringify(personas));
+    } catch (error) {
+      console.error('保存目标对象失败:', error);
+    }
+  }
+
+  // ========== 模拟反馈功能 ==========
+
+  static async generateSimulatedFeedback(
+    agent: AgentModule,
+    output: string,
+    context: WorkflowContext,
+    persona: TargetPersona,
+    iteration: number = 1
+  ): Promise<SimulatedFeedback> {
+    const feedbackPrompt = `你是${persona.name}，${persona.description}
+
+你的特征：${persona.characteristics.join('、')}
+你的痛点：${persona.painPoints.join('、')}
+你的期望：${persona.expectations.join('、')}
+
+现在有一个${agent.name}为你生成了以下内容：
+
+---
+${output}
+---
+
+请从${persona.name}的角度，对以上内容进行评估和反馈。
+
+反馈风格：${persona.feedbackStyle === 'critical' ? '批判性 - 指出问题和不足' : persona.feedbackStyle === 'supportive' ? '支持性 - 鼓励为主，温和建议' : persona.feedbackStyle === 'neutral' ? '中立 - 客观评价' : '详细 - 全面细致的分析'}
+
+请按以下格式输出：
+
+总体评分：（0-100分）
+
+总体评价：（简要评价）
+
+关注点：（列出你关心的3-5个点）
+- 关注点1
+- 关注点2
+...
+
+改进建议：（具体的改进建议）
+- 建议1
+- 建议2
+...
+
+是否满意：（是/否/部分满意）`;
+
+    const messages: ChatMessage[] = [
+      {
+        id: crypto.randomUUID(),
+        role: 'system',
+        content: feedbackPrompt,
+        timestamp: new Date(),
+      },
+      {
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: '请提供你的反馈',
+        timestamp: new Date(),
+      },
+    ];
+
+    let fullResponse = '';
+
+    return new Promise((resolve, reject) => {
+      apiService.streamChat(
+        messages,
+        (chunk) => {
+          fullResponse += chunk;
+        },
+        () => {
+          const feedback = this.parseFeedbackFromResponse(fullResponse, persona.feedbackStyle);
+          resolve({
+            id: crypto.randomUUID(),
+            agentId: agent.id,
+            targetPersonaId: persona.id,
+            originalOutput: output,
+            feedback: feedback.summary,
+            score: feedback.score,
+            concerns: feedback.concerns,
+            suggestions: feedback.suggestions,
+            timestamp: new Date(),
+            iteration,
+          });
+        },
+        (error) => {
+          reject(error);
+        }
+      );
+    });
+  }
+
+  static parseFeedbackFromResponse(
+    response: string,
+    style: TargetPersona['feedbackStyle']
+  ): { summary: string; score: number; concerns: string[]; suggestions: string[] } {
+    // 提取评分
+    const scoreMatch = response.match(/评分[：:]\s*(\d+)/i);
+    const score = scoreMatch ? parseInt(scoreMatch[1]) : 70;
+
+    // 提取关注点
+    const concerns: string[] = [];
+    const concernMatch = response.match(/关注点[：:]([\s\S]*?)(?=改进建议|是否满意|$)/i);
+    if (concernMatch) {
+      const lines = concernMatch[1].split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('-') || trimmed.startsWith('•')) {
+          concerns.push(trimmed.substring(1).trim());
+        }
+      }
+    }
+
+    // 提取建议
+    const suggestions: string[] = [];
+    const suggestionMatch = response.match(/改进建议[：:]([\s\S]*?)(?=是否满意|$)/i);
+    if (suggestionMatch) {
+      const lines = suggestionMatch[1].split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('-') || trimmed.startsWith('•')) {
+          suggestions.push(trimmed.substring(1).trim());
+        }
+      }
+    }
+
+    // 生成摘要
+    const summary = response.slice(0, 200) + (response.length > 200 ? '...' : '');
+
+    return { summary, score, concerns, suggestions };
+  }
+
+  static async executeAgentWithFeedback(
+    agent: AgentModule,
+    context: WorkflowContext,
+    onProgress?: (message: string) => void
+  ): Promise<{ output: string; feedbacks: SimulatedFeedback[]; finalScore: number }> {
+    if (!agent.simulationConfig.enabled || agent.simulationConfig.targetPersonas.length === 0) {
+      // 如果没有启用反馈模拟，直接执行
+      const result = await this.executeAgent(agent, context);
+      return { output: result.summary, feedbacks: [], finalScore: 100 };
+    }
+
+    const personas = this.getTargetPersonas().filter(p => 
+      agent.simulationConfig.targetPersonas.includes(p.id)
+    );
+
+    let currentOutput = '';
+    const allFeedbacks: SimulatedFeedback[] = [];
+    let iteration = 1;
+
+    // 初始执行
+    onProgress?.(`🤖 ${agent.name} 正在生成内容...`);
+    const initialResult = await this.executeAgent(agent, context);
+    currentOutput = initialResult.summary;
+
+    // 收集反馈
+    for (const persona of personas) {
+      onProgress?.(`🎭 ${persona.name} 正在评估...`);
+      const feedback = await this.generateSimulatedFeedback(
+        agent,
+        currentOutput,
+        context,
+        persona,
+        iteration
+      );
+      allFeedbacks.push(feedback);
+      onProgress?.(`📊 ${persona.name} 评分: ${feedback.score}/100`);
+    }
+
+    // 计算平均分数
+    const avgScore = allFeedbacks.reduce((sum, f) => sum + f.score, 0) / allFeedbacks.length;
+
+    // 如果需要自动迭代且分数不达标
+    if (
+      agent.simulationConfig.autoIterate &&
+      avgScore < agent.simulationConfig.minScoreThreshold &&
+      iteration < agent.simulationConfig.maxIterations
+    ) {
+      onProgress?.(`🔄 平均分 ${avgScore.toFixed(1)} 低于阈值，开始优化...`);
+      
+      // 构建优化提示
+      const optimizationPrompt = `基于以下反馈优化你的输出：\n\n${allFeedbacks.map(f => 
+        `[${f.feedback.slice(0, 100)}... 评分: ${f.score}]`
+      ).join('\n')}`;
+
+      context.accumulatedInsights.push(optimizationPrompt);
+      
+      // 重新执行
+      const optimizedResult = await this.executeAgent(agent, context);
+      currentOutput = optimizedResult.summary;
+      iteration++;
+    }
+
+    return { output: currentOutput, feedbacks: allFeedbacks, finalScore: avgScore };
+  }
+
+  static getFeedbacks(agentId?: string): SimulatedFeedback[] {
+    try {
+      const saved = localStorage.getItem(this.FEEDBACK_STORAGE_KEY);
+      if (saved) {
+        const feedbacks = JSON.parse(saved);
+        const parsed = feedbacks.map((f: any) => ({
+          ...f,
+          timestamp: new Date(f.timestamp),
+        }));
+        return agentId ? parsed.filter((f: SimulatedFeedback) => f.agentId === agentId) : parsed;
+      }
+    } catch (error) {
+      console.error('加载反馈失败:', error);
+    }
+    return [];
+  }
+
+  static saveFeedback(feedback: SimulatedFeedback) {
+    const feedbacks = this.getFeedbacks();
+    feedbacks.push(feedback);
+    
+    // 限制反馈数量
+    const maxFeedbacks = 500;
+    if (feedbacks.length > maxFeedbacks) {
+      feedbacks.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      feedbacks.splice(maxFeedbacks);
+    }
+    
+    try {
+      localStorage.setItem(this.FEEDBACK_STORAGE_KEY, JSON.stringify(feedbacks));
+    } catch (error) {
+      console.error('保存反馈失败:', error);
+    }
   }
 }
 
