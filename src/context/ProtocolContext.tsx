@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
 import { ProtocolModel, markSuccess, markFailure, hasExecutedToday } from '../types/protocol';
 import { checkAndAdjust } from '../services/autoAdjustment';
 import { notificationService } from '../services/notificationService';
@@ -118,22 +118,35 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
     return notificationService.hasPermission();
   }
 
+  // 使用 useMemo 缓存 context value，避免不必要的重新渲染
+  const contextValue = useMemo(() => ({
+    protocols,
+    addProtocol,
+    updateProtocol,
+    deleteProtocol,
+    getProtocolById,
+    markProtocolSuccess,
+    markProtocolFailure,
+    getTodayProtocols,
+    isLoading,
+    requestNotificationPermission,
+    hasNotificationPermission
+  }), [
+    protocols,
+    isLoading,
+    addProtocol,
+    updateProtocol,
+    deleteProtocol,
+    getProtocolById,
+    markProtocolSuccess,
+    markProtocolFailure,
+    getTodayProtocols,
+    requestNotificationPermission,
+    hasNotificationPermission
+  ]);
+
   return (
-    <ProtocolContext.Provider
-      value={{
-        protocols,
-        addProtocol,
-        updateProtocol,
-        deleteProtocol,
-        getProtocolById,
-        markProtocolSuccess,
-        markProtocolFailure,
-        getTodayProtocols,
-        isLoading,
-        requestNotificationPermission,
-        hasNotificationPermission
-      }}
-    >
+    <ProtocolContext.Provider value={contextValue}>
       {children}
     </ProtocolContext.Provider>
   );

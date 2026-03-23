@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
 import { Book, BookSource, parseTextToBook, SearchResult, Chapter } from '../types/book';
 import { BookSourceParser } from '../utils/bookSourceParser';
 import JSZip from 'jszip';
@@ -1102,8 +1102,10 @@ export function BookProvider({ children }: { children: ReactNode }) {
         }
 
         if (name && bookUrl) {
+          // 使用 encodeURIComponent + btoa 处理非 Latin1 字符
+          const safeId = btoa(encodeURIComponent(bookUrl));
           results.push({
-            id: btoa(bookUrl),
+            id: safeId,
             title: name.trim(),
             author: author.trim() || '未知作者',
             coverUrl: coverUrl ? resolveUrl(source.url, coverUrl) : undefined,
@@ -1185,8 +1187,10 @@ export function BookProvider({ children }: { children: ReactNode }) {
       }
 
       if (name && chapterUrl) {
+        // 使用 encodeURIComponent + btoa 处理非 Latin1 字符
+        const safeId = btoa(encodeURIComponent(chapterUrl));
         chapters.push({
-          id: btoa(chapterUrl),
+          id: safeId,
           title: name.trim(),
           url: chapterUrl,
         });
@@ -1305,36 +1309,63 @@ export function BookProvider({ children }: { children: ReactNode }) {
     return results;
   }
 
+  // 使用 useMemo 缓存 context value，避免不必要的重新渲染
+  const contextValue = useMemo(() => ({
+    books,
+    addBook,
+    updateBook,
+    deleteBook,
+    getBookById,
+    importBookFromFile,
+    isLoading,
+    bookSources,
+    addBookSource,
+    addBookSourcesBatch,
+    updateBookSource,
+    deleteBookSource,
+    resetToDefaultSources,
+    searchBooksFromSource,
+    fetchBookFromSource,
+    listBooksFromSource,
+    testBookSource,
+    importBookSourcesFromFile,
+    importBookSourcesFromUrl,
+    searchWithBookSource,
+    searchWithAllSources,
+    getChapterList,
+    getChapterContent,
+    importFullBook,
+    testUrl,
+  }), [
+    books,
+    isLoading,
+    bookSources,
+    addBook,
+    updateBook,
+    deleteBook,
+    getBookById,
+    importBookFromFile,
+    addBookSource,
+    addBookSourcesBatch,
+    updateBookSource,
+    deleteBookSource,
+    resetToDefaultSources,
+    searchBooksFromSource,
+    fetchBookFromSource,
+    listBooksFromSource,
+    testBookSource,
+    importBookSourcesFromFile,
+    importBookSourcesFromUrl,
+    searchWithBookSource,
+    searchWithAllSources,
+    getChapterList,
+    getChapterContent,
+    importFullBook,
+    testUrl,
+  ]);
+
   return (
-    <BookContext.Provider
-      value={{
-        books,
-        addBook,
-        updateBook,
-        deleteBook,
-        getBookById,
-        importBookFromFile,
-        isLoading,
-        bookSources,
-        addBookSource,
-        addBookSourcesBatch,
-        updateBookSource,
-        deleteBookSource,
-        resetToDefaultSources,
-        searchBooksFromSource,
-        fetchBookFromSource,
-        listBooksFromSource,
-        testBookSource,
-        importBookSourcesFromFile,
-        importBookSourcesFromUrl,
-        searchWithBookSource,
-        searchWithAllSources,
-        getChapterList,
-        getChapterContent,
-        importFullBook,
-        testUrl,
-      }}
-    >
+    <BookContext.Provider value={contextValue}>
       {children}
     </BookContext.Provider>
   );

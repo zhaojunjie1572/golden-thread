@@ -338,6 +338,7 @@ const MusicPlayer = () => {
     toggleMusicPlayerVisible,
   } = useMusic();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const objectUrlsRef = useRef<string[]>([]);
   const [showWebsites, setShowWebsites] = useState(false);
   const [showWebsiteEditor, setShowWebsiteEditor] = useState(false);
   const [editingWebsiteIndex, setEditingWebsiteIndex] = useState<number | null>(null);
@@ -385,6 +386,8 @@ const MusicPlayer = () => {
     files.forEach((file) => {
       if (file.type.startsWith('audio/')) {
         const url = URL.createObjectURL(file);
+        // 跟踪创建的 URL，以便后续清理
+        objectUrlsRef.current.push(url);
         newTracks.push({
           id: crypto.randomUUID(),
           name: file.name.replace(/\.[^/.]+$/, ''),
@@ -401,6 +404,16 @@ const MusicPlayer = () => {
       fileInputRef.current.value = '';
     }
   };
+
+  // 组件卸载时清理所有创建的 object URL
+  useEffect(() => {
+    return () => {
+      objectUrlsRef.current.forEach(url => {
+        URL.revokeObjectURL(url);
+      });
+      objectUrlsRef.current = [];
+    };
+  }, []);
 
   const openMusicWebsite = (url: string) => {
     window.open(url, '_blank', 'noopener,noreferrer');

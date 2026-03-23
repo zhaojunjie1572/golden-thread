@@ -477,6 +477,18 @@ export default function AIAssistantView() {
       
       recognitionRef.current = recognition;
     }
+    
+    // 清理函数：组件卸载时停止语音识别
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {
+          // 忽略停止时的错误
+        }
+        recognitionRef.current = null;
+      }
+    };
   }, []);
 
   const toggleListening = () => {

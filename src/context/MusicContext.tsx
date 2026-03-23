@@ -31,8 +31,14 @@ const MusicContext = createContext<MusicContextType | undefined>(undefined);
 export function MusicProvider({ children }: { children: ReactNode }) {
   const [tracks, setTracks] = useState<MusicTrack[]>(() => {
     try {
-      const saved = localStorage.getItem('music-tracks');
-      return saved ? JSON.parse(saved) : [];
+      // 注意：只恢复元数据，URL 是临时的 blob URL，需要在页面加载后重新选择文件
+      const saved = localStorage.getItem('music-tracks-metadata');
+      if (saved) {
+        const metadata = JSON.parse(saved);
+        // URL 为空，需要用户重新选择文件
+        return metadata.map((m: any) => ({ ...m, url: '' }));
+      }
+      return [];
     } catch {
       return [];
     }
@@ -62,7 +68,9 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   }, [currentTrackIndex, tracks, isPlaying]);
 
   useEffect(() => {
-    localStorage.setItem('music-tracks', JSON.stringify(tracks.map(t => ({ id: t.id, name: t.name, fileName: t.fileName }))));
+    // 只保存音乐元数据，不保存临时的 blob URL
+    // URL 需要在页面刷新后重新通过文件选择创建
+    localStorage.setItem('music-tracks-metadata', JSON.stringify(tracks.map(t => ({ id: t.id, name: t.name, fileName: t.fileName }))));
   }, [tracks]);
 
   const addTracks = (newTracks: MusicTrack[]) => {
@@ -87,6 +95,12 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   const togglePlay = () => {
     if (tracks.length === 0) return;
+    // 检查当前曲目是否有有效的 URL
+    const currentTrack = tracks[currentTrackIndex];
+    if (!currentTrack?.url) {
+      console.warn('当前音乐没有有效的 URL，请重新选择文件');
+      return;
+    }
     if (audioRef.current) {
       if (isPlaying) {
         audioRef.current.pause();
