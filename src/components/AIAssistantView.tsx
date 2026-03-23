@@ -1082,6 +1082,8 @@ export default function AIAssistantView() {
                       }`}
                       style={{
                         color: message.role === 'user' ? userTextColor : aiTextColor,
+                        backgroundColor: backgroundImage ? 'transparent' : undefined,
+                        borderRadius: backgroundImage ? 0 : undefined,
                       }}
                     >
                       {message.attachments && message.attachments.length > 0 && (
@@ -1188,7 +1190,11 @@ export default function AIAssistantView() {
                   <div className="relative items-start flex flex-col">
                     <div 
                       className={`px-3.5 py-2.5 ${backgroundImage ? 'shadow-none' : 'bg-white rounded-bl-sm rounded-xl shadow-sm'}`}
-                      style={{ color: aiTextColor }}
+                      style={{ 
+                        color: aiTextColor,
+                        backgroundColor: backgroundImage ? 'transparent' : undefined,
+                        borderRadius: backgroundImage ? 0 : undefined,
+                      }}
                     >
                       <p className="whitespace-pre-wrap font-medium" style={{ fontSize: `${14 * textScale}px` }}>{streamingContent}</p>
                       <span className="inline-block w-1.5 h-4 ml-1 align-middle animate-pulse" style={{ backgroundColor: aiTextColor }} />
