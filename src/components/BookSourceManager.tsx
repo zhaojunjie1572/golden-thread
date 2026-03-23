@@ -19,6 +19,7 @@ export default function BookSourceManager({ onClose, onSelectSource }: BookSourc
     deleteBookSource, 
     testBookSource, 
     importBookSourcesFromFile, 
+    importBookSourcesFromUrl,
     testUrl,
     resetToDefaultSources,
   } = useBooks();
@@ -33,6 +34,8 @@ export default function BookSourceManager({ onClose, onSelectSource }: BookSourc
   const [debuggingSource, setDebuggingSource] = useState<BookSource | null>(null);
   const [showPasteImport, setShowPasteImport] = useState(false);
   const [pasteJson, setPasteJson] = useState('');
+  const [showUrlImport, setShowUrlImport] = useState(false);
+  const [urlInput, setUrlInput] = useState('');
   const [formData, setFormData] = useState<{
     name: string;
     url: string;
@@ -82,6 +85,36 @@ export default function BookSourceManager({ onClose, onSelectSource }: BookSourc
       }
     }
   }, [importBookSourcesFromFile]);
+
+  const handleUrlImport = useCallback(async () => {
+    if (!urlInput.trim()) {
+      alert('请输入书源URL');
+      return;
+    }
+
+    let importUrl = urlInput.trim();
+    const urlMatch = importUrl.match(/src=([^&]+)/);
+    if (urlMatch) {
+      importUrl = decodeURIComponent(urlMatch[1]);
+    }
+
+    setIsImporting(true);
+    try {
+      const count = await importBookSourcesFromUrl(importUrl);
+      if (count > 0) {
+        alert(`成功从URL导入 ${count} 个书源！`);
+        setUrlInput('');
+        setShowUrlImport(false);
+      } else {
+        alert('未找到有效的书源，请确认URL是否正确');
+      }
+    } catch (error) {
+      console.error('从URL导入书源失败:', error);
+      alert(error instanceof Error ? error.message : '从URL导入书源失败');
+    } finally {
+      setIsImporting(false);
+    }
+  }, [urlInput, importBookSourcesFromUrl]);
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
@@ -295,9 +328,19 @@ export default function BookSourceManager({ onClose, onSelectSource }: BookSourc
               className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012-2" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
               粘贴 JSON
+            </button>
+            <button
+              onClick={() => setShowUrlImport(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-green-300 dark:border-green-600 text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/30"
+              title="从URL导入书源"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+              网络导入
             </button>
             <button
               onClick={() => {
@@ -629,6 +672,109 @@ export default function BookSourceManager({ onClose, onSelectSource }: BookSourc
             </div>
           </div>
         </div>
+      )}
+
+      {showUrlImport && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full max-h-[80vh] overflow-hidden shadow-2xl flex flex-col">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between flex-shrink-0">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">网络导入书源</h2>
+              <button
+                onClick={() => {
+                  setShowUrlImport(false);
+                  setUrlInput('');
+                }}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    输入书源 JSON 的 URL 地址
+                  </label>
+                  <input
+                    type="text"
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleUrlImport()}
+                    placeholder="https://example.com/booksource.json"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  />
+                </div>
+
+                <div className="text-sm text-gray-500 dark:text-gray-400 bg-green-50 dark:bg-green-900/30 p-4 rounded-xl border border-green-200 dark:border-green-700">
+                  <p className="font-semibold mb-2 text-green-800 dark:text-green-200">💡 使用说明</p>
+                  <p className="mb-2">支持两种导入方式：</p>
+                  <ol className="list-decimal list-inside space-y-1 text-xs">
+                    <li>直接输入书源 JSON 文件的 URL 地址</li>
+                    <li>粘贴阅读App的书源导入链接（包含 src= 参数）</li>
+                  </ol>
+                  <p className="mt-3 text-xs bg-white dark:bg-gray-800 p-2 rounded">
+                    <strong>示例链接：</strong><br />
+                    yuedu://rsssource/importonline?src=https%3A%2F%2Fexample.com%2Fsub.json
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex gap-3 flex-shrink-0">
+              <button
+                onClick={() => {
+                  setShowUrlImport(false);
+                  setUrlInput('');
+                }}
+                className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleUrlImport}
+                disabled={isImporting || !urlInput.trim()}
+                className="flex-1 px-4 py-2 rounded-lg text-white disabled:opacity-50"
+                style={{ backgroundColor: colors.primary }}
+              >
+                {isImporting ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto" />
+                ) : (
+                  '导入书源'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddForm && (
+        <AddBookSourceForm
+          source={editingSource}
+          formData={formData}
+          setFormData={setFormData}
+          onSubmit={handleSubmit}
+          onCancel={() => {
+            setShowAddForm(false);
+            setEditingSource(null);
+          }}
+        />
+      )}
+
+      {browsingSource && (
+        <BookSourceBrowseView
+          source={browsingSource}
+          onClose={() => setBrowsingSource(null)}
+        />
+      )}
+
+      {debuggingSource && (
+        <BookSourceDebugger
+          source={debuggingSource}
+          onClose={() => setDebuggingSource(null)}
+        />
       )}
     </div>
   );

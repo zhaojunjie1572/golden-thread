@@ -29,6 +29,7 @@ interface BookContextType {
   getChapterContent: (sourceId: string, chapterUrl: string) => Promise<string>;
   importFullBook: (sourceId: string, searchResult: SearchResult) => Promise<Book>;
   testUrl: (url: string, source?: BookSource) => Promise<string>;
+  importBookSourcesFromUrl: (url: string) => Promise<number>;
 }
 
 const BookContext = createContext<BookContextType | undefined>(undefined);
@@ -235,6 +236,37 @@ const DEFAULT_BOOK_SOURCES = [
     },
     ruleContent: {
       content: '.read-content',
+    },
+  },
+  {
+    name: '📚 Yiove 书源仓库',
+    url: 'https://shuyuan.yiove.com',
+    type: 'api' as const,
+    enabled: true,
+    bookSourceGroup: '书源',
+    bookSourceComment: 'Yiove书源仓库 - 海量书源聚合',
+    searchUrl: 'https://shuyuan.yiove.com/search?q={{key}}',
+    ruleSearch: {
+      bookList: '.book-list li',
+      name: '.book-title@text',
+      author: '.author@text',
+      coverUrl: '.cover@src',
+      bookUrl: 'a@href',
+      intro: '.desc@text',
+    },
+    ruleBookInfo: {
+      name: '.book-title@text',
+      author: '.author@text',
+      coverUrl: '.cover@src',
+      intro: '.desc@text',
+    },
+    ruleToc: {
+      chapterList: '.chapter-list a',
+      chapterName: 'text',
+      chapterUrl: 'href',
+    },
+    ruleContent: {
+      content: '#content',
     },
   },
 ];
@@ -784,6 +816,65 @@ export function BookProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function importBookSourcesFromUrl(url: string): Promise<number> {
+    try {
+      console.log('🌐 从URL导入书源:', url);
+      const response = await fetchWithTimeout(url);
+      
+      if (!response.ok) {
+        throw new Error(`请求失败: HTTP ${response.status}`);
+      }
+      
+      const text = await response.text();
+      
+      let jsonData;
+      try {
+        let cleanedText = text;
+        cleanedText = cleanedText.replace(/“/g, '"');
+        cleanedText = cleanedText.replace(/”/g, '"');
+        cleanedText = cleanedText.replace(/‘/g, "'");
+        cleanedText = cleanedText.replace(/’/g, "'");
+        cleanedText = cleanedText.replace(/，/g, ',');
+        cleanedText = cleanedText.replace(/：/g, ':');
+        cleanedText = cleanedText.replace(/；/g, ';');
+        cleanedText = cleanedText.replace(/（/g, '(');
+        cleanedText = cleanedText.replace(/）/g, ')');
+        cleanedText = cleanedText.replace(/【/g, '[');
+        cleanedText = cleanedText.replace(/】/g, ']');
+        
+        jsonData = JSON.parse(cleanedText);
+      } catch (e) {
+        throw new Error('JSON 格式解析失败，请确认URL返回的是有效的书源JSON');
+      }
+
+      const sources: Array<Omit<BookSource, 'id' | 'addedAt'>> = [];
+
+      if (Array.isArray(jsonData)) {
+        for (const item of jsonData) {
+          const parsed = parseYioveBookSource(item);
+          if (parsed) {
+            sources.push(parsed);
+          }
+        }
+      } else {
+        const parsed = parseYioveBookSource(jsonData);
+        if (parsed) {
+          sources.push(parsed);
+        }
+      }
+
+      if (sources.length > 0) {
+        addBookSourcesBatch(sources);
+      }
+
+      console.log('✅ 成功导入', sources.length, '个书源');
+      return sources.length;
+    } catch (error) {
+      console.error('从URL导入书源失败:', error);
+      throw error;
+    }
+  }
+
   const updateBookSource = (source: BookSource) => {
     setBookSources(prev => prev.map(s => s.id === source.id ? source : s));
   };
@@ -1235,6 +1326,7 @@ export function BookProvider({ children }: { children: ReactNode }) {
         listBooksFromSource,
         testBookSource,
         importBookSourcesFromFile,
+        importBookSourcesFromUrl,
         searchWithBookSource,
         searchWithAllSources,
         getChapterList,
