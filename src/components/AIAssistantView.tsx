@@ -586,8 +586,8 @@ export default function AIAssistantView() {
       </div>
 
       {showSettings && (
-        <div className="relative z-10 bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 shrink-0">
-          <div className="flex items-center justify-between mb-4">
+        <div className="relative z-10 bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 shrink-0 max-h-[70vh] overflow-y-auto">
+          <div className="flex items-center justify-between mb-4 sticky top-0 bg-white z-10 pt-1">
             <h2 className="text-lg font-semibold text-gray-800">设置</h2>
             <button
               onClick={() => setShowSettings(false)}
@@ -776,8 +776,8 @@ export default function AIAssistantView() {
       )}
 
       {showColorSettings && (
-        <div className="relative z-10 bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 shrink-0">
-          <div className="flex items-center justify-between mb-4">
+        <div className="relative z-10 bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 shrink-0 max-h-[70vh] overflow-y-auto">
+          <div className="flex items-center justify-between mb-4 sticky top-0 bg-white z-10 pt-1">
             <h2 className="text-lg font-semibold text-gray-800">显示设置</h2>
             <button
               onClick={() => setShowColorSettings(false)}
