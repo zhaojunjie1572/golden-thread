@@ -67,9 +67,9 @@ export function SyncManagerView() {
           <p className="text-sm opacity-70">通过导出/导入 JSON 文件实现多设备同步</p>
         </div>
         <button
-          onClick={() => window.history.back()}
+          onClick={() => window.location.href = '/'}
           className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-          title="返回"
+          title="返回首页"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
