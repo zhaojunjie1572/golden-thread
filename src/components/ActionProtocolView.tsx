@@ -300,9 +300,25 @@ export default function ActionProtocolView() {
           content: `--- 来自「${module.icon} ${module.name}」模块的记忆 ---`,
           timestamp: new Date(),
         } as ChatMessage);
+        
+        // 根据配置限制记忆字数
+        let memoryContent = '';
         moduleMsgs.forEach(msg => {
-          history.push(msg);
+          memoryContent += `${msg.role === 'user' ? '用户' : 'AI'}: ${msg.content}\n`;
         });
+        
+        // 如果超过最大字数，截取最近的内容
+        if (memoryContent.length > memoryConfig.maxWords) {
+          memoryContent = memoryContent.slice(-memoryConfig.maxWords);
+          memoryContent = '...(前面内容已省略)\n' + memoryContent;
+        }
+        
+        history.push({
+          id: crypto.randomUUID(),
+          role: 'system',
+          content: memoryContent,
+          timestamp: new Date(),
+        } as ChatMessage);
       }
     });
 
@@ -814,12 +830,17 @@ export default function ActionProtocolView() {
                           }`}
                         >
                           <p className="whitespace-pre-wrap text-sm">{message.content}</p>
-                          <p className={`text-xs mt-1.5 ${message.role === 'user' ? 'text-white/70' : 'text-gray-500'}`}>
-                            {new Date(message.timestamp).toLocaleTimeString('zh-CN', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </p>
+                          <div className={`flex items-center justify-between gap-2 mt-1.5 ${message.role === 'user' ? 'text-white/70' : 'text-gray-500'}`}>
+                            <p className="text-xs">
+                              {new Date(message.timestamp).toLocaleTimeString('zh-CN', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </p>
+                            {message.role === 'assistant' && message.model && (
+                              <p className="text-[10px] opacity-70">{message.model}</p>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
