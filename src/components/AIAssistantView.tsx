@@ -166,12 +166,31 @@ export default function AIAssistantView() {
   const handleBackgroundImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const dataUrl = event.target?.result as string;
-        setBackgroundImage(dataUrl);
-      };
-      reader.readAsDataURL(file);
+      try {
+        if (file.size > 5 * 1024 * 1024) {
+          alert('图片大小不能超过 5MB');
+          e.target.value = '';
+          return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const dataUrl = event.target?.result as string;
+            setBackgroundImage(dataUrl);
+          } catch (err) {
+            console.error('图片加载失败:', err);
+            alert('图片加载失败，请尝试其他图片');
+          }
+        };
+        reader.onerror = () => {
+          alert('图片读取失败，请尝试其他图片');
+        };
+        reader.readAsDataURL(file);
+      } catch (err) {
+        console.error('图片处理失败:', err);
+        alert('图片处理失败，请尝试其他图片');
+      }
     }
     e.target.value = '';
   };
@@ -562,17 +581,14 @@ export default function AIAssistantView() {
 
   return (
     <div 
-      className="max-w-6xl mx-auto px-4 py-8 flex flex-col h-[calc(100vh-140px)]"
+      className="max-w-6xl mx-auto px-4 py-8 flex flex-col h-[calc(100vh-140px)] relative"
       style={{
-        backgroundImage: backgroundImage ? `url(${backgroundImage})` : undefined,
+        backgroundImage: backgroundImage ? `url(${backgroundImage})` : 'none',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        backgroundAttachment: 'fixed',
+        backgroundColor: backgroundImage ? 'transparent' : '#f5f5f5',
       }}
     >
-      {!backgroundImage && (
-        <div className="absolute inset-0 bg-[#f5f5f5] pointer-events-none" />
-      )}
       
       <div className="relative z-10 flex items-center gap-4 mb-6 shrink-0">
         <button
