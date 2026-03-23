@@ -205,6 +205,43 @@ class APIService {
     }
 
     try {
+      // 构建消息内容，支持图片附件
+      const formattedMessages = messages.map(msg => {
+        // 如果有图片附件，使用多模态格式
+        if (msg.attachments && msg.attachments.some(att => att.type === 'image' && att.preview)) {
+          const content: any[] = [
+            { type: 'text', text: msg.content }
+          ];
+          
+          // 添加图片附件
+          msg.attachments.forEach(att => {
+            if (att.type === 'image' && att.preview) {
+              // 提取 base64 数据（去掉 data:image/xxx;base64, 前缀）
+              const base64Data = att.preview.split(',')[1];
+              const mimeType = att.preview.match(/data:(.*?);base64/)?.[1] || 'image/jpeg';
+              
+              content.push({
+                type: 'image_url',
+                image_url: {
+                  url: `data:${mimeType};base64,${base64Data}`
+                }
+              });
+            }
+          });
+          
+          return {
+            role: msg.role,
+            content,
+          };
+        }
+        
+        // 普通文本消息
+        return {
+          role: msg.role,
+          content: msg.content,
+        };
+      });
+
       const response = await fetch(`${this.config.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -213,10 +250,7 @@ class APIService {
         },
         body: JSON.stringify({
           model: this.config.model,
-          messages: messages.map(msg => ({
-            role: msg.role,
-            content: msg.content,
-          })),
+          messages: formattedMessages,
           temperature: 0.7,
           max_tokens: 2000,
           stream: true,

@@ -391,6 +391,12 @@ export default function AIAssistantView() {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     files.forEach(file => {
+      // 检查文件大小 (最大 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert(`文件 "${file.name}" 超过 5MB 限制，已跳过`);
+        return;
+      }
+
       const newFile: AttachedFile = {
         id: crypto.randomUUID(),
         file,
@@ -400,7 +406,11 @@ export default function AIAssistantView() {
       if (newFile.type === 'image') {
         const reader = new FileReader();
         reader.onload = (event) => {
-          newFile.preview = event.target?.result as string;
+          const preview = event.target?.result as string;
+          setAttachedFiles(prev => [...prev, { ...newFile, preview }]);
+        };
+        reader.onerror = () => {
+          console.error('图片读取失败:', file.name);
           setAttachedFiles(prev => [...prev, newFile]);
         };
         reader.readAsDataURL(file);
