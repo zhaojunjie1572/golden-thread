@@ -128,6 +128,7 @@ export default function AIAssistantView() {
     }
   });
   const [isListening, setIsListening] = useState(false);
+  const [transcript, setTranscript] = useState('');
   const recognitionRef = useRef<any>(null);
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -426,22 +427,42 @@ export default function AIAssistantView() {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
       const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
+      recognition.continuous = true;
+      recognition.interimResults = true;
       recognition.lang = 'zh-CN';
       
       recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setInput(prev => prev + (prev ? ' ' : '') + transcript);
+        let finalTranscript = '';
+        let interimTranscript = '';
+        
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript;
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+        
+        if (finalTranscript) {
+          setInput(prev => prev + (prev ? ' ' : '') + finalTranscript);
+          setTranscript('');
+        } else {
+          setTranscript(interimTranscript);
+        }
       };
       
       recognition.onerror = (event: any) => {
         console.error('Speech recognition error:', event.error);
-        setIsListening(false);
+        if (event.error !== 'no-speech') {
+          setIsListening(false);
+          setTranscript('');
+        }
       };
       
       recognition.onend = () => {
         setIsListening(false);
+        setTranscript('');
       };
       
       recognitionRef.current = recognition;
@@ -453,9 +474,11 @@ export default function AIAssistantView() {
     
     if (isListening) {
       recognitionRef.current.stop();
+      setTranscript('');
     } else {
       recognitionRef.current.start();
       setIsListening(true);
+      setTranscript('');
     }
   };
 
@@ -1025,22 +1048,30 @@ export default function AIAssistantView() {
                   </button>
                 </div>
 
-                <textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyPress}
-                  placeholder=""
-                  disabled={isLoading || !apiService.hasApiKey()}
-                  className={`flex-1 px-3 py-2.5 rounded-lg outline-none resize-none max-h-28 text-base ${
-                    inputBarTransparent
-                      ? 'bg-white/80 backdrop-blur-sm border border-white/30 text-black placeholder-gray-500'
-                      : 'border border-gray-300 text-black placeholder-gray-500'
-                  }`}
-                  rows={1}
-                  autoComplete="off"
-                  autoCorrect="off"
-                  spellCheck="false"
-                />
+                <div className="flex-1 relative">
+                  <textarea
+                    value={isListening && transcript ? input + (input ? ' ' : '') + transcript : input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyPress}
+                    placeholder={isListening ? '正在聆听...' : ''}
+                    disabled={isLoading || !apiService.hasApiKey()}
+                    className={`w-full px-3 py-2.5 rounded-lg outline-none resize-none max-h-28 text-base ${
+                      inputBarTransparent
+                        ? 'bg-white/80 backdrop-blur-sm border border-white/30 text-black placeholder-gray-500'
+                        : 'border border-gray-300 text-black placeholder-gray-500'
+                    }`}
+                    rows={1}
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck="false"
+                  />
+                  {isListening && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                      <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                      <span className="text-xs text-gray-400">聆听中</span>
+                    </div>
+                  )}
+                </div>
 
                 <button
                   onClick={isLoading ? handleStopGeneration : handleSend}
@@ -1850,22 +1881,30 @@ export default function AIAssistantView() {
                 </button>
               </div>
               
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyPress}
-                placeholder=""
-                disabled={isLoading || !apiService.hasApiKey()}
-                className={`flex-1 px-3 py-2.5 rounded-lg outline-none resize-none max-h-28 text-sm ${
-                  inputBarTransparent 
-                    ? 'bg-transparent border border-white/30 text-white placeholder-white/50'
-                    : 'border border-gray-300 text-black placeholder-gray-500'
-                }`}
-                rows={1}
-                autoComplete="off"
-                autoCorrect="off"
-                spellCheck="false"
-              />
+              <div className="flex-1 relative">
+                <textarea
+                  value={isListening && transcript ? input + (input ? ' ' : '') + transcript : input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyPress}
+                  placeholder={isListening ? '正在聆听...' : ''}
+                  disabled={isLoading || !apiService.hasApiKey()}
+                  className={`w-full px-3 py-2.5 rounded-lg outline-none resize-none max-h-28 text-sm ${
+                    inputBarTransparent 
+                      ? 'bg-transparent border border-white/30 text-white placeholder-white/50'
+                      : 'border border-gray-300 text-black placeholder-gray-500'
+                  }`}
+                  rows={1}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck="false"
+                />
+                {isListening && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                    <span className="text-xs text-gray-400">聆听中</span>
+                  </div>
+                )}
+              </div>
               
               <button
                 onClick={isLoading ? handleStopGeneration : handleSend}
