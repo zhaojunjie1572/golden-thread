@@ -57,41 +57,73 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [isDarkMode, setIsDarkMode] = useState(() => {
-    const saved = localStorage.getItem('dark-mode');
-    return saved === 'true';
+    try {
+      const saved = localStorage.getItem('dark-mode');
+      return saved === 'true';
+    } catch {
+      return false;
+    }
   });
 
   const [currentTheme, setCurrentTheme] = useState(() => {
-    return localStorage.getItem('color-theme') || 'golden';
+    try {
+      return localStorage.getItem('color-theme') || 'golden';
+    } catch {
+      return 'golden';
+    }
   });
 
   const [backgroundImage, setBackgroundImage] = useState<string | null>(() => {
-    return localStorage.getItem('background-image') || null;
+    try {
+      return localStorage.getItem('background-image') || null;
+    } catch {
+      return null;
+    }
   });
 
   const [brightness, setBrightness] = useState(() => {
-    const saved = localStorage.getItem('brightness');
-    return saved ? parseFloat(saved) : 100;
+    try {
+      const saved = localStorage.getItem('brightness');
+      return saved ? parseFloat(saved) : 100;
+    } catch {
+      return 100;
+    }
   });
 
   useEffect(() => {
-    localStorage.setItem('dark-mode', isDarkMode.toString());
+    try {
+      localStorage.setItem('dark-mode', isDarkMode.toString());
+    } catch (error) {
+      console.error('保存 dark-mode 失败:', error);
+    }
   }, [isDarkMode]);
 
   useEffect(() => {
-    localStorage.setItem('color-theme', currentTheme);
+    try {
+      localStorage.setItem('color-theme', currentTheme);
+    } catch (error) {
+      console.error('保存 color-theme 失败:', error);
+    }
   }, [currentTheme]);
 
   useEffect(() => {
-    if (backgroundImage) {
-      localStorage.setItem('background-image', backgroundImage);
-    } else {
-      localStorage.removeItem('background-image');
+    try {
+      if (backgroundImage) {
+        localStorage.setItem('background-image', backgroundImage);
+      } else {
+        localStorage.removeItem('background-image');
+      }
+    } catch (error) {
+      console.error('保存 background-image 失败:', error);
     }
   }, [backgroundImage]);
 
   useEffect(() => {
-    localStorage.setItem('brightness', brightness.toString());
+    try {
+      localStorage.setItem('brightness', brightness.toString());
+    } catch (error) {
+      console.error('保存 brightness 失败:', error);
+    }
   }, [brightness]);
 
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);

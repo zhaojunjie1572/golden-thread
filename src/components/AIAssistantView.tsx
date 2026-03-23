@@ -251,7 +251,8 @@ export default function AIAssistantView() {
     if (messages.length > 0 && currentSessionId) {
       saveCurrentSession();
     }
-  }, [messages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, currentSessionId]);
 
   const loadChatSessions = () => {
     try {
