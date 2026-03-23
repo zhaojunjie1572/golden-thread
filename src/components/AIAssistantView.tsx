@@ -34,6 +34,51 @@ export default function AIAssistantView() {
   const navigate = useNavigate();
   const { speechState, voices, setSpeechRate, setSelectedVoice: setSelectedVoiceInSpeech, testVoice } = useSpeech();
   
+  const [backgroundImage, setBackgroundImage] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('ai-assistant-background');
+    } catch {
+      return null;
+    }
+  });
+  const [userTextColor, setUserTextColor] = useState<string>(() => {
+    try {
+      return localStorage.getItem('ai-assistant-user-text-color') || '#000000';
+    } catch {
+      return '#000000';
+    }
+  });
+  const [aiTextColor, setAiTextColor] = useState<string>(() => {
+    try {
+      return localStorage.getItem('ai-assistant-ai-text-color') || '#000000';
+    } catch {
+      return '#000000';
+    }
+  });
+  const [textScale, setTextScale] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('ai-assistant-text-scale');
+      return saved ? parseFloat(saved) : 1;
+    } catch {
+      return 1;
+    }
+  });
+  const [showColorSettings, setShowColorSettings] = useState(false);
+  const [topBarTransparent, setTopBarTransparent] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('ai-assistant-topbar-transparent') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [inputBarTransparent, setInputBarTransparent] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('ai-assistant-inputbar-transparent') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -89,6 +134,51 @@ export default function AIAssistantView() {
     webSearchService.setSerpApiKey(serpApiKey);
     webSearchService.setOpenWeatherApiKey(openWeatherApiKey);
   }, [serpApiKey, openWeatherApiKey]);
+
+  useEffect(() => {
+    if (backgroundImage) {
+      localStorage.setItem('ai-assistant-background', backgroundImage);
+    } else {
+      localStorage.removeItem('ai-assistant-background');
+    }
+  }, [backgroundImage]);
+
+  useEffect(() => {
+    localStorage.setItem('ai-assistant-user-text-color', userTextColor);
+  }, [userTextColor]);
+
+  useEffect(() => {
+    localStorage.setItem('ai-assistant-ai-text-color', aiTextColor);
+  }, [aiTextColor]);
+
+  useEffect(() => {
+    localStorage.setItem('ai-assistant-text-scale', textScale.toString());
+  }, [textScale]);
+
+  useEffect(() => {
+    localStorage.setItem('ai-assistant-topbar-transparent', topBarTransparent.toString());
+  }, [topBarTransparent]);
+
+  useEffect(() => {
+    localStorage.setItem('ai-assistant-inputbar-transparent', inputBarTransparent.toString());
+  }, [inputBarTransparent]);
+
+  const handleBackgroundImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        setBackgroundImage(dataUrl);
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = '';
+  };
+
+  const removeBackgroundImage = () => {
+    setBackgroundImage(null);
+  };
 
   const handleStopGeneration = () => {
     if (abortControllerRef.current) {
@@ -447,8 +537,20 @@ export default function AIAssistantView() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col h-[calc(100vh-140px)]">
-      <div className="flex items-center gap-4 mb-6 shrink-0">
+    <div 
+      className="max-w-6xl mx-auto px-4 py-8 flex flex-col h-[calc(100vh-140px)]"
+      style={{
+        backgroundImage: backgroundImage ? `url(${backgroundImage})` : undefined,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed',
+      }}
+    >
+      {!backgroundImage && (
+        <div className="absolute inset-0 bg-[#f5f5f5] pointer-events-none" />
+      )}
+      
+      <div className="relative z-10 flex items-center gap-4 mb-6 shrink-0">
         <button
           onClick={() => navigate('/')}
           className="p-2 rounded-lg hover:bg-gray-100"
@@ -463,6 +565,15 @@ export default function AIAssistantView() {
         </div>
         <div className="flex-1"></div>
         <button
+          onClick={() => setShowColorSettings(!showColorSettings)}
+          className="p-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
+          title="显示设置"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+          </svg>
+        </button>
+        <button
           onClick={() => setShowSettings(!showSettings)}
           className="p-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
           title="设置"
@@ -475,7 +586,7 @@ export default function AIAssistantView() {
       </div>
 
       {showSettings && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 shrink-0">
+        <div className="relative z-10 bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 shrink-0">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-800">设置</h2>
             <button
@@ -610,15 +721,124 @@ export default function AIAssistantView() {
         </div>
       )}
 
+      {showColorSettings && (
+        <div className="relative z-10 bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 shrink-0">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-800">显示设置</h2>
+            <button
+              onClick={() => setShowColorSettings(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">背景图片</label>
+              <div className="flex gap-2">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleBackgroundImageUpload}
+                  className="hidden"
+                  id="ai-bg-upload"
+                />
+                <label
+                  htmlFor="ai-bg-upload"
+                  className="flex-1 px-4 py-3 border-2 border-dashed border-gray-300 rounded-xl text-center cursor-pointer hover:border-golden hover:bg-golden/5 transition-colors"
+                >
+                  <span className="text-gray-500">点击上传背景图片</span>
+                </label>
+                {backgroundImage && (
+                  <button
+                    onClick={removeBackgroundImage}
+                    className="px-4 py-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors"
+                  >
+                    移除
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">用户文字颜色</label>
+              <input
+                type="color"
+                value={userTextColor}
+                onChange={(e) => setUserTextColor(e.target.value)}
+                className="w-full h-12 rounded-xl cursor-pointer"
+              />
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">AI文字颜色</label>
+              <input
+                type="color"
+                value={aiTextColor}
+                onChange={(e) => setAiTextColor(e.target.value)}
+                className="w-full h-12 rounded-xl cursor-pointer"
+              />
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">文字大小: {(textScale * 100).toFixed(0)}%</label>
+              <input
+                type="range"
+                min="0.7"
+                max="1.5"
+                step="0.1"
+                value={textScale}
+                onChange={(e) => setTextScale(parseFloat(e.target.value))}
+                className="w-full"
+              />
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-700">顶部栏透明</label>
+              <button
+                onClick={() => setTopBarTransparent(!topBarTransparent)}
+                className={`w-12 h-6 rounded-full transition-colors ${
+                  topBarTransparent ? 'bg-golden' : 'bg-gray-300'
+                }`}
+              >
+                <div className={`w-5 h-5 rounded-full bg-white transition-transform ${
+                  topBarTransparent ? 'translate-x-6' : 'translate-x-0.5'
+                }`} />
+              </button>
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-700">输入栏透明</label>
+              <button
+                onClick={() => setInputBarTransparent(!inputBarTransparent)}
+                className={`w-12 h-6 rounded-full transition-colors ${
+                  inputBarTransparent ? 'bg-golden' : 'bg-gray-300'
+                }`}
+              >
+                <div className={`w-5 h-5 rounded-full bg-white transition-transform ${
+                  inputBarTransparent ? 'translate-x-6' : 'translate-x-0.5'
+                }`} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 shrink-0">
+        <div className="relative z-10 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 shrink-0">
           {error}
         </div>
       )}
 
-      <div className="flex-1 flex flex-col min-h-0">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col flex-1 min-h-0">
-          <div className="p-3 border-b border-gray-100 shrink-0">
+      <div className="relative z-10 flex-1 flex flex-col min-h-0">
+        <div className={`rounded-2xl shadow-sm border flex flex-col flex-1 min-h-0 ${
+          backgroundImage ? 'bg-white/80 backdrop-blur-sm border-white/20' : 'bg-white border-gray-100'
+        }`}>
+          <div className={`p-3 border-b shrink-0 ${
+            topBarTransparent ? 'bg-transparent border-transparent' : (backgroundImage ? 'bg-white/50 border-white/20' : 'bg-white border-gray-100')
+          }`}>
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
                 <span className="text-lg">💬</span>
@@ -717,53 +937,121 @@ export default function AIAssistantView() {
                     key={message.id}
                     className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} px-2`}
                   >
-                    <div className="max-w-[75%]">
-                      <div
-                        className={`px-3 py-2.5 rounded-2xl ${
-                          message.role === 'user'
-                            ? 'bg-[#95ec69] text-[#000000]'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}
-                      >
-                        {message.attachments && message.attachments.length > 0 && (
-                          <div className="mb-2 flex flex-wrap gap-2">
-                            {message.attachments.map((attachment) => (
-                              <div
-                                key={attachment.id}
-                                className="bg-white/20 rounded-lg p-2 border border-white/30"
-                              >
-                                {attachment.type === 'image' && attachment.preview ? (
-                                  <img
-                                    src={attachment.preview}
-                                    alt={attachment.name}
-                                    className="w-32 h-32 object-cover rounded"
-                                  />
-                                ) : (
-                                  <div className="flex items-center gap-2">
-                                    <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                    </svg>
-                                    <div>
-                                      <p className="text-xs text-gray-700">{attachment.name}</p>
-                                      <p className="text-xs text-gray-400">{formatFileSize(attachment.size)}</p>
+                    <div className={`max-w-[75%] flex items-start gap-2 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                      {message.role === 'assistant' && (
+                        <div className={`w-10 h-10 rounded-full ${backgroundImage ? 'bg-white/60' : 'bg-white/80'} backdrop-blur-sm flex items-center justify-center text-lg shrink-0 shadow-sm`}>
+                          🤖
+                        </div>
+                      )}
+                      <div className={`relative ${message.role === 'user' ? 'items-end' : 'items-start'} flex flex-col`}>
+                        <div
+                          className={`px-3.5 py-2.5 ${
+                            backgroundImage 
+                              ? `shadow-none`
+                              : `${message.role === 'user' ? 'bg-[#95ec69] rounded-br-sm' : 'bg-white rounded-bl-sm'} rounded-xl shadow-sm`
+                          }`}
+                          style={{
+                            color: message.role === 'user' ? userTextColor : aiTextColor,
+                            backgroundColor: backgroundImage ? (message.role === 'user' ? 'rgba(149, 236, 105, 0.8)' : 'rgba(255, 255, 255, 0.8)') : undefined,
+                          }}
+                        >
+                          {message.attachments && message.attachments.length > 0 && (
+                            <div className="mb-2 flex flex-wrap gap-2">
+                              {message.attachments.map((attachment) => (
+                                <div
+                                  key={attachment.id}
+                                  className="bg-white/20 rounded-lg p-2 border border-white/30"
+                                >
+                                  {attachment.type === 'image' && attachment.preview ? (
+                                    <img
+                                      src={attachment.preview}
+                                      alt={attachment.name}
+                                      className="w-32 h-32 object-cover rounded"
+                                    />
+                                  ) : (
+                                    <div className="flex items-center gap-2">
+                                      <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                      </svg>
+                                      <div>
+                                        <p className="text-xs text-gray-700">{attachment.name}</p>
+                                        <p className="text-xs text-gray-400">{formatFileSize(attachment.size)}</p>
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <p className="whitespace-pre-wrap font-medium" style={{ fontSize: `${14 * textScale}px` }}>{message.content}</p>
+                        </div>
+                        {message.role === 'assistant' && (
+                          <div className="flex items-center gap-1 mt-1">
+                            {speakingId === message.id ? (
+                              <>
+                                <button
+                                  onClick={handlePauseSpeaking}
+                                  className="p-1 text-gray-500 hover:text-gray-700"
+                                >
+                                  {isPaused ? (
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                  ) : (
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                  )}
+                                </button>
+                                <button
+                                  onClick={handleStopSpeaking}
+                                  className="p-1 text-gray-500 hover:text-gray-700"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                                  </svg>
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => handleSpeak(message)}
+                                className="p-1 text-gray-500 hover:text-gray-700"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                                </svg>
+                              </button>
+                            )}
                           </div>
                         )}
-                        <p className="whitespace-pre-wrap text-sm">{message.content}</p>
                       </div>
+                      {message.role === 'user' && (
+                        <div className={`w-10 h-10 rounded-full ${backgroundImage ? 'bg-[#95ec69]/60' : 'bg-[#95ec69]/80'} backdrop-blur-sm flex items-center justify-center text-lg shrink-0 shadow-sm`}>
+                          👤
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
                 {streamingContent && (
-                  <div className="flex justify-start">
-                    <div className="max-w-[75%]">
-                      <div className="px-3 py-2.5 rounded-2xl bg-gray-100 text-gray-800">
-                        <p className="whitespace-pre-wrap text-sm">{streamingContent}</p>
-                        <span className="inline-block w-1.5 h-4 bg-gray-400 ml-1 align-middle animate-pulse" />
+                  <div className="flex justify-start px-1">
+                    <div className="max-w-[75%] flex items-start gap-2">
+                      <div className={`w-10 h-10 rounded-full ${backgroundImage ? 'bg-white/60' : 'bg-white/80'} backdrop-blur-sm flex items-center justify-center text-lg shrink-0 shadow-sm`}>
+                        🤖
+                      </div>
+                      <div className="relative items-start flex flex-col">
+                        <div 
+                          className={`px-3.5 py-2.5 ${backgroundImage ? 'shadow-none' : 'bg-white rounded-bl-sm rounded-xl shadow-sm'}`}
+                          style={{ 
+                            color: aiTextColor,
+                            backgroundColor: backgroundImage ? 'rgba(255, 255, 255, 0.8)' : undefined,
+                          }}
+                        >
+                          <p className="whitespace-pre-wrap font-medium" style={{ fontSize: `${14 * textScale}px` }}>{streamingContent}</p>
+                          <span className="inline-block w-1.5 h-4 ml-1 align-middle animate-pulse" style={{ backgroundColor: aiTextColor }} />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -773,7 +1061,9 @@ export default function AIAssistantView() {
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="p-3 border-t border-gray-100 shrink-0">
+          <div className={`p-3 border-t shrink-0 ${
+            inputBarTransparent ? 'bg-transparent border-transparent' : (backgroundImage ? 'bg-white/50 border-white/20' : 'bg-white border-gray-100')
+          }`}>
             {isLoading && (
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-3.5 h-3.5 border-2 border-golden/30 border-t-golden rounded-full animate-spin" />
@@ -796,7 +1086,11 @@ export default function AIAssistantView() {
                 onKeyDown={handleKeyPress}
                 placeholder=""
                 disabled={isLoading || !apiService.hasApiKey()}
-                className="flex-1 px-3 py-2.5 rounded-lg outline-none resize-none max-h-28 text-sm border border-gray-300 text-black placeholder-gray-500"
+                className={`flex-1 px-3 py-2.5 rounded-lg outline-none resize-none max-h-28 text-sm ${
+                  inputBarTransparent 
+                    ? 'bg-transparent border border-white/30 text-white placeholder-white/50'
+                    : 'border border-gray-300 text-black placeholder-gray-500'
+                }`}
                 rows={1}
                 autoComplete="off"
                 autoCorrect="off"
