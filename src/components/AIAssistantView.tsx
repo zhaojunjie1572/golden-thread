@@ -771,6 +771,48 @@ export default function AIAssistantView() {
                 )}
               </div>
             </div>
+            
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 mb-3">语音朗读设置</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm text-gray-500 mb-2 block">语速: {speechState.speechRate.toFixed(1)}x</label>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="2.5"
+                    step="0.1"
+                    value={speechState.speechRate}
+                    onChange={(e) => setSpeechRate(parseFloat(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+                
+                <div>
+                  <label className="text-sm text-gray-500 mb-2 block">选择声音</label>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={speechState.selectedVoice}
+                      onChange={(e) => setSelectedVoiceInSpeech(e.target.value)}
+                      className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none"
+                    >
+                      <option value="">系统默认声音</option>
+                      {voices.map((voice) => (
+                        <option key={voice.name} value={voice.name}>
+                          {voice.name} ({voice.lang})
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => testVoice(speechState.selectedVoice)}
+                      className="px-4 py-3 bg-golden text-white rounded-xl hover:opacity-90 transition-colors"
+                    >
+                      测试
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1118,6 +1160,37 @@ export default function AIAssistantView() {
           <div className={`p-3 border-t shrink-0 ${
             inputBarTransparent ? 'bg-transparent border-transparent' : (backgroundImage ? 'bg-white/50 border-white/20' : 'bg-white border-gray-100')
           }`}>
+            {attachedFiles.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {attachedFiles.map((file) => (
+                  <div
+                    key={file.id}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg"
+                  >
+                    {file.type === 'image' && file.preview ? (
+                      <img
+                        src={file.preview}
+                        alt={file.file.name}
+                        className="w-8 h-8 object-cover rounded"
+                      />
+                    ) : (
+                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    )}
+                    <span className="text-xs text-gray-700 truncate max-w-[100px]">{file.file.name}</span>
+                    <button
+                      onClick={() => removeAttachedFile(file.id)}
+                      className="text-gray-400 hover:text-red-500"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             {isLoading && (
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-3.5 h-3.5 border-2 border-golden/30 border-t-golden rounded-full animate-spin" />
@@ -1133,7 +1206,60 @@ export default function AIAssistantView() {
               </div>
             )}
             
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-end">
+              <div className="flex gap-1">
+                <input
+                  type="file"
+                  ref={imageInputRef}
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => imageInputRef.current?.click()}
+                  disabled={isLoading}
+                  className="p-2.5 text-gray-500 hover:text-golden hover:bg-golden/10 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="上传图片"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </button>
+                
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  multiple
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isLoading}
+                  className="p-2.5 text-gray-500 hover:text-golden hover:bg-golden/10 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="上传文件"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                  </svg>
+                </button>
+                
+                <button
+                  onClick={toggleListening}
+                  disabled={isLoading}
+                  className={`p-2.5 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                    isListening
+                      ? 'text-red-500 bg-red-50 animate-pulse'
+                      : 'text-gray-500 hover:text-golden hover:bg-golden/10'
+                  }`}
+                  title="语音输入"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                  </svg>
+                </button>
+              </div>
+              
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -1153,11 +1279,11 @@ export default function AIAssistantView() {
               
               <button
                 onClick={isLoading ? handleStopGeneration : handleSend}
-                disabled={!isLoading && !input.trim() || !apiService.hasApiKey()}
+                disabled={!isLoading && !input.trim() && attachedFiles.length === 0 || !apiService.hasApiKey()}
                 className={`px-4 py-2.5 rounded-xl font-semibold transition-colors flex items-center gap-1.5 ${
                   isLoading
                     ? 'bg-red-500 text-white hover:bg-red-600'
-                    : !input.trim() || !apiService.hasApiKey()
+                    : !input.trim() && attachedFiles.length === 0 || !apiService.hasApiKey()
                     ? 'bg-gray-300 text-gray-50 cursor-not-allowed'
                     : 'bg-[#07c160] text-white hover:opacity-90'
                 }`}
