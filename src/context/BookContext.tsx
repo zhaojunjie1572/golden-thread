@@ -158,6 +158,85 @@ const DEFAULT_BOOK_SOURCES = [
       imageStyle: 'FULL',
     },
   },
+  {
+    name: '📖 笔趣阁',
+    url: 'https://www.biquge.se',
+    type: 'api' as const,
+    enabled: false,
+    bookSourceGroup: '小说',
+    bookSourceComment: '笔趣阁小说网-搜索可用',
+    searchUrl: 'https://www.biquge.se/search/?q={{key}}',
+    ruleSearch: {
+      bookList: '.result-list li',
+      name: '.book-title@text',
+      author: '.book-author@text',
+      coverUrl: '.book-cover@data-src',
+      bookUrl: 'a@href',
+      intro: '.book-desc@text',
+    },
+    ruleBookInfo: {
+      name: '.book-title@text',
+      author: '.book-author@text',
+      coverUrl: '.book-cover@src',
+      intro: '.book-desc@text',
+    },
+    ruleToc: {
+      chapterList: '.chapter-list a',
+      chapterName: 'text',
+      chapterUrl: 'href',
+    },
+    ruleContent: {
+      content: '#chapter-content',
+    },
+  },
+  {
+    name: '📚 顶点小说网',
+    url: 'https://www.23uswx.com',
+    type: 'api' as const,
+    enabled: false,
+    bookSourceGroup: '小说',
+    bookSourceComment: '顶点小说网-免费小说资源',
+    searchUrl: 'https://www.23uswx.com/search/?q={{key}}',
+    ruleSearch: {
+      bookList: '.search-list li',
+      name: '.book-title@text',
+      author: '.author@text',
+      coverUrl: '.cover@src',
+      bookUrl: 'a@href',
+    },
+    ruleToc: {
+      chapterList: '.chapter-list a',
+      chapterName: 'text',
+      chapterUrl: 'href',
+    },
+    ruleContent: {
+      content: '#content',
+    },
+  },
+  {
+    name: '🚀 起点中文网',
+    url: 'https://www.qidian.com',
+    type: 'api' as const,
+    enabled: false,
+    bookSourceGroup: '小说',
+    bookSourceComment: '起点中文网-正版小说（需登录）',
+    searchUrl: 'https://www.qidian.com/search/?kw={{key}}',
+    ruleSearch: {
+      bookList: '.book-list li',
+      name: '.book-title@text',
+      author: '.author@text',
+      coverUrl: '.book-cover@src',
+      bookUrl: 'a@href',
+    },
+    ruleToc: {
+      chapterList: '.chapter-list a',
+      chapterName: 'text',
+      chapterUrl: 'href',
+    },
+    ruleContent: {
+      content: '.read-content',
+    },
+  },
 ];
 
 
