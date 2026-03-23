@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { SyncService } from '../services/syncService';
 import { useTheme } from '../context/ThemeContext';
+import { GitHubGistSyncView } from './GitHubGistSyncView';
 
 export function SyncManagerView() {
   const { colors, isDarkMode } = useTheme();
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [showGistSync, setShowGistSync] = useState(false);
 
   const handleExport = () => {
     try {
@@ -83,6 +85,24 @@ export function SyncManagerView() {
           >
             导出备份文件
           </button>
+        </div>
+
+        <div className="p-6 rounded-lg border-2 border-dashed" style={{ borderColor: '#238636' }}>
+          <h3 className="text-lg font-semibold mb-3" style={{ color: '#238636' }}>☁️ GitHub Gist 云端同步（推荐）</h3>
+          <p className="text-sm opacity-70 mb-4">免费、稳定的云端同步方案，支持多设备自动同步</p>
+          <button
+            onClick={() => setShowGistSync(!showGistSync)}
+            className="px-6 py-3 rounded-lg font-medium transition-all hover:opacity-90"
+            style={{ backgroundColor: '#238636', color: '#fff' }}
+          >
+            {showGistSync ? '收起' : '配置 GitHub 云同步'}
+          </button>
+          
+          {showGistSync && (
+            <div className="mt-6">
+              <GitHubGistSyncView />
+            </div>
+          )}
         </div>
 
         <div className="p-6 rounded-lg border-2 border-dashed" style={{ borderColor: colors.primary }}>
