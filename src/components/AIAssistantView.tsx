@@ -717,6 +717,60 @@ export default function AIAssistantView() {
                 </p>
               </div>
             </div>
+            
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 mb-3">联网搜索配置</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">启用联网搜索</label>
+                    <p className="text-xs text-gray-500 mt-1">搜索网络获取实时信息</p>
+                  </div>
+                  <button
+                    onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+                    className={`w-12 h-6 rounded-full transition-colors relative ${
+                      webSearchEnabled ? 'bg-golden' : 'bg-gray-300'
+                    }`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                      webSearchEnabled ? 'translate-x-7' : 'translate-x-1'
+                    }`} />
+                  </button>
+                </div>
+                
+                {webSearchEnabled && (
+                  <>
+                    <div>
+                      <label className="text-sm text-gray-500 mb-2 block">SerpAPI 密钥</label>
+                      <input
+                        type="password"
+                        value={serpApiKey}
+                        onChange={(e) => setSerpApiKey(e.target.value)}
+                        placeholder="输入 SerpAPI 密钥"
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        获取 SerpAPI 密钥：<a href="https://serpapi.com/" target="_blank" rel="noopener noreferrer" className="text-golden hover:underline">serpapi.com</a>
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm text-gray-500 mb-2 block">OpenWeather API 密钥</label>
+                      <input
+                        type="password"
+                        value={openWeatherApiKey}
+                        onChange={(e) => setOpenWeatherApiKey(e.target.value)}
+                        placeholder="输入 OpenWeather API 密钥"
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        获取 OpenWeather API 密钥：<a href="https://openweathermap.org/api" target="_blank" rel="noopener noreferrer" className="text-golden hover:underline">openweathermap.org</a>
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
