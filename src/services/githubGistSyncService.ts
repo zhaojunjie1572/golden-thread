@@ -98,7 +98,7 @@ export class GitHubGistSyncService {
     }
   }
 
-  static async downloadFromGist(token: string, gistId: string): Promise<{ success: boolean; error?: string }> {
+  static async downloadFromGist(token: string, gistId: string): Promise<{ success: boolean; error?: string; data?: any }> {
     try {
       const response = await fetch(`https://api.github.com/gists/${gistId}`, {
         method: 'GET',
@@ -123,16 +123,68 @@ export class GitHubGistSyncService {
         return { success: false, error: 'Gist 中没有找到备份文件' };
       }
 
-      const success = SyncService.importFromJSON(file.content);
-      if (!success) {
+      let jsonData;
+      try {
+        jsonData = JSON.parse(file.content);
+      } catch {
         return { success: false, error: '数据格式无效' };
       }
 
-      return { success: true };
+      return { success: true, data: jsonData };
     } catch (error) {
       console.error('从 GitHub Gist 下载失败:', error);
       return { success: false, error: error instanceof Error ? error.message : '网络错误' };
     }
+  }
+
+  static checkConflict(localData: any, cloudData: any): { hasConflict: boolean; details: any } {
+    if (!localData || !cloudData) {
+      return { hasConflict: false, details: null };
+    }
+
+    const localTime = new Date(localData.timestamp || 0).getTime();
+    const cloudTime = new Date(cloudData.timestamp || 0).getTime();
+    const timeDiff = Math.abs(cloudTime - localTime);
+    const CONFLICT_THRESHOLD = 5 * 60 * 1000;
+
+    if (timeDiff < CONFLICT_THRESHOLD) {
+      const conflicts: any = {};
+
+      if (localData.books?.length !== cloudData.books?.length) {
+        conflicts.books = {
+          local: localData.books?.length || 0,
+          cloud: cloudData.books?.length || 0
+        };
+      }
+
+      if (localData.protocols?.length !== cloudData.protocols?.length) {
+        conflicts.protocols = {
+          local: localData.protocols?.length || 0,
+          cloud: cloudData.protocols?.length || 0
+        };
+      }
+
+      if (localData.thinkTank?.modules?.length !== cloudData.thinkTank?.modules?.length) {
+        conflicts.thinkTankModules = {
+          local: localData.thinkTank?.modules?.length || 0,
+          cloud: cloudData.thinkTank?.modules?.length || 0
+        };
+      }
+
+      if (localData.bookSources?.length !== cloudData.bookSources?.length) {
+        conflicts.bookSources = {
+          local: localData.bookSources?.length || 0,
+          cloud: cloudData.bookSources?.length || 0
+        };
+      }
+
+      return {
+        hasConflict: Object.keys(conflicts).length > 0,
+        details: conflicts
+      };
+    }
+
+    return { hasConflict: false, details: null };
   }
 
   static async syncToCloud(): Promise<{ success: boolean; message: string; gistId?: string }> {
@@ -157,25 +209,76 @@ export class GitHubGistSyncService {
     return { success: false, message: result.error || '上传失败' };
   }
 
-  static async syncFromCloud(): Promise<{ success: boolean; message: string }> {
+  static async syncFromCloud(): Promise<{
+    success: boolean;
+    message: string;
+    hasConflict?: boolean;
+    conflictDetails?: any;
+  }> {
     const config = this.getConfig();
-    
+
     if (!config || !config.token || !config.gistId) {
       return { success: false, message: '请先配置 GitHub Token 和 Gist ID' };
     }
 
     const result = await this.downloadFromGist(config.token, config.gistId);
-    
-    if (result.success) {
+
+    if (!result.success || !result.data) {
+      return { success: false, message: result.error || '下载失败' };
+    }
+
+    const localData = SyncService.collectData();
+    const conflictCheck = this.checkConflict(localData, result.data);
+
+    if (conflictCheck.hasConflict) {
+      return {
+        success: false,
+        message: '检测到数据冲突，请选择保留哪个版本',
+        hasConflict: true,
+        conflictDetails: conflictCheck.details
+      };
+    }
+
+    const importSuccess = SyncService.importFromJSON(JSON.stringify(result.data));
+    if (importSuccess) {
       const newConfig: GitHubGistConfig = {
         ...config,
         lastSyncTime: new Date().toISOString()
       };
       this.saveConfig(newConfig);
-      return { success: true, message: '下载成功！页面将刷新...' };
+      return { success: true, message: '下载成功！页面即将刷新...' };
     }
 
-    return { success: false, message: result.error || '下载失败' };
+    return { success: false, message: '数据导入失败' };
+  }
+
+  static forceSyncFromCloud(): Promise<{ success: boolean; message: string }> {
+    const config = this.getConfig();
+
+    if (!config || !config.token || !config.gistId) {
+      return Promise.resolve({ success: false, message: '请先配置 GitHub Token 和 Gist ID' });
+    }
+
+    return new Promise(async (resolve) => {
+      const result = await this.downloadFromGist(config.token, config.gistId);
+
+      if (!result.success || !result.data) {
+        resolve({ success: false, message: result.error || '下载失败' });
+        return;
+      }
+
+      const importSuccess = SyncService.importFromJSON(JSON.stringify(result.data));
+      if (importSuccess) {
+        const newConfig: GitHubGistConfig = {
+          ...config,
+          lastSyncTime: new Date().toISOString()
+        };
+        this.saveConfig(newConfig);
+        resolve({ success: true, message: '云端版本已覆盖本地数据！页面即将刷新...' });
+      } else {
+        resolve({ success: false, message: '数据导入失败' });
+      }
+    });
   }
 
   static formatLastSyncTime(time?: string): string {

@@ -12,6 +12,7 @@ export function GitHubGistSyncView() {
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [showToken, setShowToken] = useState(false);
+  const [conflict, setConflict] = useState<{ hasConflict: boolean; details: any } | null>(null);
 
   useEffect(() => {
     const savedConfig = GitHubGistSyncService.getConfig();
@@ -81,19 +82,19 @@ export function GitHubGistSyncView() {
       return;
     }
 
-    if (!confirm('从云端下载会覆盖本地数据，是否继续？')) {
-      return;
-    }
-
     setIsSyncing(true);
     try {
       const result = await GitHubGistSyncService.syncFromCloud();
-      
+
       if (result.success) {
         setMessage({ text: '✅ 下载成功！页面即将刷新...', type: 'success' });
+        setConflict(null);
         setTimeout(() => {
           window.location.reload();
         }, 2000);
+      } else if (result.hasConflict) {
+        setConflict({ hasConflict: true, details: result.conflictDetails });
+        setMessage({ text: '⚠️ 检测到数据冲突！', type: 'error' });
       } else {
         setMessage({ text: `❌ ${result.message}`, type: 'error' });
       }
@@ -102,6 +103,33 @@ export function GitHubGistSyncView() {
     } finally {
       setIsSyncing(false);
       setTimeout(() => setMessage(null), 5000);
+    }
+  };
+
+  const handleResolveConflict = async (keepLocal: boolean) => {
+    if (keepLocal) {
+      setConflict(null);
+      setMessage({ text: '保留了本地版本，云端数据未导入', type: 'success' });
+      setTimeout(() => setMessage(null), 3000);
+    } else {
+      setIsSyncing(true);
+      try {
+        const result = await GitHubGistSyncService.forceSyncFromCloud();
+        if (result.success) {
+          setMessage({ text: '✅ 云端版本已覆盖本地数据！页面即将刷新...', type: 'success' });
+          setConflict(null);
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        } else {
+          setMessage({ text: `❌ ${result.message}`, type: 'error' });
+        }
+      } catch (error) {
+        setMessage({ text: '同步失败，请检查网络和配置', type: 'error' });
+      } finally {
+        setIsSyncing(false);
+        setTimeout(() => setMessage(null), 5000);
+      }
     }
   };
 
@@ -142,6 +170,84 @@ export function GitHubGistSyncView() {
           className={`p-4 rounded-lg ${message.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}
         >
           {message.text}
+        </div>
+      )}
+
+      {/* 冲突解决 UI */}
+      {conflict && conflict.hasConflict && (
+        <div className="p-6 rounded-lg bg-yellow-50 border-2 border-yellow-400">
+          <h4 className="font-bold text-yellow-800 mb-4 flex items-center gap-2">
+            ⚠️ 数据冲突检测
+          </h4>
+          <p className="text-sm text-yellow-700 mb-4">
+            检测到您在多个设备上有不同的数据修改，请选择要保留的版本：
+          </p>
+
+          <div className="space-y-3 mb-4">
+            {conflict.details.books && (
+              <div className="flex justify-between items-center p-3 bg-white rounded-lg">
+                <span className="font-medium">📚 书籍</span>
+                <span className="text-sm">
+                  本地: <strong>{conflict.details.books.local}</strong> 本 |
+                  云端: <strong>{conflict.details.books.cloud}</strong> 本
+                </span>
+              </div>
+            )}
+            {conflict.details.protocols && (
+              <div className="flex justify-between items-center p-3 bg-white rounded-lg">
+                <span className="font-medium">📋 协议</span>
+                <span className="text-sm">
+                  本地: <strong>{conflict.details.protocols.local}</strong> 个 |
+                  云端: <strong>{conflict.details.protocols.cloud}</strong> 个
+                </span>
+              </div>
+            )}
+            {conflict.details.thinkTankModules && (
+              <div className="flex justify-between items-center p-3 bg-white rounded-lg">
+                <span className="font-medium">🧠 智库模块</span>
+                <span className="text-sm">
+                  本地: <strong>{conflict.details.thinkTankModules.local}</strong> 个 |
+                  云端: <strong>{conflict.details.thinkTankModules.cloud}</strong> 个
+                </span>
+              </div>
+            )}
+            {conflict.details.bookSources && (
+              <div className="flex justify-between items-center p-3 bg-white rounded-lg">
+                <span className="font-medium">📖 书源</span>
+                <span className="text-sm">
+                  本地: <strong>{conflict.details.bookSources.local}</strong> 个 |
+                  云端: <strong>{conflict.details.bookSources.cloud}</strong> 个
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <button
+              onClick={() => handleResolveConflict(true)}
+              className="px-4 py-3 rounded-lg bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors"
+            >
+              📱 保留本地版本
+            </button>
+            <button
+              onClick={() => handleResolveConflict(false)}
+              disabled={isSyncing}
+              className="px-4 py-3 rounded-lg bg-orange-500 text-white font-medium hover:bg-orange-600 transition-colors disabled:opacity-50"
+            >
+              {isSyncing ? (
+                <span className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  导入中...
+                </span>
+              ) : (
+                '☁️ 使用云端版本'
+              )}
+            </button>
+          </div>
+
+          <p className="text-xs text-yellow-600 mt-4 text-center">
+            💡 提示：如果想先上传本地数据，可以先点击"保留本地版本"，然后再"上传到云端"
+          </p>
         </div>
       )}
 

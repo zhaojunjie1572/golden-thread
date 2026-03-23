@@ -1,0 +1,17 @@
+[
+  {
+    "articleStyle": 0,
+    "customOrder": 0,
+    "enableJs": true,
+    "enabled": true,
+    "enabledCookieJar": true,
+    "lastUpdateTime": 0,
+    "loadWithBaseUrl": true,
+    "singleUrl": true,
+    "sourceComment": "官网：www.yiove.com",
+    "sourceGroup": "书源",
+    "sourceIcon": "https://shuyuan.yiove.com/logo.jpeg",
+    "sourceName": "Yiove 书源仓库",
+    "sourceUrl": "https://shuyuan.yiove.com"
+  }
+]

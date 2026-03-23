@@ -791,7 +791,11 @@ export default function AIAssistantView() {
                     >
                       <div className={`max-w-[85%] flex items-start gap-2 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}>
                         {message.role === 'assistant' && (
-                          <div className={`w-10 h-10 rounded-full ${backgroundImage ? 'bg-white/60' : 'bg-white/80'} backdrop-blur-sm flex items-center justify-center text-lg shrink-0 shadow-sm`}>
+                          <div className={`w-10 h-10 rounded-full ${
+                            bubbleTransparent && backgroundImage 
+                              ? 'bg-transparent' 
+                              : (backgroundImage ? 'bg-white/60' : 'bg-white/80')
+                          } backdrop-blur-sm flex items-center justify-center text-lg shrink-0 shadow-sm`}>
                             🤖
                           </div>
                         )}
