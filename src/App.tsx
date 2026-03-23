@@ -215,7 +215,7 @@ function AppContentWithMusicAndSpeech() {
   return (
     <ThemeWrapper>
       <div className="min-h-screen">
-        <header className="fixed top-0 left-0 right-0 z-30 backdrop-blur-md bg-opacity-80" style={{ backgroundColor: isDarkMode ? '#111827cc' : colors.bgLight + 'cc' }}>
+        <header className="fixed top-0 left-0 right-0 z-30">
           <div className="max-w-4xl mx-auto px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between">
             <h1 className="text-lg sm:text-xl font-bold" style={{ color: colors.primary }}>金线</h1>
             <div className="flex items-center gap-1 sm:gap-2">
