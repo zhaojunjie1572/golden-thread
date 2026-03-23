@@ -78,6 +78,13 @@ export default function AIAssistantView() {
       return false;
     }
   });
+  const [bubbleTransparent, setBubbleTransparent] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('ai-assistant-bubble-transparent') === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -163,6 +170,10 @@ export default function AIAssistantView() {
   useEffect(() => {
     localStorage.setItem('ai-assistant-inputbar-transparent', inputBarTransparent.toString());
   }, [inputBarTransparent]);
+
+  useEffect(() => {
+    localStorage.setItem('ai-assistant-bubble-transparent', bubbleTransparent.toString());
+  }, [bubbleTransparent]);
 
   const handleBackgroundImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -718,6 +729,19 @@ export default function AIAssistantView() {
                   }`} />
                 </button>
               </div>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-gray-700">气泡透明</label>
+                <button
+                  onClick={() => setBubbleTransparent(!bubbleTransparent)}
+                  className={`w-12 h-6 rounded-full transition-colors ${
+                    bubbleTransparent ? 'bg-golden' : 'bg-gray-300'
+                  }`}
+                >
+                  <div className={`w-5 h-5 rounded-full bg-white transition-transform ${
+                    bubbleTransparent ? 'translate-x-6' : 'translate-x-0.5'
+                  }`} />
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -772,7 +796,7 @@ export default function AIAssistantView() {
                             }`}
                             style={{
                               color: message.role === 'user' ? userTextColor : aiTextColor,
-                              backgroundColor: backgroundImage ? (message.role === 'user' ? 'rgba(149, 236, 105, 0.9)' : 'rgba(255, 255, 255, 0.9)') : undefined,
+                              backgroundColor: bubbleTransparent && backgroundImage ? 'transparent' : (backgroundImage ? (message.role === 'user' ? 'rgba(149, 236, 105, 0.9)' : 'rgba(255, 255, 255, 0.9)') : undefined),
                             }}
                           >
                             {message.attachments && message.attachments.length > 0 && (
@@ -866,7 +890,7 @@ export default function AIAssistantView() {
                             className={`px-3.5 py-2.5 ${backgroundImage ? 'shadow-none' : 'bg-white rounded-bl-sm rounded-xl shadow-sm'}`}
                             style={{
                               color: aiTextColor,
-                              backgroundColor: backgroundImage ? 'rgba(255, 255, 255, 0.9)' : undefined,
+                              backgroundColor: bubbleTransparent && backgroundImage ? 'transparent' : (backgroundImage ? 'rgba(255, 255, 255, 0.9)' : undefined),
                             }}
                           >
                             <p className="whitespace-pre-wrap font-medium" style={{ fontSize: `${16 * textScale}px` }}>{streamingContent}</p>
@@ -1427,6 +1451,20 @@ export default function AIAssistantView() {
                 }`} />
               </button>
             </div>
+
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-700">气泡透明</label>
+              <button
+                onClick={() => setBubbleTransparent(!bubbleTransparent)}
+                className={`w-12 h-6 rounded-full transition-colors ${
+                  bubbleTransparent ? 'bg-golden' : 'bg-gray-300'
+                }`}
+              >
+                <div className={`w-5 h-5 rounded-full bg-white transition-transform ${
+                  bubbleTransparent ? 'translate-x-6' : 'translate-x-0.5'
+                }`} />
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1574,7 +1612,7 @@ export default function AIAssistantView() {
                           }`}
                           style={{
                             color: message.role === 'user' ? userTextColor : aiTextColor,
-                            backgroundColor: backgroundImage ? (message.role === 'user' ? 'rgba(149, 236, 105, 0.8)' : 'rgba(255, 255, 255, 0.8)') : undefined,
+                            backgroundColor: bubbleTransparent && backgroundImage ? 'transparent' : (backgroundImage ? (message.role === 'user' ? 'rgba(149, 236, 105, 0.8)' : 'rgba(255, 255, 255, 0.8)') : undefined),
                           }}
                         >
                           {message.attachments && message.attachments.length > 0 && (
@@ -1668,7 +1706,7 @@ export default function AIAssistantView() {
                           className={`px-3.5 py-2.5 ${backgroundImage ? 'shadow-none' : 'bg-white rounded-bl-sm rounded-xl shadow-sm'}`}
                           style={{ 
                             color: aiTextColor,
-                            backgroundColor: backgroundImage ? 'rgba(255, 255, 255, 0.8)' : undefined,
+                            backgroundColor: bubbleTransparent && backgroundImage ? 'transparent' : (backgroundImage ? 'rgba(255, 255, 255, 0.8)' : undefined),
                           }}
                         >
                           <p className="whitespace-pre-wrap font-medium" style={{ fontSize: `${14 * textScale}px` }}>{streamingContent}</p>
