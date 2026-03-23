@@ -13,6 +13,7 @@ import ProtocolsListView from './components/ProtocolsListView';
 import AIAssistantView from './components/AIAssistantView';
 import BookView from './components/BookView';
 import { SyncManagerView } from './components/SyncManagerView';
+import AgentWorkflowView from './components/AgentWorkflowView';
 
 const themeColors: Record<string, any> = {
   golden: { primary: '#DAA520' },
@@ -358,7 +359,7 @@ function AppContentWithMusicAndSpeech() {
               <div className="flex justify-around items-center">
                 <NavItem to="/action" icon="🚀" label="智库" />
                 <NavItem to="/" icon="☀️" label="今日" />
-                <NavItem to="/protocols" icon="📋" label="协议" />
+                <NavItem to="/workflow" icon="🧠" label="工作流" />
                 <NavItem to="/books" icon="📚" label="读书" />
                 <NavItem to="/ai" icon="🤖" label="AI助手" />
               </div>
@@ -375,6 +376,7 @@ function AppContentWithMusicAndSpeech() {
             <Route path="/books" element={<BookView />} />
             <Route path="/ai" element={<AIAssistantView />} />
             <Route path="/sync" element={<SyncManagerView />} />
+            <Route path="/workflow" element={<AgentWorkflowView />} />
           </Routes>
         </main>
       </div>
