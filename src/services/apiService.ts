@@ -205,12 +205,28 @@ class APIService {
     }
 
     try {
-      // 构建消息内容，支持图片附件
+      // 构建消息内容，支持附件
       const formattedMessages = messages.map(msg => {
+        let textContent = msg.content || '';
+        
+        // 如果有普通文件附件，在文本内容中添加文件信息
+        if (msg.attachments && msg.attachments.length > 0) {
+          const fileAttachments = msg.attachments.filter(att => att.type === 'file');
+          if (fileAttachments.length > 0) {
+            const fileInfo = fileAttachments.map(att => 
+              `- ${att.name} (${(att.size / 1024).toFixed(1)} KB)`
+            ).join('\n');
+            
+            textContent = textContent 
+              ? `${textContent}\n\n【附件文件】\n${fileInfo}`
+              : `【附件文件】\n${fileInfo}`;
+          }
+        }
+        
         // 如果有图片附件，使用多模态格式
         if (msg.attachments && msg.attachments.some(att => att.type === 'image' && att.preview)) {
           const content: any[] = [
-            { type: 'text', text: msg.content }
+            { type: 'text', text: textContent }
           ];
           
           // 添加图片附件
@@ -235,10 +251,10 @@ class APIService {
           };
         }
         
-        // 普通文本消息
+        // 普通文本消息（可能包含文件信息）
         return {
           role: msg.role,
-          content: msg.content,
+          content: textContent,
         };
       });
 
