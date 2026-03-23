@@ -82,38 +82,60 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
       children: []
     };
     
-    let currentParent: MindMapNode | null = null;
-    let currentSubParent: MindMapNode | null = null;
+    // 使用栈来跟踪当前路径
+    const stack: MindMapNode[] = [root];
     
     for (let line of lines) {
       line = line.trim();
-      if (line.startsWith('## ')) {
-        const label = line.substring(3).trim();
-        currentParent = {
-          id: `node-${crypto.randomUUID()}`,
-          label,
-          children: []
-        };
-        root.children?.push(currentParent);
-        currentSubParent = null;
-      } else if (line.startsWith('- ')) {
-        const label = line.substring(2).trim();
-        const node: MindMapNode = {
-          id: `node-${crypto.randomUUID()}`,
-          label
-        };
-        if (currentSubParent) {
-          const parent = currentSubParent as MindMapNode;
-          if (!parent.children) parent.children = [];
-          parent.children.push(node);
-        } else if (currentParent) {
-          const parent = currentParent as MindMapNode;
-          if (!parent.children) parent.children = [];
-          parent.children.push(node);
-        }
-      } else if (line.startsWith('# ') && !line.startsWith('## ')) {
-        root.label = line.substring(2).trim();
+      if (!line) continue;
+      
+      // 计算层级
+      let level = 0;
+      let content = line;
+      
+      if (line.startsWith('# ')) {
+        level = 0;
+        content = line.substring(2).trim();
+        root.label = content || root.label;
+        continue;
+      } else if (line.startsWith('## ')) {
+        level = 1;
+        content = line.substring(3).trim();
+      } else if (line.startsWith('### ')) {
+        level = 2;
+        content = line.substring(4).trim();
+      } else if (line.startsWith('#### ')) {
+        level = 3;
+        content = line.substring(5).trim();
+      } else if (line.startsWith('- ') || line.startsWith('* ')) {
+        level = 4;
+        content = line.substring(2).trim();
+      } else {
+        // 无法识别的行，跳过
+        continue;
       }
+      
+      // 创建新节点
+      const newNode: MindMapNode = {
+        id: `node-${crypto.randomUUID()}`,
+        label: content,
+        children: []
+      };
+      
+      // 调整栈到正确的父节点
+      while (stack.length > level + 1) {
+        stack.pop();
+      }
+      
+      // 添加到父节点
+      const parent = stack[stack.length - 1];
+      if (!parent.children) {
+        parent.children = [];
+      }
+      parent.children.push(newNode);
+      
+      // 将新节点压入栈
+      stack.push(newNode);
     }
     
     return root;
@@ -135,24 +157,64 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
     let fullContent = '';
 
     try {
-      const systemPrompt = `你是一个专业的思维导图生成助手。请根据用户提供的协议内容，生成一个结构化的思维导图。
+      const systemPrompt = `你是一个专业的思维导图生成专家。请根据用户提供的行动协议内容，生成一个结构化、逻辑清晰的思维导图。
 
-要求：
-1. 使用Markdown格式输出
-2. 根节点用 # 开头
-3. 主要分支用 ## 开头
-4. 子节点用 - 开头
-5. 结构清晰，层次分明
-6. 内容精炼，突出重点
+## 核心要求
 
-示例格式：
-# 协议主题
-## 主要分支1
-- 子项1
-- 子项2
-## 主要分支2
-- 子项1
-- 子项2`;
+1. **结构规范**（严格遵循）：
+   - 根节点：# 协议主题（使用协议的核心原则）
+   - 一级分支：## 关键维度（如：触发机制、执行方案、环境设计等）
+   - 二级分支：### 具体类别
+   - 叶子节点：- 具体内容
+
+2. **内容提取原则**：
+   - 提取关键信息，去除冗余描述
+   - 使用简洁的短语（5-10字为宜）
+   - 保持逻辑层次，不要扁平化
+   - 重要细节不能遗漏
+
+3. **思维导图结构模板**：
+
+\#\#\# 协议主题（核心原则）
+
+## 触发机制
+### 触发条件
+- 具体条件1
+- 具体条件2
+### 时间设置
+- 提醒时间
+- 频率规则
+
+## 执行方案
+### Plan A（标准方案）
+- 标准动作
+- 最小动作
+- 时长限制
+### Plan B（备用方案）
+- 标准动作
+- 最小动作
+
+## 边界设定
+### 心理边界（不做）
+- 限制1
+- 限制2
+### 行动许可（可以做）
+- 许可1
+- 许可2
+
+## 环境设计
+### 事前准备
+- 准备项1
+- 准备项2
+### 阻力管理
+- 降低阻力
+- 增加阻力
+
+4. **注意事项**：
+   - 如果协议中没有某项内容，省略该分支
+   - 确保层级关系正确，不要跳级
+   - 使用中文标点符号
+   - 每个节点内容要完整、准确`
 
       const userMessage: ChatMessage = {
         id: crypto.randomUUID(),
@@ -180,8 +242,33 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
         },
         () => {
           if (!abortController.signal.aborted) {
-            const mindMap = parseMindMapFromText(fullContent);
-            setMindMapData(mindMap);
+            try {
+              const mindMap = parseMindMapFromText(fullContent);
+              // 验证思维导图结构
+              if (!mindMap.children || mindMap.children.length === 0) {
+                throw new Error('生成的思维导图结构为空');
+              }
+              setMindMapData(mindMap);
+            } catch (parseError) {
+              console.error('解析思维导图失败:', parseError);
+              setError('AI 返回的格式不正确，请重新生成');
+              // 尝试使用备用方案：直接显示文本
+              const fallbackNode: MindMapNode = {
+                id: 'fallback',
+                label: protocol?.principle || '思维导图',
+                children: [
+                  {
+                    id: 'content',
+                    label: '原始内容',
+                    children: fullContent.split('\n').filter(l => l.trim()).map((line, i) => ({
+                      id: `line-${i}`,
+                      label: line.trim().substring(0, 50)
+                    }))
+                  }
+                ]
+              };
+              setMindMapData(fallbackNode);
+            }
           }
           setIsGenerating(false);
           abortControllerRef.current = null;
@@ -205,10 +292,17 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
   };
 
   const renderTree = (node: MindMapNode, x: number, y: number, level: number): React.ReactNode => {
-    const nodeWidth = Math.max(120, node.label.length * 14 + 40);
-    const nodeHeight = 40;
-    const horizontalGap = 180;
-    const verticalGap = 60;
+    const nodeHeight = 36;
+    const horizontalGap = 200;
+    const verticalGap = 50;
+    
+    // 根据层级和内容动态计算节点宽度
+    const baseWidth = level === 0 ? 160 : level === 1 ? 140 : level === 2 ? 120 : 100;
+    const charWidth = level === 0 ? 16 : 13;
+    const nodeWidth = Math.min(
+      Math.max(baseWidth, node.label.length * charWidth + 32),
+      level === 0 ? 280 : 220
+    );
 
     const children = node.children || [];
     const totalHeight = Math.max(
@@ -221,27 +315,51 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
 
     let currentY = y - totalHeight / 2 + nodeHeight / 2;
 
+    // 根据层级定义颜色方案
+    const colors = [
+      { fill: '#d97706', stroke: '#92400e', text: 'white' },      // 根节点
+      { fill: '#f59e0b', stroke: '#d97706', text: '#78350f' },    // 一级
+      { fill: '#fbbf24', stroke: '#f59e0b', text: '#78350f' },    // 二级
+      { fill: '#fde68a', stroke: '#fbbf24', text: '#78350f' },    // 三级
+      { fill: '#fef3c7', stroke: '#fde68a', text: '#78350f' },    // 四级
+    ];
+    const color = colors[Math.min(level, colors.length - 1)];
+
+    // 计算字体大小
+    const fontSize = level === 0 ? 15 : level === 1 ? 13 : 12;
+
     return (
       <React.Fragment key={node.id}>
         <g transform={`translate(${x}, ${y})`}>
+          {/* 节点阴影 */}
+          <rect
+            x={-nodeWidth / 2 + 2}
+            y={-nodeHeight / 2 + 2}
+            width={nodeWidth}
+            height={nodeHeight}
+            rx={10}
+            fill="rgba(0,0,0,0.1)"
+          />
+          {/* 节点主体 */}
           <rect
             x={-nodeWidth / 2}
             y={-nodeHeight / 2}
             width={nodeWidth}
             height={nodeHeight}
-            rx={8}
-            fill={level === 0 ? '#d97706' : level === 1 ? '#fbbf24' : '#fef3c7'}
-            stroke={level === 0 ? '#92400e' : level === 1 ? '#d97706' : '#fbbf24'}
-            strokeWidth={2}
+            rx={10}
+            fill={color.fill}
+            stroke={color.stroke}
+            strokeWidth={level <= 1 ? 2.5 : 1.5}
           />
+          {/* 节点文字 */}
           <text
             textAnchor="middle"
             dominantBaseline="middle"
-            fill={level === 0 ? 'white' : '#78350f'}
-            fontSize={level === 0 ? 14 : 12}
-            fontWeight={level <= 1 ? 'bold' : 'normal'}
+            fill={color.text}
+            fontSize={fontSize}
+            fontWeight={level <= 2 ? '600' : '400'}
           >
-            {node.label.length > 15 ? node.label.substring(0, 15) + '...' : node.label}
+            {node.label.length > 20 ? node.label.substring(0, 18) + '...' : node.label}
           </text>
         </g>
 
@@ -252,21 +370,16 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
 
           return (
             <React.Fragment key={child.id}>
-              <line
-                x1={x + nodeWidth / 2}
-                y1={y}
-                x2={x + horizontalGap - 30}
-                y2={childY}
-                stroke="#d97706"
-                strokeWidth={2}
-              />
-              <line
-                x1={x + horizontalGap - 30}
-                y1={childY}
-                x2={x + horizontalGap}
-                y2={childY}
-                stroke="#d97706"
-                strokeWidth={2}
+              {/* 贝塞尔曲线连接线 */}
+              <path
+                d={`M ${x + nodeWidth / 2} ${y} 
+                    C ${x + nodeWidth / 2 + horizontalGap / 3} ${y},
+                      ${x + horizontalGap - nodeWidth / 2 - horizontalGap / 3} ${childY},
+                      ${x + horizontalGap - nodeWidth / 2} ${childY}`}
+                fill="none"
+                stroke={color.stroke}
+                strokeWidth={level === 0 ? 2.5 : 1.5}
+                opacity={0.7}
               />
               {renderTree(child, x + horizontalGap, childY, level + 1)}
             </React.Fragment>
