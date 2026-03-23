@@ -4,12 +4,6 @@ interface SyncData {
   books: any[];
   bookSources: any[];
   protocols: any[];
-  theme: {
-    isDarkMode: boolean;
-    currentTheme: string;
-    backgroundImage: string | null;
-    brightness: number;
-  };
   music: {
     volume: number;
   };
@@ -18,12 +12,6 @@ interface SyncData {
     selectedModule: string | null;
     memoryConfig: any;
     moduleMessages: any;
-    backgroundImage: string | null;
-    userTextColor: string;
-    aiTextColor: string;
-    topBarTransparent: boolean;
-    inputBarTransparent: boolean;
-    textScale: number;
   };
   customProtocolThemes: any[];
   reader: {
@@ -70,12 +58,6 @@ export class SyncService {
       books: this.getFromLocalStorage(STORAGE_KEYS.books, []),
       bookSources: this.getFromLocalStorage(STORAGE_KEYS.bookSources, []),
       protocols: this.getFromLocalStorage(STORAGE_KEYS.protocols, []),
-      theme: {
-        isDarkMode: this.getFromLocalStorage(STORAGE_KEYS.darkMode, false),
-        currentTheme: this.getFromLocalStorage(STORAGE_KEYS.colorTheme, 'golden'),
-        backgroundImage: this.getFromLocalStorage(STORAGE_KEYS.backgroundImage, null),
-        brightness: this.getFromLocalStorage(STORAGE_KEYS.brightness, 100),
-      },
       music: {
         volume: this.getFromLocalStorage(STORAGE_KEYS.musicVolume, 0.5),
       },
@@ -84,12 +66,6 @@ export class SyncService {
         selectedModule: this.getFromLocalStorage(STORAGE_KEYS.thinkTankSelectedModule, null),
         memoryConfig: this.getFromLocalStorage(STORAGE_KEYS.thinkTankMemoryConfig, { maxWords: 2000, autoExtract: true }),
         moduleMessages: this.getFromLocalStorage(STORAGE_KEYS.thinkTankModuleMessages, {}),
-        backgroundImage: this.getFromLocalStorage(STORAGE_KEYS.thinkTankBackgroundImage, null),
-        userTextColor: this.getFromLocalStorage(STORAGE_KEYS.thinkTankUserTextColor, '#000000'),
-        aiTextColor: this.getFromLocalStorage(STORAGE_KEYS.thinkTankAiTextColor, '#ffffff'),
-        topBarTransparent: this.getFromLocalStorage(STORAGE_KEYS.thinkTankTopbarTransparent, 'false') === 'true',
-        inputBarTransparent: this.getFromLocalStorage(STORAGE_KEYS.thinkTankInputbarTransparent, 'false') === 'true',
-        textScale: parseFloat(this.getFromLocalStorage(STORAGE_KEYS.thinkTankTextScale, '1')),
       },
       customProtocolThemes: this.getFromLocalStorage(STORAGE_KEYS.customProtocolThemes, []),
       reader: {
@@ -106,16 +82,8 @@ export class SyncService {
     this.saveToLocalStorage(STORAGE_KEYS.books, data.books);
     this.saveToLocalStorage(STORAGE_KEYS.bookSources, data.bookSources);
     this.saveToLocalStorage(STORAGE_KEYS.protocols, data.protocols);
-    this.saveToLocalStorage(STORAGE_KEYS.darkMode, data.theme.isDarkMode);
-    this.saveToLocalStorage(STORAGE_KEYS.colorTheme, data.theme.currentTheme);
-    if (data.theme.backgroundImage) {
-      this.saveToLocalStorage(STORAGE_KEYS.backgroundImage, data.theme.backgroundImage);
-    } else {
-      localStorage.removeItem(STORAGE_KEYS.backgroundImage);
-    }
-    this.saveToLocalStorage(STORAGE_KEYS.brightness, data.theme.brightness);
     this.saveToLocalStorage(STORAGE_KEYS.musicVolume, data.music.volume);
-    
+
     if (data.thinkTank) {
       this.saveToLocalStorage(STORAGE_KEYS.thinkTankModules, data.thinkTank.modules);
       if (data.thinkTank.selectedModule) {
@@ -123,16 +91,8 @@ export class SyncService {
       }
       this.saveToLocalStorage(STORAGE_KEYS.thinkTankMemoryConfig, data.thinkTank.memoryConfig);
       this.saveToLocalStorage(STORAGE_KEYS.thinkTankModuleMessages, data.thinkTank.moduleMessages);
-      if (data.thinkTank.backgroundImage) {
-        this.saveToLocalStorage(STORAGE_KEYS.thinkTankBackgroundImage, data.thinkTank.backgroundImage);
-      }
-      this.saveToLocalStorage(STORAGE_KEYS.thinkTankUserTextColor, data.thinkTank.userTextColor || '#000000');
-      this.saveToLocalStorage(STORAGE_KEYS.thinkTankAiTextColor, data.thinkTank.aiTextColor || '#ffffff');
-      this.saveToLocalStorage(STORAGE_KEYS.thinkTankTopbarTransparent, (data.thinkTank.topBarTransparent || false).toString());
-      this.saveToLocalStorage(STORAGE_KEYS.thinkTankInputbarTransparent, (data.thinkTank.inputBarTransparent || false).toString());
-      this.saveToLocalStorage(STORAGE_KEYS.thinkTankTextScale, (data.thinkTank.textScale || 1).toString());
     }
-    
+
     if (data.customProtocolThemes) {
       this.saveToLocalStorage(STORAGE_KEYS.customProtocolThemes, data.customProtocolThemes);
     }

@@ -64,7 +64,13 @@ export function SyncManagerView() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold mb-2" style={{ color: colors.primary }}>数据同步管理</h2>
-          <p className="text-sm opacity-70">通过导出/导入 JSON 文件实现多设备同步</p>
+          <p className="text-sm opacity-70 mb-3">☁️ GitHub Gist 免费云同步 | 📤 JSON 手动导出</p>
+          <div className="text-xs opacity-60 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+            <p className="font-semibold text-blue-700 dark:text-blue-300 mb-1">📋 同步范围：</p>
+            <p>✅ 书籍、书源、协议、智库、AI配置、音乐网站、读书器设置</p>
+            <p className="font-semibold text-red-600 dark:text-red-400 mt-1 mb-1">❌ 不同步：</p>
+            <p>主题、背景图片（每个设备独立设置）</p>
+          </div>
         </div>
         <button
           onClick={() => window.location.href = '/'}
