@@ -30,6 +30,8 @@ export default function AgentWorkflowView() {
   const [showWorkflowBuilder, setShowWorkflowBuilder] = useState(false);
   const [generatedTasks, setGeneratedTasks] = useState<ExecutableTask[]>([]);
   const [activeTab, setActiveTab] = useState<'workflows' | 'agents' | 'history'>('workflows');
+  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
+  const [viewingInstance, setViewingInstance] = useState<WorkflowInstance | null>(null);
 
   // 工作流构建器状态
   const [builderNodes, setBuilderNodes] = useState<AgentNode[]>([]);
@@ -177,15 +179,51 @@ export default function AgentWorkflowView() {
     setWorkflows(updated);
   };
 
-  const importTasksToProtocol = () => {
-    if (generatedTasks.length === 0) {
+  const importTasksToProtocol = (tasks?: ExecutableTask[]) => {
+    const tasksToImport = tasks || generatedTasks;
+    if (tasksToImport.length === 0) {
       alert('没有可导入的任务');
       return;
     }
 
-    const taskText = agentWorkflow.exportTasksToProtocol(generatedTasks);
+    const taskText = agentWorkflow.exportTasksToProtocol(tasksToImport);
     navigator.clipboard.writeText(taskText);
-    alert(`已复制 ${generatedTasks.length} 个任务到剪贴板，可以粘贴到行动协议中`);
+    alert(`已复制 ${tasksToImport.length} 个任务到剪贴板，可以粘贴到行动协议中`);
+  };
+
+  const importSelectedTasksToProtocol = () => {
+    if (selectedTasks.size === 0) {
+      alert('请先选择任务');
+      return;
+    }
+    const tasksToImport = generatedTasks.filter(task => selectedTasks.has(task.id));
+    importTasksToProtocol(tasksToImport);
+  };
+
+  const toggleTaskSelection = (taskId: string) => {
+    setSelectedTasks(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(taskId)) {
+        newSet.delete(taskId);
+      } else {
+        newSet.add(taskId);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllTasks = () => {
+    if (selectedTasks.size === generatedTasks.length) {
+      setSelectedTasks(new Set());
+    } else {
+      setSelectedTasks(new Set(generatedTasks.map(t => t.id)));
+    }
+  };
+
+  const viewInstanceDetails = (instance: WorkflowInstance) => {
+    setViewingInstance(instance);
+    setGeneratedTasks(instance.tasks);
+    setSelectedTasks(new Set());
   };
 
   // 渲染工作流卡片
@@ -456,37 +494,44 @@ export default function AgentWorkflowView() {
             {instances.map(inst => (
               <div
                 key={inst.id}
-                className="bg-white rounded-lg p-4 border border-gray-200"
+                onClick={() => viewInstanceDetails(inst)}
+                className="bg-white rounded-lg p-4 border border-gray-200 cursor-pointer hover:border-golden hover:shadow-md transition-all"
               >
                 <div className="flex justify-between items-start">
-                  <div>
-                    <span
-                      className={`inline-block px-2 py-1 rounded text-xs ${
-                        inst.status === 'completed'
-                          ? 'bg-green-100 text-green-700'
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`inline-block px-2 py-1 rounded text-xs ${
+                          inst.status === 'completed'
+                            ? 'bg-green-100 text-green-700'
+                            : inst.status === 'failed'
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-blue-100 text-blue-700'
+                        }`}
+                      >
+                        {inst.status === 'completed'
+                          ? '已完成'
                           : inst.status === 'failed'
-                          ? 'bg-red-100 text-red-700'
-                          : 'bg-blue-100 text-blue-700'
-                      }`}
-                    >
-                      {inst.status === 'completed'
-                        ? '已完成'
-                        : inst.status === 'failed'
-                        ? '失败'
-                        : '运行中'}
-                    </span>
+                          ? '失败'
+                          : '运行中'}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        {new Date(inst.startedAt).toLocaleString()}
+                      </span>
+                    </div>
                     <p className="text-sm text-gray-600 mt-2 line-clamp-2">
                       {inst.context.originalInput}
                     </p>
                   </div>
-                  <span className="text-xs text-gray-400">
-                    {new Date(inst.startedAt).toLocaleString()}
-                  </span>
+                  <span className="text-golden text-sm">查看详情 →</span>
                 </div>
                 {inst.tasks.length > 0 && (
-                  <div className="mt-3 pt-3 border-t">
+                  <div className="mt-3 pt-3 border-t flex items-center justify-between">
                     <span className="text-xs text-gray-500">
                       生成了 {inst.tasks.length} 个任务
+                    </span>
+                    <span className="text-xs text-golden">
+                      点击选择任务
                     </span>
                   </div>
                 )}
@@ -549,19 +594,44 @@ export default function AgentWorkflowView() {
                 {/* 生成的任务 */}
                 {generatedTasks.length > 0 && (
                   <div className="mt-4">
-                    <h3 className="font-semibold mb-3 flex items-center gap-2">
-                      <span>📋</span>
-                      生成的可执行任务 ({generatedTasks.length}个)
-                    </h3>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold flex items-center gap-2">
+                        <span>📋</span>
+                        可执行任务 ({generatedTasks.length}个)
+                        {selectedTasks.size > 0 && (
+                          <span className="text-sm font-normal text-golden">
+                            已选择 {selectedTasks.size} 个
+                          </span>
+                        )}
+                      </h3>
+                      <button
+                        onClick={selectAllTasks}
+                        className="text-sm text-golden hover:underline"
+                      >
+                        {selectedTasks.size === generatedTasks.length ? '取消全选' : '全选'}
+                      </button>
+                    </div>
                     <div className="space-y-2 max-h-60 overflow-y-auto">
                       {generatedTasks.map((task, i) => (
                         <div
                           key={task.id}
-                          className="p-3 bg-gray-50 rounded-lg border-l-4 border-golden"
+                          onClick={() => toggleTaskSelection(task.id)}
+                          className={`p-3 rounded-lg border-l-4 cursor-pointer transition-all ${
+                            selectedTasks.has(task.id)
+                              ? 'bg-golden/10 border-golden ring-1 ring-golden'
+                              : 'bg-gray-50 border-gray-300 hover:border-golden/50'
+                          }`}
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedTasks.has(task.id)}
+                                  onChange={() => toggleTaskSelection(task.id)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="w-4 h-4 text-golden border-gray-300 rounded focus:ring-golden"
+                                />
                                 <span className="text-sm font-medium text-gray-500">#{i + 1}</span>
                                 <span className="font-medium">{task.title}</span>
                                 <span
@@ -587,12 +657,21 @@ export default function AgentWorkflowView() {
                       ))}
                     </div>
 
-                    <button
-                      onClick={importTasksToProtocol}
-                      className="mt-4 w-full py-2 bg-golden text-white rounded-lg hover:opacity-90"
-                    >
-                      复制任务到剪贴板
-                    </button>
+                    <div className="mt-4 flex gap-2">
+                      <button
+                        onClick={() => importTasksToProtocol()}
+                        className="flex-1 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                      >
+                        复制全部 ({generatedTasks.length})
+                      </button>
+                      <button
+                        onClick={importSelectedTasksToProtocol}
+                        disabled={selectedTasks.size === 0}
+                        className="flex-1 py-2 bg-golden text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        复制选中 ({selectedTasks.size})
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -612,6 +691,146 @@ export default function AgentWorkflowView() {
 
         {/* 工作流构建器 */}
         {showWorkflowBuilder && renderWorkflowBuilder()}
+
+        {/* 历史记录详情弹窗 */}
+        {viewingInstance && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl w-[700px] max-h-[85vh] flex flex-col">
+              <div className="flex justify-between items-center p-4 border-b">
+                <div>
+                  <h2 className="text-xl font-bold">执行记录详情</h2>
+                  <p className="text-sm text-gray-500">
+                    {new Date(viewingInstance.startedAt).toLocaleString()}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setViewingInstance(null);
+                    setGeneratedTasks([]);
+                    setSelectedTasks(new Set());
+                  }}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="p-4 flex-1 overflow-y-auto">
+                {/* 原始输入 */}
+                <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                  <label className="text-sm font-medium text-gray-700">原始需求：</label>
+                  <p className="text-sm text-gray-600 mt-1">{viewingInstance.context.originalInput}</p>
+                </div>
+
+                {/* 执行状态 */}
+                <div className="mb-4 flex items-center gap-2">
+                  <span
+                    className={`inline-block px-2 py-1 rounded text-xs ${
+                      viewingInstance.status === 'completed'
+                        ? 'bg-green-100 text-green-700'
+                        : viewingInstance.status === 'failed'
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-blue-100 text-blue-700'
+                    }`}
+                  >
+                    {viewingInstance.status === 'completed'
+                      ? '已完成'
+                      : viewingInstance.status === 'failed'
+                      ? '失败'
+                      : '运行中'}
+                  </span>
+                  <span className="text-sm text-gray-500">
+                    生成了 {viewingInstance.tasks.length} 个任务
+                  </span>
+                </div>
+
+                {/* 任务列表（复用上面的任务选择组件） */}
+                {generatedTasks.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold flex items-center gap-2">
+                        <span>📋</span>
+                        任务列表 ({generatedTasks.length}个)
+                        {selectedTasks.size > 0 && (
+                          <span className="text-sm font-normal text-golden">
+                            已选择 {selectedTasks.size} 个
+                          </span>
+                        )}
+                      </h3>
+                      <button
+                        onClick={selectAllTasks}
+                        className="text-sm text-golden hover:underline"
+                      >
+                        {selectedTasks.size === generatedTasks.length ? '取消全选' : '全选'}
+                      </button>
+                    </div>
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                      {generatedTasks.map((task, i) => (
+                        <div
+                          key={task.id}
+                          onClick={() => toggleTaskSelection(task.id)}
+                          className={`p-3 rounded-lg border-l-4 cursor-pointer transition-all ${
+                            selectedTasks.has(task.id)
+                              ? 'bg-golden/10 border-golden ring-1 ring-golden'
+                              : 'bg-gray-50 border-gray-300 hover:border-golden/50'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedTasks.has(task.id)}
+                                  onChange={() => toggleTaskSelection(task.id)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="w-4 h-4 text-golden border-gray-300 rounded focus:ring-golden"
+                                />
+                                <span className="text-sm font-medium text-gray-500">#{i + 1}</span>
+                                <span className="font-medium">{task.title}</span>
+                                <span
+                                  className={`text-xs px-2 py-0.5 rounded ${
+                                    task.priority === 'high'
+                                      ? 'bg-red-100 text-red-700'
+                                      : task.priority === 'medium'
+                                      ? 'bg-yellow-100 text-yellow-700'
+                                      : 'bg-green-100 text-green-700'
+                                  }`}
+                                >
+                                  {task.priority === 'high' ? '高' : task.priority === 'medium' ? '中' : '低'}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-600 mt-1">{task.description}</p>
+                              <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                                <span>⏱️ {task.estimatedTime}分钟</span>
+                                <span>✅ {task.verificationCriteria}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 border-t flex gap-2">
+                <button
+                  onClick={() => importTasksToProtocol()}
+                  className="flex-1 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  复制全部 ({generatedTasks.length})
+                </button>
+                <button
+                  onClick={importSelectedTasksToProtocol}
+                  disabled={selectedTasks.size === 0}
+                  className="flex-1 py-2 bg-golden text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  复制选中 ({selectedTasks.size})
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
