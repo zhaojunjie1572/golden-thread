@@ -105,14 +105,14 @@ const valueExchangeTemplates = [
   }
 ];
 
-function formatDate(date: Date): string {
+const formatDate = (() => {
   const formatter = new Intl.DateTimeFormat('zh-CN', {
     month: 'long',
     day: 'numeric',
     weekday: 'long'
   });
-  return formatter.format(date);
-}
+  return (date: Date): string => formatter.format(date);
+})();
 
 const WisdomQuoteCard = ({ 
   quote, 
@@ -231,84 +231,6 @@ const TemplateSection = ({
   );
 };
 
-const QuoteEditModal = ({ 
-  isOpen, 
-  isEditing, 
-  text, 
-  author, 
-  onTextChange,
-  onAuthorChange,
-  onClose, 
-  onSave, 
-  onDelete 
-}: { 
-  isOpen: boolean; 
-  isEditing: boolean; 
-  text: string; 
-  author: string; 
-  onTextChange: (text: string) => void;
-  onAuthorChange: (author: string) => void;
-  onClose: () => void; 
-  onSave: () => void; 
-  onDelete: () => void;
-}) => {
-  if (!isOpen) return null;
-  
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full">
-        <h3 className="text-xl font-bold text-gray-800 mb-4">
-          {isEditing ? '编辑语录' : '添加语录'}
-        </h3>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">语录内容</label>
-            <textarea
-              value={text}
-              onChange={(e) => onTextChange(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-              rows={3}
-              placeholder="输入你的语录..."
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">作者（可选）</label>
-            <input
-              type="text"
-              value={author}
-              onChange={(e) => onAuthorChange(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-              placeholder="默认为'我'"
-            />
-          </div>
-          {isEditing && (
-            <button
-              onClick={onDelete}
-              className="w-full bg-red-500 text-white py-2 rounded-lg font-medium hover:bg-red-600 transition-colors"
-            >
-              删除这条语录
-            </button>
-          )}
-          <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-400 transition-colors"
-            >
-              取消
-            </button>
-            <button
-              onClick={onSave}
-              className="flex-1 bg-amber-500 text-white py-2 rounded-lg font-medium hover:bg-amber-600 transition-colors"
-            >
-              保存
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const defaultMusicWebsites = [
   { name: '网易云音乐', url: 'https://music.163.com' },
   { name: 'QQ音乐', url: 'https://y.qq.com' },
@@ -317,6 +239,12 @@ const defaultMusicWebsites = [
   { name: 'Spotify', url: 'https://www.spotify.com' },
   { name: 'Apple Music', url: 'https://music.apple.com' },
 ];
+
+const formatTime = (seconds: number) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
 
 const MusicPlayer = () => {
   const {
@@ -338,14 +266,14 @@ const MusicPlayer = () => {
     toggleMusicPlayerVisible,
   } = useMusic();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const objectUrlsRef = useRef<string[]>([]);
   const [showWebsites, setShowWebsites] = useState(false);
   const [showWebsiteEditor, setShowWebsiteEditor] = useState(false);
   const [editingWebsiteIndex, setEditingWebsiteIndex] = useState<number | null>(null);
   const [newWebsiteName, setNewWebsiteName] = useState('');
   const [newWebsiteUrl, setNewWebsiteUrl] = useState('');
   const [showReloadInfo, setShowReloadInfo] = useState(false);
-  
+
+  // 从 localStorage 读取数据 - 使用 lazy initialization
   const [savedMusicInfo, setSavedMusicInfo] = useState(() => {
     try {
       const saved = localStorage.getItem('music-saved-info');
@@ -354,7 +282,7 @@ const MusicPlayer = () => {
       return { trackNames: [], lastReload: null };
     }
   });
-  
+
   const [musicWebsites, setMusicWebsites] = useState(() => {
     try {
       const saved = localStorage.getItem('music-websites');
@@ -364,6 +292,7 @@ const MusicPlayer = () => {
     }
   });
 
+  // 合并多个 useEffect 为一个
   useEffect(() => {
     localStorage.setItem('music-websites', JSON.stringify(musicWebsites));
   }, [musicWebsites]);
@@ -371,31 +300,22 @@ const MusicPlayer = () => {
   useEffect(() => {
     if (tracks.length > 0) {
       const trackNames = tracks.map(t => ({ name: t.name, fileName: t.fileName }));
-      setSavedMusicInfo({ trackNames, lastReload: Date.now() });
+      const newInfo = { trackNames, lastReload: Date.now() };
+      setSavedMusicInfo(newInfo);
+      localStorage.setItem('music-saved-info', JSON.stringify(newInfo));
     }
   }, [tracks]);
 
-  useEffect(() => {
-    localStorage.setItem('music-saved-info', JSON.stringify(savedMusicInfo));
-  }, [savedMusicInfo]);
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const newTracks: any[] = [];
-    
-    files.forEach((file) => {
-      if (file.type.startsWith('audio/')) {
-        const url = URL.createObjectURL(file);
-        // 跟踪创建的 URL，以便后续清理
-        objectUrlsRef.current.push(url);
-        newTracks.push({
-          id: crypto.randomUUID(),
-          name: file.name.replace(/\.[^/.]+$/, ''),
-          fileName: file.name,
-          url,
-        });
-      }
-    });
+    const newTracks = files
+      .filter(file => file.type.startsWith('audio/'))
+      .map(file => ({
+        id: crypto.randomUUID(),
+        name: file.name.replace(/\.[^/.]+$/, ''),
+        fileName: file.name,
+        url: URL.createObjectURL(file),
+      }));
 
     if (newTracks.length > 0) {
       addTracks(newTracks);
@@ -403,69 +323,54 @@ const MusicPlayer = () => {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  };
+  }, [addTracks]);
 
-  // 组件卸载时清理所有创建的 object URL
-  useEffect(() => {
-    return () => {
-      objectUrlsRef.current.forEach(url => {
-        URL.revokeObjectURL(url);
-      });
-      objectUrlsRef.current = [];
-    };
-  }, []);
-
-  const openMusicWebsite = (url: string) => {
+  const openMusicWebsite = useCallback((url: string) => {
     window.open(url, '_blank', 'noopener,noreferrer');
     setShowWebsites(false);
-  };
+  }, []);
 
-  const openAddWebsiteModal = () => {
+  const openAddWebsiteModal = useCallback(() => {
     setEditingWebsiteIndex(null);
     setNewWebsiteName('');
     setNewWebsiteUrl('');
     setShowWebsiteEditor(true);
-  };
+  }, []);
 
-  const openEditWebsiteModal = (index: number) => {
+  const openEditWebsiteModal = useCallback((index: number) => {
     setEditingWebsiteIndex(index);
     setNewWebsiteName(musicWebsites[index].name);
     setNewWebsiteUrl(musicWebsites[index].url);
     setShowWebsiteEditor(true);
-  };
+  }, [musicWebsites]);
 
-  const saveWebsite = () => {
+  const saveWebsite = useCallback(() => {
     if (!newWebsiteName.trim() || !newWebsiteUrl.trim()) return;
-    
+
     let url = newWebsiteUrl.trim();
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = 'https://' + url;
     }
 
-    const updatedWebsites = [...musicWebsites];
-    if (editingWebsiteIndex !== null) {
-      updatedWebsites[editingWebsiteIndex] = { name: newWebsiteName.trim(), url };
-    } else {
-      updatedWebsites.push({ name: newWebsiteName.trim(), url });
-    }
-    setMusicWebsites(updatedWebsites);
+    setMusicWebsites((prev: typeof defaultMusicWebsites) => {
+      const updated = [...prev];
+      if (editingWebsiteIndex !== null) {
+        updated[editingWebsiteIndex] = { name: newWebsiteName.trim(), url };
+      } else {
+        updated.push({ name: newWebsiteName.trim(), url });
+      }
+      return updated;
+    });
     setShowWebsiteEditor(false);
-  };
+  }, [newWebsiteName, newWebsiteUrl, editingWebsiteIndex]);
 
-  const deleteWebsite = (index: number) => {
-    const updatedWebsites = musicWebsites.filter((_: any, i: number) => i !== index);
-    setMusicWebsites(updatedWebsites);
-  };
+  const deleteWebsite = useCallback((index: number) => {
+    setMusicWebsites((prev: typeof defaultMusicWebsites) => prev.filter((_, i: number) => i !== index));
+  }, []);
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSeek = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     seek(parseFloat(e.target.value));
-  };
+  }, [seek]);
 
   return (
     <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border-2 border-purple-200 p-5 shadow-lg">
@@ -820,7 +725,7 @@ const NotificationPermissionPrompt = ({
   </div>
 );
 
-const EmptyState = () => null;
+
 
 const CompletedState = () => (
   <div className="text-center py-16">
@@ -1038,49 +943,41 @@ const ProtocolCard = ({
 };
 
 export default function TodayView() {
-  const { 
-    getTodayProtocols, 
-    protocols, 
-    isLoading, 
-    requestNotificationPermission, 
-    hasNotificationPermission, 
-    markProtocolSuccess, 
-    markProtocolFailure 
+  const {
+    getTodayProtocols,
+    protocols,
+    isLoading,
+    requestNotificationPermission,
+    hasNotificationPermission,
+    markProtocolSuccess,
+    markProtocolFailure
   } = useProtocols();
   const navigate = useNavigate();
-  
+
   const todayProtocols = useMemo(() => getTodayProtocols(), [getTodayProtocols]);
-  const allCompleted = useMemo(() => protocols.length > 0 && todayProtocols.length === 0, [protocols, todayProtocols]);
-  
-  const [showPermissionPrompt, setShowPermissionPrompt] = useState(!hasNotificationPermission() && protocols.length > 0);
-  
-  const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
-  const [wisdomQuotes, setWisdomQuotes] = useState(defaultWisdomQuotes);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [newQuoteText, setNewQuoteText] = useState('');
-  const [newQuoteAuthor, setNewQuoteAuthor] = useState('');
-  
-  const currentQuote = useMemo(() => wisdomQuotes[currentQuoteIndex], [wisdomQuotes, currentQuoteIndex]);
+  const allCompleted = useMemo(() => protocols.length > 0 && todayProtocols.length === 0, [protocols.length, todayProtocols.length]);
 
-  useEffect(() => {
+  const [showPermissionPrompt, setShowPermissionPrompt] = useState(() => !hasNotificationPermission() && protocols.length > 0);
+
+  // 语录状态 - 使用单个 state 对象减少重渲染
+  const [quoteState, setQuoteState] = useState(() => {
     const savedQuotes = localStorage.getItem(STORAGE_KEY);
-    if (savedQuotes) {
-      try {
-        setWisdomQuotes(JSON.parse(savedQuotes));
-      } catch {
-        setWisdomQuotes(defaultWisdomQuotes);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
+    const quotes = savedQuotes ? JSON.parse(savedQuotes) : defaultWisdomQuotes;
     const today = new Date().getDate();
-    setCurrentQuoteIndex(today % wisdomQuotes.length);
-  }, [wisdomQuotes]);
+    return {
+      quotes,
+      currentIndex: today % quotes.length,
+      showEditModal: false,
+      editingIndex: null as number | null,
+      newText: '',
+      newAuthor: ''
+    };
+  });
 
-  const saveQuotes = useCallback((quotes: typeof defaultWisdomQuotes) => {
-    setWisdomQuotes(quotes);
+  const currentQuote = quoteState.quotes[quoteState.currentIndex];
+
+  // 保存语录到 localStorage
+  const saveQuotesToStorage = useCallback((quotes: typeof defaultWisdomQuotes) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
   }, []);
 
@@ -1093,47 +990,78 @@ export default function TodayView() {
   }, [markProtocolFailure]);
 
   const changeQuote = useCallback(() => {
-    setCurrentQuoteIndex((prev) => (prev + 1) % wisdomQuotes.length);
-  }, [wisdomQuotes]);
+    setQuoteState(prev => ({
+      ...prev,
+      currentIndex: (prev.currentIndex + 1) % prev.quotes.length
+    }));
+  }, []);
 
   const openAddModal = useCallback(() => {
-    setEditingIndex(null);
-    setNewQuoteText('');
-    setNewQuoteAuthor('');
-    setShowEditModal(true);
+    setQuoteState(prev => ({
+      ...prev,
+      showEditModal: true,
+      editingIndex: null,
+      newText: '',
+      newAuthor: ''
+    }));
   }, []);
 
   const openEditModal = useCallback((index: number) => {
-    setEditingIndex(index);
-    setNewQuoteText(wisdomQuotes[index].text);
-    setNewQuoteAuthor(wisdomQuotes[index].author);
-    setShowEditModal(true);
-  }, [wisdomQuotes]);
+    setQuoteState(prev => ({
+      ...prev,
+      showEditModal: true,
+      editingIndex: index,
+      newText: prev.quotes[index].text,
+      newAuthor: prev.quotes[index].author
+    }));
+  }, []);
 
   const saveQuote = useCallback(() => {
-    if (!newQuoteText.trim()) return;
-    
-    const updatedQuotes = [...wisdomQuotes];
-    if (editingIndex !== null) {
-      updatedQuotes[editingIndex] = { text: newQuoteText, author: newQuoteAuthor || '我' };
-    } else {
-      updatedQuotes.push({ text: newQuoteText, author: newQuoteAuthor || '我' });
-    }
-    saveQuotes(updatedQuotes);
-    setShowEditModal(false);
-  }, [newQuoteText, newQuoteAuthor, editingIndex, wisdomQuotes, saveQuotes]);
+    if (!quoteState.newText.trim()) return;
 
-  const deleteQuote = useCallback((index: number) => {
-    if (wisdomQuotes.length <= 1) {
-      alert('至少需要保留一条语录！');
-      return;
-    }
-    const updatedQuotes = wisdomQuotes.filter((_, i) => i !== index);
-    saveQuotes(updatedQuotes);
-    if (currentQuoteIndex >= updatedQuotes.length) {
-      setCurrentQuoteIndex(Math.max(0, updatedQuotes.length - 1));
-    }
-  }, [wisdomQuotes, saveQuotes, currentQuoteIndex]);
+    setQuoteState(prev => {
+      const updatedQuotes = [...prev.quotes];
+      const newQuote = { text: prev.newText, author: prev.newAuthor || '我' };
+
+      if (prev.editingIndex !== null) {
+        updatedQuotes[prev.editingIndex] = newQuote;
+      } else {
+        updatedQuotes.push(newQuote);
+      }
+
+      saveQuotesToStorage(updatedQuotes);
+
+      return {
+        ...prev,
+        quotes: updatedQuotes,
+        showEditModal: false
+      };
+    });
+  }, [quoteState.newText, quoteState.newAuthor, saveQuotesToStorage]);
+
+  const deleteQuote = useCallback(() => {
+    setQuoteState(prev => {
+      if (prev.quotes.length <= 1) {
+        alert('至少需要保留一条语录！');
+        return prev;
+      }
+
+      const updatedQuotes = prev.quotes.filter((_: typeof defaultWisdomQuotes[0], i: number) => i !== prev.editingIndex);
+      saveQuotesToStorage(updatedQuotes);
+
+      let newIndex = prev.currentIndex;
+      if (prev.currentIndex >= updatedQuotes.length) {
+        newIndex = Math.max(0, updatedQuotes.length - 1);
+      }
+
+      return {
+        ...prev,
+        quotes: updatedQuotes,
+        showEditModal: false,
+        currentIndex: newIndex
+      };
+    });
+  }, [saveQuotesToStorage]);
 
   const handleTemplateClick = useCallback((template: any) => {
     const newProtocol = createEmptyProtocol();
@@ -1167,7 +1095,7 @@ export default function TodayView() {
           <WisdomQuoteCard 
             quote={currentQuote}
             onAdd={openAddModal}
-            onEdit={() => openEditModal(currentQuoteIndex)}
+            onEdit={() => openEditModal(quoteState.currentIndex)}
             onChange={changeQuote}
           />
         </div>
@@ -1190,17 +1118,69 @@ export default function TodayView() {
         />
       </div>
 
-      <QuoteEditModal
-        isOpen={showEditModal}
-        isEditing={editingIndex !== null}
-        text={newQuoteText}
-        author={newQuoteAuthor}
-        onTextChange={setNewQuoteText}
-        onAuthorChange={setNewQuoteAuthor}
-        onClose={() => setShowEditModal(false)}
-        onSave={saveQuote}
-        onDelete={() => deleteQuote(editingIndex!)}
-      />
+      {/* 语录编辑弹窗 */}
+      {quoteState.showEditModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-[500px] max-w-[90vw]">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold">
+                {quoteState.editingIndex !== null ? '编辑语录' : '添加语录'}
+              </h3>
+              <button
+                onClick={() => setQuoteState(prev => ({ ...prev, showEditModal: false }))}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">语录内容</label>
+                <textarea
+                  value={quoteState.newText}
+                  onChange={(e) => setQuoteState(prev => ({ ...prev, newText: e.target.value }))}
+                  placeholder="输入语录内容..."
+                  className="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
+                  rows={4}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">作者</label>
+                <input
+                  type="text"
+                  value={quoteState.newAuthor}
+                  onChange={(e) => setQuoteState(prev => ({ ...prev, newAuthor: e.target.value }))}
+                  placeholder="输入作者名称（可选）"
+                  className="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              {quoteState.editingIndex !== null && (
+                <button
+                  onClick={deleteQuote}
+                  className="flex-1 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50"
+                >
+                  删除
+                </button>
+              )}
+              <button
+                onClick={() => setQuoteState(prev => ({ ...prev, showEditModal: false }))}
+                className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={saveQuote}
+                disabled={!quoteState.newText.trim()}
+                className="flex-1 py-2 bg-amber-500 text-white rounded-lg hover:opacity-90 disabled:opacity-50"
+              >
+                保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showPermissionPrompt && (
         <NotificationPermissionPrompt
@@ -1212,16 +1192,14 @@ export default function TodayView() {
         />
       )}
       
-      {protocols.length === 0 ? (
-        <EmptyState />
-      ) : allCompleted ? (
+      {protocols.length === 0 ? null : allCompleted ? (
         <CompletedState />
       ) : (
         <div className="space-y-6">
           {todayProtocols.map(protocol => (
-            <ProtocolCard 
-              key={protocol.id} 
-              protocol={protocol} 
+            <ProtocolCard
+              key={protocol.id}
+              protocol={protocol}
               onSuccess={() => handleSuccess(protocol)}
               onFailure={() => handleFailure(protocol)}
             />
