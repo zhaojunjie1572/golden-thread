@@ -88,15 +88,19 @@ export function SyncManagerView() {
         </div>
 
         <div className="p-6 rounded-lg border-2 border-dashed" style={{ borderColor: '#238636' }}>
-          <h3 className="text-lg font-semibold mb-3" style={{ color: '#238636' }}>☁️ GitHub Gist 云端同步（推荐）</h3>
-          <p className="text-sm opacity-70 mb-4">免费、稳定的云端同步方案，支持多设备自动同步</p>
-          <button
-            onClick={() => setShowGistSync(!showGistSync)}
-            className="px-6 py-3 rounded-lg font-medium transition-all hover:opacity-90"
-            style={{ backgroundColor: '#238636', color: '#fff' }}
-          >
-            {showGistSync ? '收起' : '配置 GitHub 云同步'}
-          </button>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold" style={{ color: '#238636' }}>☁️ GitHub Gist 云端同步（推荐）</h3>
+              <p className="text-sm opacity-70 mt-1">免费、稳定的云端同步方案，支持多设备自动同步</p>
+            </div>
+            <button
+              onClick={() => setShowGistSync(!showGistSync)}
+              className="px-4 py-2 rounded-lg font-medium transition-all hover:opacity-80 active:scale-95"
+              style={{ backgroundColor: '#238636', color: '#fff' }}
+            >
+              {showGistSync ? '收起 ↑' : '配置 ↓'}
+            </button>
+          </div>
           
           {showGistSync && (
             <div className="mt-6">
