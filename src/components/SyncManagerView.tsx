@@ -61,9 +61,20 @@ export function SyncManagerView() {
 
   return (
     <div className="p-6 max-w-2xl mx-auto" style={{ backgroundColor: bgColor, color: textColor, minHeight: '100vh' }}>
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-2" style={{ color: colors.primary }}>数据同步管理</h2>
-        <p className="text-sm opacity-70">通过导出/导入 JSON 文件实现多设备同步</p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold mb-2" style={{ color: colors.primary }}>数据同步管理</h2>
+          <p className="text-sm opacity-70">通过导出/导入 JSON 文件实现多设备同步</p>
+        </div>
+        <button
+          onClick={() => window.history.back()}
+          className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          title="返回"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
 
       {message && (
