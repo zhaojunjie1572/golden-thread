@@ -9,104 +9,8 @@ interface PromptModule {
   prompt: string;
 }
 
-const DEFAULT_MODULES: PromptModule[] = [
-  {
-    id: 'needs-analysis',
-    name: '需求解析',
-    icon: '🎯',
-    prompt: `你是一个专业的需求解析专家。请帮助用户：
-1. 分析用户的模糊需求
-2. 拆解成具体、可执行的问题
-3. 提供标准化的思考建议
-4. 给出明确的行动方向
-
-请用简洁、实用的方式回答，重点关注具体的行动建议。`,
-  },
-  {
-    id: 'problem-extraction',
-    name: '问题提取',
-    icon: '🔍',
-    prompt: `你是一个专业的问题提取专家。请帮助用户：
-1. 从用户的描述中提取核心问题
-2. 区分表面问题和深层问题
-3. 分析问题的成因和影响
-4. 把复杂问题拆解成简单问题
-
-请用结构化的方式回答，让问题清晰可见。`,
-  },
-  {
-    id: 'task-breakdown',
-    name: '任务拆解',
-    icon: '📋',
-    prompt: `你是一个专业的任务拆解专家。请帮助用户：
-1. 把目标拆解成可执行的小任务
-2. 确定任务的优先级和顺序
-3. 预估每个任务的时间和资源
-4. 设定明确的检查点和验收标准
-
-请用列表形式呈现，每个任务要具体、可执行。`,
-  },
-  {
-    id: 'action-plan',
-    name: '行动方案',
-    icon: '🚀',
-    prompt: `你是一个专业的行动规划专家。请帮助用户：
-1. 制定具体的执行计划
-2. 明确每日/每周的行动项
-3. 设定里程碑和时间节点
-4. 预判风险并给出应对方案
-
-请用时间表或 checklist 形式呈现，方便用户执行。`,
-  },
-  {
-    id: 'thinking-framework',
-    name: '思维框架',
-    icon: '🧠',
-    prompt: `你是一个专业的思维框架专家。请帮助用户：
-1. 提供结构化的思考框架
-2. 从多个维度分析问题
-3. 建立系统的思维模式
-4. 培养深度思考的习惯
-
-请用清晰的框架和步骤呈现。`,
-  },
-  {
-    id: 'resource-planning',
-    name: '资源规划',
-    icon: '📦',
-    prompt: `你是一个专业的资源规划专家。请帮助用户：
-1. 盘点现有资源（时间、金钱、人脉、技能）
-2. 识别资源缺口
-3. 优化资源配置
-4. 制定资源获取计划
-
-请用清单和表格形式呈现，清晰明了。`,
-  },
-  {
-    id: 'risk-assessment',
-    name: '风险评估',
-    icon: '⚠️',
-    prompt: `你是一个专业的风险评估专家。请帮助用户：
-1. 识别潜在风险和挑战
-2. 评估风险的概率和影响
-3. 制定风险应对策略
-4. 建立预警和止损机制
-
-请用风险矩阵和应对方案的形式呈现。`,
-  },
-  {
-    id: 'execution-review',
-    name: '执行复盘',
-    icon: '📊',
-    prompt: `你是一个专业的执行复盘专家。请帮助用户：
-1. 回顾执行过程和结果
-2. 分析成功和失败的原因
-3. 总结经验和教训
-4. 提出改进和优化建议
-
-请用客观、建设性的方式进行复盘。`,
-  },
-];
+// 默认空模块列表，用户完全自定义
+const DEFAULT_MODULES: PromptModule[] = [];
 
 export default function ActionProtocolView() {
   const navigate = useNavigate();
@@ -170,9 +74,9 @@ export default function ActionProtocolView() {
   const [selectedModuleId, setSelectedModuleId] = useState<string>(() => {
     try {
       const saved = localStorage.getItem('think-tank-selected-module');
-      return saved || DEFAULT_MODULES[0].id;
+      return saved || '';
     } catch {
-      return DEFAULT_MODULES[0].id;
+      return '';
     }
   });
   const [showModuleEditor, setShowModuleEditor] = useState<string | null>(null);
@@ -224,7 +128,7 @@ export default function ActionProtocolView() {
   });
   const [showMemorySelector, setShowMemorySelector] = useState(false);
 
-  const selectedModule = modules.find(m => m.id === selectedModuleId) || modules[0];
+  const selectedModule = modules.find(m => m.id === selectedModuleId);
   const currentMessages = moduleMessages[selectedModuleId] || [];
 
   const setCurrentMessages = useCallback((newMessages: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => {
@@ -280,6 +184,8 @@ export default function ActionProtocolView() {
   }, [selectedMemoryModuleIds]);
 
   const prepareConversationHistory = (userMessage: ChatMessage): ChatMessage[] => {
+    if (!selectedModule) return [userMessage];
+    
     const history: ChatMessage[] = [
       {
         id: crypto.randomUUID(),
@@ -368,13 +274,11 @@ export default function ActionProtocolView() {
 
   const handleDeleteModule = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (modules.length <= 1) {
-      alert('至少保留一个模块');
-      return;
-    }
     setModules(prev => prev.filter(m => m.id !== id));
     if (selectedModuleId === id) {
-      setSelectedModuleId(modules[0].id);
+      const remainingModules = modules.filter(m => m.id !== id);
+      setSelectedModuleId(remainingModules.length > 0 ? remainingModules[0].id : '');
+      setIsMaximized(false);
     }
   };
 
@@ -438,7 +342,7 @@ export default function ActionProtocolView() {
       content: input.trim(),
       timestamp: new Date(),
       moduleId: selectedModuleId,
-      moduleName: selectedModule.name,
+      moduleName: selectedModule?.name || '',
     } as ChatMessage;
 
     setCurrentMessages(prev => [...prev, userMessage]);
@@ -558,7 +462,9 @@ export default function ActionProtocolView() {
           </button>
           <div>
             <h1 className="text-3xl font-bold text-gray-800">智库</h1>
-            <p className="text-gray-500 mt-1">当前模块：{selectedModule.icon} {selectedModule.name}</p>
+            <p className="text-gray-500 mt-1">
+              {selectedModule ? `当前模块：${selectedModule.icon} ${selectedModule.name}` : '暂无模块，请创建新模块'}
+            </p>
           </div>
           <div className="flex-1"></div>
           <button
@@ -763,24 +669,30 @@ export default function ActionProtocolView() {
                   <h3 className="font-semibold text-gray-800">对话</h3>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="lg:hidden">
-                    <button
-                      onClick={() => setShowModuleEditor('mobile-select')}
-                      className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm flex items-center gap-1.5 hover:bg-gray-200"
-                    >
-                      <span>{selectedModule.icon}</span>
-                      <span className="truncate max-w-[100px]">{selectedModule.name}</span>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                  </div>
-                  <div className="hidden lg:flex items-center gap-2">
-                    <span className="text-xs text-gray-500">当前使用：</span>
-                    <span className="px-2.5 py-1 bg-golden/10 text-golden rounded-lg text-xs font-medium">
-                      {selectedModule.icon} {selectedModule.name}
-                    </span>
-                  </div>
+                  {selectedModule ? (
+                    <>
+                      <div className="lg:hidden">
+                        <button
+                          onClick={() => setShowModuleEditor('mobile-select')}
+                          className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm flex items-center gap-1.5 hover:bg-gray-200"
+                        >
+                          <span>{selectedModule.icon}</span>
+                          <span className="truncate max-w-[100px]">{selectedModule.name}</span>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="hidden lg:flex items-center gap-2">
+                        <span className="text-xs text-gray-500">当前使用：</span>
+                        <span className="px-2.5 py-1 bg-golden/10 text-golden rounded-lg text-xs font-medium">
+                          {selectedModule.icon} {selectedModule.name}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <span className="text-xs text-gray-400">请先创建模块</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -789,25 +701,43 @@ export default function ActionProtocolView() {
               {currentMessages.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="text-4xl mb-3">🧠</div>
-                  <h2 className="text-base font-semibold text-gray-800 mb-1.5">选择模块开始对话</h2>
-                  <p className="text-gray-500 max-w-md mx-auto mb-4 text-sm">
-                    从左侧选择一个模块，或创建新模块，然后开始对话
-                  </p>
-                  <div className="flex flex-wrap gap-1.5 justify-center max-w-md mx-auto">
-                    {modules.map((module) => (
+                  {modules.length === 0 ? (
+                    <>
+                      <h2 className="text-base font-semibold text-gray-800 mb-1.5">暂无模块</h2>
+                      <p className="text-gray-500 max-w-md mx-auto mb-4 text-sm">
+                        点击左侧"添加模块"按钮创建你的第一个模块，<br/>
+                        或通过同步功能导入已有模块
+                      </p>
                       <button
-                        key={module.id}
-                        onClick={() => setSelectedModuleId(module.id)}
+                        onClick={handleAddModule}
+                        className="px-4 py-2 bg-golden text-white rounded-lg text-sm hover:opacity-90 transition-colors"
+                      >
+                        + 创建第一个模块
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <h2 className="text-base font-semibold text-gray-800 mb-1.5">选择模块开始对话</h2>
+                      <p className="text-gray-500 max-w-md mx-auto mb-4 text-sm">
+                        从左侧选择一个模块，或创建新模块，然后开始对话
+                      </p>
+                      <div className="flex flex-wrap gap-1.5 justify-center max-w-md mx-auto">
+                        {modules.map((module) => (
+                          <button
+                            key={module.id}
+                            onClick={() => setSelectedModuleId(module.id)}
                         className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                           selectedModuleId === module.id
                             ? 'bg-golden text-white'
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                       >
-                        {module.icon} {module.name}
-                      </button>
-                    ))}
-                  </div>
+                            {module.icon} {module.name}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : (
                 <>
@@ -968,8 +898,8 @@ export default function ActionProtocolView() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyPress}
-                  placeholder={`使用「${selectedModule.name}」模块...`}
-                  disabled={isLoading || !apiService.hasApiKey()}
+                  placeholder={selectedModule ? `使用「${selectedModule.name}」模块...` : '请先创建或选择一个模块'}
+                  disabled={isLoading || !apiService.hasApiKey() || !selectedModule}
                   className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none resize-none max-h-28 text-sm"
                   rows={1}
                   autoComplete="off"
@@ -1036,8 +966,14 @@ export default function ActionProtocolView() {
               </svg>
             </button>
             <div className="flex-1 flex items-center justify-center gap-2">
-              <span className="text-lg">{selectedModule.icon}</span>
-              <h1 className="text-base font-semibold text-gray-800">{selectedModule.name}</h1>
+              {selectedModule ? (
+                <>
+                  <span className="text-lg">{selectedModule.icon}</span>
+                  <h1 className="text-base font-semibold text-gray-800">{selectedModule.name}</h1>
+                </>
+              ) : (
+                <h1 className="text-base font-semibold text-gray-800">智库</h1>
+              )}
             </div>
             <div className="flex items-center gap-1">
               <button
