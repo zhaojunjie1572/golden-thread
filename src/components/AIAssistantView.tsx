@@ -69,6 +69,7 @@ export default function AIAssistantView() {
     return saved ? parseFloat(saved) : 1;
   });
   const [showColorSettings, setShowColorSettings] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
 
   const topBarTransparent = !!backgroundImage;
   const inputBarTransparent = !!backgroundImage;
@@ -600,68 +601,715 @@ export default function AIAssistantView() {
   };
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-[#ededed]" style={{
-      backgroundImage: backgroundImage ? `url(${backgroundImage})` : 'none',
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-    }}>
-      {!backgroundImage && (
-        <div className="absolute inset-0 bg-[#ededed]" />
-      )}
-      
-      <div className={`relative z-10 flex items-center px-3 py-2 ${topBarTransparent ? 'bg-transparent border-b border-transparent' : 'bg-white/95 backdrop-blur-sm border-b border-gray-200'} shrink-0`}>
-        <div className="flex-1 flex items-center justify-center gap-2">
-          <span className="text-lg">🤖</span>
-          <h1 className="text-base font-semibold text-gray-800">AI 助手</h1>
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setShowColorSettings(!showColorSettings)}
-            className="p-2 text-gray-700 hover:text-gray-900 transition-colors"
-            title="文字颜色"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-            </svg>
-          </button>
-          <button
-            onClick={() => document.getElementById('ai-bg-image-upload')?.click()}
-            className="p-2 text-gray-700 hover:text-gray-900 transition-colors"
-            title="设置背景"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2zM9 9h6v6H9V9z" />
-            </svg>
-          </button>
-          <input
-            id="ai-bg-image-upload"
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleBackgroundImageUpload}
-          />
-          {backgroundImage && (
-            <button
-              onClick={removeBackgroundImage}
-              className="p-2 text-gray-700 hover:text-gray-900 transition-colors"
-              title="移除背景"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
+    <>
+      {!isMaximized && (
+        <div className="max-w-4xl mx-auto px-4 py-8 flex flex-col h-[calc(100vh-140px)]">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800">AI 助手</h1>
+              <p className="text-gray-500 mt-1">实时解答你的疑问</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  if (!isLoading) {
+                    createNewSession();
+                  }
+                }}
+                disabled={isLoading}
+                className="p-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-50"
+                title="新建对话"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setShowChatHistory(!showChatHistory)}
+                className={`p-3 rounded-xl transition-colors ${
+                  showChatHistory 
+                    ? 'text-golden bg-golden/10' 
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                }`}
+                title="聊天历史"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setShowColorSettings(!showColorSettings)}
+                className="p-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
+                title="文字颜色"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setIsMaximized(true)}
+                className="p-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
+                title="全屏模式"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className="p-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
+                title="设置"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.065c-1.543.94-3.31-.826-2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {showChatHistory && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-800">聊天历史</h2>
+                <span className="text-sm text-gray-500">{chatSessions.length} 个对话</span>
+              </div>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {chatSessions.map((session) => (
+                  <div
+                    key={session.id}
+                    onClick={() => loadSession(session)}
+                    className={`p-3 rounded-xl cursor-pointer transition-colors ${
+                      session.id === currentSessionId
+                        ? 'bg-golden/10 border border-golden/30'
+                        : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium truncate ${
+                          session.id === currentSessionId ? 'text-golden' : 'text-gray-800'
+                        }`}>
+                          {session.title}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {new Date(session.updatedAt).toLocaleDateString('zh-CN', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => deleteSession(e, session.id)}
+                        className="ml-2 p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            className="p-2 text-gray-700 hover:text-gray-900 transition-colors"
-            title="设置"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-            </svg>
-          </button>
+
+          {showSettings && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 max-h-[70vh] overflow-y-auto">
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">设置</h2>
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">API 配置</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-sm text-gray-500 mb-2 block">API 提供商</label>
+                      <select
+                        value={apiConfig.provider}
+                        onChange={(e) => {
+                          const provider = e.target.value as 'deepseek' | 'custom';
+                          let newConfig = { ...apiConfig, provider };
+                          if (provider === 'deepseek') {
+                            newConfig.baseUrl = 'https://api.deepseek.com/v1';
+                            newConfig.model = 'deepseek-chat';
+                          } else if (provider === 'custom') {
+                            newConfig.baseUrl = '';
+                            newConfig.model = '';
+                          }
+                          setApiConfig(newConfig);
+                          setAvailableModels([]);
+                        }}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none"
+                      >
+                        <option value="deepseek">DeepSeek</option>
+                        <option value="custom">自定义 (兼容 OpenAI 格式)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-sm text-gray-500 mb-2 block">
+                        API 密钥
+                      </label>
+                      <input
+                        type="password"
+                        value={apiConfig.apiKey}
+                        onChange={(e) => setApiConfig({ ...apiConfig, apiKey: e.target.value })}
+                        placeholder={apiConfig.provider === 'deepseek' ? 'sk-xxxxxxxxxxxxxxxxxxxxxxxx' : '输入 API 密钥'}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none"
+                      />
+                    </div>
+
+                    <>
+                      {apiConfig.provider === 'custom' && (
+                        <div>
+                          <label className="text-sm text-gray-500 mb-2 block">API 基础 URL</label>
+                          <input
+                            type="text"
+                            value={apiConfig.baseUrl}
+                            onChange={(e) => setApiConfig({ ...apiConfig, baseUrl: e.target.value })}
+                            placeholder="https://api.example.com/v1"
+                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none"
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-sm text-gray-500">模型选择</label>
+                          <button
+                            onClick={handleFetchModels}
+                            disabled={isLoadingModels || !apiConfig.apiKey}
+                            className="text-xs px-3 py-1 bg-golden/10 text-golden rounded-lg hover:bg-golden/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                          >
+                            {isLoadingModels ? (
+                              <>
+                                <div className="w-3 h-3 border border-golden/30 border-t-golden rounded-full animate-spin" />
+                                加载中...
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                刷新模型
+                              </>
+                            )}
+                          </button>
+                        </div>
+                        {availableModels.length > 0 ? (
+                          <div className="space-y-2">
+                            <select
+                              value={apiConfig.model}
+                              onChange={(e) => setApiConfig({ ...apiConfig, model: e.target.value })}
+                              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none"
+                            >
+                              {availableModels.map((model) => (
+                                <option key={model} value={model}>
+                                  {model}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => setAvailableModels([])}
+                              className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                              切换为手动输入
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <input
+                              type="text"
+                              value={apiConfig.model}
+                              onChange={(e) => setApiConfig({ ...apiConfig, model: e.target.value })}
+                              placeholder={apiConfig.provider === 'deepseek' ? 'deepseek-chat' : '例如：GLM-4, gpt-4, claude-3-opus'}
+                              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none"
+                            />
+                            {modelFetchError && (
+                              <p className="text-xs text-red-500">{modelFetchError}</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </>
+
+                    <p className="text-sm text-gray-500">
+                      {apiConfig.provider === 'deepseek' 
+                        ? '获取 API 密钥：<a href="https://platform.deepseek.com/" target="_blank" rel="noopener noreferrer" className="text-golden hover:underline">platform.deepseek.com</a>'
+                        : '支持所有兼容 OpenAI Chat Completions API 格式的接口'
+                      }
+                    </p>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-100 pt-6">
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">联网搜索</h3>
+                  <div className="space-y-3 mb-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-700">启用联网搜索</p>
+                        <p className="text-xs text-gray-500">AI 可以搜索网络获取最新信息</p>
+                      </div>
+                      <button
+                        onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+                        className={`relative w-12 h-6 rounded-full transition-colors ${
+                          webSearchEnabled ? 'bg-golden' : 'bg-gray-300'
+                        }`}
+                      >
+                        <div
+                          className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                            webSearchEnabled ? 'translate-x-7' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-sm text-gray-500 mb-2 block">
+                          SerpAPI 密钥
+                        </label>
+                        <input
+                          type="password"
+                          value={serpApiKey}
+                          onChange={(e) => {
+                            const key = e.target.value;
+                            setSerpApiKey(key);
+                            webSearchService.setSerpApiKey(key);
+                          }}
+                          placeholder="输入 SerpAPI 密钥..."
+                          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">
+                          获取密钥：<a href="https://serpapi.com/" target="_blank" rel="noopener noreferrer" className="text-golden hover:underline">serpapi.com</a>
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-sm text-gray-500 mb-2 block">
+                          OpenWeather API 密钥（可选）
+                        </label>
+                        <input
+                          type="password"
+                          value={openWeatherApiKey}
+                          onChange={(e) => {
+                            const key = e.target.value;
+                            setOpenWeatherApiKey(key);
+                            webSearchService.setOpenWeatherApiKey(key);
+                          }}
+                          placeholder="输入 OpenWeather API 密钥..."
+                          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">
+                          获取密钥：<a href="https://openweathermap.org/api" target="_blank" rel="noopener noreferrer" className="text-golden hover:underline">openweathermap.org</a>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">朗读设置</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm text-gray-500 mb-2 block">
+                        语速: <span className="text-golden font-medium">{speechState.speechRate.toFixed(1)}x</span>
+                      </label>
+                      <input
+                        type="range"
+                        min="0.5"
+                        max="2"
+                        step="0.1"
+                        value={speechState.speechRate}
+                        onChange={(e) => setSpeechRate(parseFloat(e.target.value))}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-golden"
+                      />
+                      <div className="flex justify-between text-xs text-gray-400 mt-1">
+                        <span>慢速</span>
+                        <span>正常</span>
+                        <span>快速</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-sm text-gray-500">声音选择</label>
+                        <span className="text-xs text-gray-400">可用声音: {voices.length} 种</span>
+                      </div>
+                      <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-xl p-2">
+                        <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="voice"
+                            value=""
+                            checked={speechState.selectedVoice === ''}
+                            onChange={() => setSelectedVoiceInSpeech('')}
+                            className="w-4 h-4 text-golden"
+                          />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-800">自动选择中文</p>
+                          </div>
+                          {speechState.selectedVoice === '' && (
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                testVoice('');
+                              }}
+                              className="text-xs px-2 py-1 bg-golden/10 text-golden rounded hover:bg-golden/20 transition-colors"
+                            >
+                              试听
+                            </button>
+                          )}
+                        </label>
+                        {voices.map((voice) => (
+                          <label
+                            key={voice.name}
+                            className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
+                              voice.lang.includes('zh') || voice.lang.includes('CN') ? 'hover:bg-gray-50' : 'hover:bg-gray-50 opacity-60'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="voice"
+                              value={voice.name}
+                              checked={speechState.selectedVoice === voice.name}
+                              onChange={() => setSelectedVoiceInSpeech(voice.name)}
+                              className="w-4 h-4 text-golden"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-800 truncate">{voice.name}</p>
+                              <p className="text-xs text-gray-500">{voice.lang}</p>
+                            </div>
+                            {(voice.lang.includes('zh') || voice.lang.includes('CN')) && (
+                              <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded">中文</span>
+                            )}
+                            {speechState.selectedVoice === voice.name && (
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  testVoice(voice.name);
+                                }}
+                                className="text-xs px-2 py-1 bg-golden/10 text-golden rounded hover:bg-golden/20 transition-colors flex-shrink-0"
+                              >
+                                试听
+                              </button>
+                            )}
+                          </label>
+                        ))}
+                      </div>
+                      <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
+                        <p className="text-xs text-yellow-800">
+                          <strong>提示：</strong>浏览器自带的朗读功能只能使用系统提供的语音。
+                          <br />
+                          想要使用高德小团团等特殊声音？需要安装对应语音包到系统中，或使用外部 TTS 服务。
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleSaveApiConfig}
+                  className="w-full bg-golden text-white py-3 rounded-xl font-semibold hover:bg-golden-dark transition-colors"
+                >
+                  保存设置
+                </button>
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-4">
+              {error}
+            </div>
+          )}
+
+          <div className="flex-1 overflow-y-auto mb-6 space-y-4">
+            {messages.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="text-6xl mb-6">🤖</div>
+                <h2 className="text-xl font-semibold text-gray-800 mb-2">你好，我是金线 AI 助手</h2>
+                <p className="text-gray-500 mb-4">
+                  我可以帮你：<br />
+                  设计行动协议 · 优化习惯养成 · 解决执行卡点
+                </p>
+                {webSearchEnabled && (
+                  <div className="mb-6 p-3 bg-golden/10 border border-golden/20 rounded-xl">
+                    <p className="text-sm text-golden-dark">
+                      🌐 联网搜索已开启 - {serpApiKey ? '已接入 SerpAPI 真实搜索' : '使用免费搜索'}
+                    </p>
+                  </div>
+                )}
+                <div className="flex flex-col gap-3 max-w-md mx-auto">
+                  <QuickQuestion
+                    text="如何设计一个好的行动协议？"
+                    onClick={() => setInput('如何设计一个好的行动协议？')}
+                  />
+                  <QuickQuestion
+                    text="连续失败后怎么调整？"
+                    onClick={() => setInput('连续失败后怎么调整？')}
+                  />
+                  <QuickQuestion
+                    text="如何养成早起的习惯？"
+                    onClick={() => setInput('如何养成早起的习惯？')}
+                  />
+                </div>
+              </div>
+            ) : (
+              <>
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                        message.role === 'user'
+                          ? 'bg-golden text-white'
+                          : 'bg-white border border-gray-100 shadow-sm'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`text-2xl ${message.role === 'user' ? 'order-2' : 'order-1'}`}>
+                          {message.role === 'user' ? '👤' : '🤖'}
+                        </div>
+                        <div className={`flex-1 ${message.role === 'user' ? 'text-right' : 'text-left'} order-1`}>
+                          {message.attachments && message.attachments.length > 0 && (
+                            <div className={`mb-2 flex flex-wrap gap-2 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                              {message.attachments.map((attachment) => (
+                                <div
+                                  key={attachment.id}
+                                  className={`${message.role === 'user' ? 'bg-white/20' : 'bg-gray-50'} rounded-lg p-2 border ${message.role === 'user' ? 'border-white/30' : 'border-gray-200'}`}
+                                >
+                                  {attachment.type === 'image' && attachment.preview ? (
+                                    <img
+                                      src={attachment.preview}
+                                      alt={attachment.name}
+                                      className="w-32 h-32 object-cover rounded"
+                                    />
+                                  ) : (
+                                    <div className="flex items-center gap-2">
+                                      <svg className={`w-6 h-6 ${message.role === 'user' ? 'text-white/70' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                      </svg>
+                                      <div>
+                                        <p className={`text-xs ${message.role === 'user' ? 'text-white/90' : 'text-gray-700'}`}>{attachment.name}</p>
+                                        <p className={`text-xs ${message.role === 'user' ? 'text-white/70' : 'text-gray-400'}`}>{formatFileSize(attachment.size)}</p>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <div
+                            className={`text-sm ${message.role === 'user' ? 'text-white/95' : 'text-gray-800'} whitespace-pre-wrap`}
+                          >
+                            {message.content}
+                          </div>
+                          {!message.role === 'user' && !message.role === 'user' && message.model && (
+                            <div className="mt-2">
+                              <span className={`text-xs px-2 py-1 rounded-full ${
+                                message.role === 'user' ? 'bg-white/20 text-white/80' : 'bg-gray-100 text-gray-500'
+                              }`}>
+                                模型: {message.model}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {streamingContent && (
+                  <div className="flex justify-start">
+                    <div
+                      className="max-w-[80%] rounded-2xl px-4 py-3 bg-white border border-gray-100 shadow-sm"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="text-2xl">🤖</div>
+                        <div className="flex-1">
+                          <div className="text-sm text-gray-800 whitespace-pre-wrap">
+                            {streamingContent}
+                          </div>
+                          <span className="inline-block w-2 h-4 bg-golden animate-pulse ml-1" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+            {isLoading && (
+              <div className="flex items-center justify-between mb-3 px-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-golden/30 border-t-golden rounded-full animate-spin" />
+                  <span className="text-sm text-gray-600">
+                    {isSearching ? '搜索网络中...' : '思考中...'}
+                  </span>
+                </div>
+                <button
+                  onClick={handleStopGeneration}
+                  className="text-sm text-red-500 hover:text-red-600 hover:bg-red-50 px-3 py-1 rounded-lg transition-colors flex items-center gap-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                  </svg>
+                  中断
+                </button>
+              </div>
+            )}
+            
+            {attachedFiles.length > 0 && (
+              <div className="mb-3 flex flex-wrap gap-2">
+                {attachedFiles.map((file) => (
+                  <div
+                    key={file.id}
+                    className="relative group bg-gray-50 rounded-lg p-2 border border-gray-200"
+                  >
+                    {file.type === 'image' && file.preview ? (
+                      <div className="relative">
+                        <img
+                          src={file.preview}
+                          alt={file.file.name}
+                          className="w-20 h-20 object-cover rounded"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 w-32">
+                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-gray-700 truncate">{file.file.name}</p>
+                          <p className="text-xs text-gray-400">{formatFileSize(file.file.size)}</p>
+                        </div>
+                      </div>
+                    )}
+                    <button
+                      onClick={() => removeAttachedFile(file.id)}
+                      className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <div className="flex gap-2 mb-2">
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+              <button
+                onClick={() => imageInputRef.current?.click()}
+                disabled={isLoading}
+                className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2zM9 9h6v6H9V9z" />
+                </svg>
+                <span className="text-sm">图片</span>
+              </button>
+              
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading}
+                className="flex items-center gap-1 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span className="text-sm">文件</span>
+              </button>
+            </div>
+            
+            <div className="flex gap-3">
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyPress}
+                placeholder={isListening ? "正在听你说话..." : "输入你的问题..."}
+                disabled={isLoading || !apiService.hasApiKey()}
+                className={`flex-1 px-4 py-3 rounded-xl border transition-colors focus:ring-2 focus:ring-golden/20 outline-none resize-none max-h-32 ${
+                  isListening 
+                    ? 'border-red-400 bg-red-50 focus:border-red-400' 
+                    : 'border-gray-200 focus:border-golden'
+                }`}
+                rows={1}
+              />
+              {(typeof window !== 'undefined' && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)) && (
+                <button
+                  onClick={toggleListening}
+                  disabled={isLoading}
+                  className={`px-4 py-3 rounded-xl font-semibold transition-all flex items-center gap-2 ${
+                    isListening
+                      ? 'bg-red-500 text-white hover:bg-red-600 animate-pulse'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  title={isListening ? "停止录音" : "语音输入"}
+                >
+                  <svg className="w-5 h-5" fill={isListening ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+                    {isListening ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    )}
+                  </svg>
+                </button>
+              )}
+              <button
+                onClick={isLoading ? handleStopGeneration : handleSend}
+                disabled={!isLoading && (!input.trim() && attachedFiles.length === 0) || !apiService.hasApiKey()}
+                className={`px-6 py-3 rounded-xl font-semibold transition-colors flex items-center gap-2 ${
+                  isLoading
+                    ? 'bg-red-500 text-white hover:bg-red-600'
+                    : (!input.trim() && attachedFiles.length === 0) || !apiService.hasApiKey()
+                    ? 'bg-gray-300 text-gray-50 cursor-not-allowed'
+                    : 'bg-golden text-white hover:bg-golden-dark'
+                }`}
+              >
+                {isLoading ? (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                    </svg>
+                    中断
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                    发送
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
+
+      {isMaximized && (
 
       {showChatHistory && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
@@ -1023,7 +1671,70 @@ export default function AIAssistantView() {
         </div>
       )}
 
-      {error && (
+      <div className="fixed inset-0 flex flex-col bg-[#ededed]" style={{
+        backgroundImage: backgroundImage ? `url(${backgroundImage})` : 'none',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}>
+        {!backgroundImage && (
+          <div className="absolute inset-0 bg-[#ededed]" />
+        )}
+        
+        <div className={`relative z-10 flex items-center px-3 py-2 ${topBarTransparent ? 'bg-transparent border-b border-transparent' : 'bg-white/95 backdrop-blur-sm border-b border-gray-200'} shrink-0`}>
+          <button
+            onClick={() => setIsMaximized(false)}
+            className="p-2 text-gray-700 hover:text-gray-900 transition-colors"
+            title="退出全屏"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <div className="flex-1 flex items-center justify-center gap-2">
+            <span className="text-lg">🤖</span>
+            <h1 className="text-base font-semibold text-gray-800">AI 助手</h1>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowColorSettings(!showColorSettings)}
+              className="p-2 text-gray-700 hover:text-gray-900 transition-colors"
+              title="文字颜色"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+              </svg>
+            </button>
+            <button
+              onClick={() => document.getElementById('ai-bg-image-upload-max')?.click()}
+              className="p-2 text-gray-700 hover:text-gray-900 transition-colors"
+              title="设置背景"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2zM9 9h6v6H9V9z" />
+              </svg>
+            </button>
+            <input
+              id="ai-bg-image-upload-max"
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleBackgroundImageUpload}
+            />
+            {backgroundImage && (
+              <button
+                onClick={removeBackgroundImage}
+                className="p-2 text-gray-700 hover:text-gray-900 transition-colors"
+                title="移除背景"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {error && (
         <div className="relative z-10 bg-red-50/90 backdrop-blur-sm border border-red-200 text-red-700 px-4 py-3 rounded-xl m-3">
           {error}
         </div>
@@ -1364,9 +2075,11 @@ export default function AIAssistantView() {
           </button>
         </div>
       </div>
+    </div>
+  )}
 
-      {showColorSettings && (
-        <ColorSettingsPanel
+  {showColorSettings && (
+    <ColorSettingsPanel
           userTextColor={userTextColor}
           setUserTextColor={setUserTextColor}
           aiTextColor={aiTextColor}
