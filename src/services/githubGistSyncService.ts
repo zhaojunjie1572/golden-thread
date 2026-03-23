@@ -178,6 +178,25 @@ export class GitHubGistSyncService {
         };
       }
 
+      // 检查工作流数据冲突
+      const localAgents = localData.agentWorkflow?.agents?.length || 0;
+      const cloudAgents = cloudData.agentWorkflow?.agents?.length || 0;
+      if (localAgents !== cloudAgents) {
+        conflicts.agentWorkflowAgents = { local: localAgents, cloud: cloudAgents };
+      }
+
+      const localWorkflows = localData.agentWorkflow?.workflows?.length || 0;
+      const cloudWorkflows = cloudData.agentWorkflow?.workflows?.length || 0;
+      if (localWorkflows !== cloudWorkflows) {
+        conflicts.agentWorkflows = { local: localWorkflows, cloud: cloudWorkflows };
+      }
+
+      const localInstances = localData.agentWorkflow?.instances?.length || 0;
+      const cloudInstances = cloudData.agentWorkflow?.instances?.length || 0;
+      if (localInstances !== cloudInstances) {
+        conflicts.agentWorkflowInstances = { local: localInstances, cloud: cloudInstances };
+      }
+
       return {
         hasConflict: Object.keys(conflicts).length > 0,
         details: conflicts

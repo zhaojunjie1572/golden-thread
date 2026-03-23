@@ -21,6 +21,14 @@ interface SyncData {
   };
   aiConfig: any | null;
   musicWebsites: any[];
+  agentWorkflow: {
+    agents: any[];
+    workflows: any[];
+    instances: any[];
+    memories: any[];
+    feedbacks: any[];
+    personas: any[];
+  };
 }
 
 const STORAGE_KEYS = {
@@ -48,6 +56,12 @@ const STORAGE_KEYS = {
   readerSelectedVoice: 'selected-voice',
   aiConfig: 'ai-api-config',
   musicWebsites: 'music-websites',
+  agentModules: 'agent-modules',
+  agentWorkflows: 'agent-workflows',
+  agentWorkflowInstances: 'agent-workflow-instances',
+  agentMemories: 'agent-memories',
+  agentFeedbacks: 'agent-feedbacks',
+  agentPersonas: 'agent-personas',
 };
 
 export class SyncService {
@@ -75,6 +89,14 @@ export class SyncService {
       },
       aiConfig: this.getFromLocalStorage(STORAGE_KEYS.aiConfig, null),
       musicWebsites: this.getFromLocalStorage(STORAGE_KEYS.musicWebsites, []),
+      agentWorkflow: {
+        agents: this.getFromLocalStorage(STORAGE_KEYS.agentModules, []),
+        workflows: this.getFromLocalStorage(STORAGE_KEYS.agentWorkflows, []),
+        instances: this.getFromLocalStorage(STORAGE_KEYS.agentWorkflowInstances, []),
+        memories: this.getFromLocalStorage(STORAGE_KEYS.agentMemories, []),
+        feedbacks: this.getFromLocalStorage(STORAGE_KEYS.agentFeedbacks, []),
+        personas: this.getFromLocalStorage(STORAGE_KEYS.agentPersonas, []),
+      },
     };
   }
 
@@ -115,6 +137,28 @@ export class SyncService {
     
     if (data.musicWebsites && data.musicWebsites.length > 0) {
       this.saveToLocalStorage(STORAGE_KEYS.musicWebsites, data.musicWebsites);
+    }
+
+    // 恢复工作流数据
+    if (data.agentWorkflow) {
+      if (data.agentWorkflow.agents && data.agentWorkflow.agents.length > 0) {
+        this.saveToLocalStorage(STORAGE_KEYS.agentModules, data.agentWorkflow.agents);
+      }
+      if (data.agentWorkflow.workflows && data.agentWorkflow.workflows.length > 0) {
+        this.saveToLocalStorage(STORAGE_KEYS.agentWorkflows, data.agentWorkflow.workflows);
+      }
+      if (data.agentWorkflow.instances && data.agentWorkflow.instances.length > 0) {
+        this.saveToLocalStorage(STORAGE_KEYS.agentWorkflowInstances, data.agentWorkflow.instances);
+      }
+      if (data.agentWorkflow.memories && data.agentWorkflow.memories.length > 0) {
+        this.saveToLocalStorage(STORAGE_KEYS.agentMemories, data.agentWorkflow.memories);
+      }
+      if (data.agentWorkflow.feedbacks && data.agentWorkflow.feedbacks.length > 0) {
+        this.saveToLocalStorage(STORAGE_KEYS.agentFeedbacks, data.agentWorkflow.feedbacks);
+      }
+      if (data.agentWorkflow.personas && data.agentWorkflow.personas.length > 0) {
+        this.saveToLocalStorage(STORAGE_KEYS.agentPersonas, data.agentWorkflow.personas);
+      }
     }
   }
 
