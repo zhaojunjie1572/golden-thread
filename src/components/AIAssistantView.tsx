@@ -455,6 +455,7 @@ export default function AIAssistantView() {
     
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
+    let isAborted = false;
     
     try {
       let enhancedContext = '';
@@ -484,45 +485,68 @@ export default function AIAssistantView() {
         });
       }
       
-      const assistantMessageId = crypto.randomUUID();
-      
       await apiService.streamChat(
         messagesForApi,
-        (content) => {
-          streamingContentRef.current += content;
+        (chunk) => {
+          if (abortController.signal.aborted) {
+            isAborted = true;
+            return;
+          }
+          streamingContentRef.current += chunk;
           setStreamingContent(streamingContentRef.current);
+        },
+        (model) => {
+          if (isAborted || abortController.signal.aborted) {
+            if (streamingContentRef.current) {
+              const assistantMessage: ChatMessage = {
+                id: crypto.randomUUID(),
+                role: 'assistant',
+                content: streamingContentRef.current + ' (已中断)',
+                timestamp: new Date(),
+                model,
+              };
+              setMessages(prev => [...prev, assistantMessage]);
+            }
+          } else {
+            const assistantMessage: ChatMessage = {
+              id: crypto.randomUUID(),
+              role: 'assistant',
+              content: streamingContentRef.current,
+              timestamp: new Date(),
+              model,
+            };
+            setMessages(prev => [...prev, assistantMessage]);
+          }
+          setStreamingContent('');
+          streamingContentRef.current = '';
+          setIsLoading(false);
+          abortControllerRef.current = null;
+        },
+        (err) => {
+          if (err.name !== 'AbortError' && !abortController.signal.aborted) {
+            setError(err.message);
+          }
+          if (streamingContentRef.current) {
+            const assistantMessage: ChatMessage = {
+              id: crypto.randomUUID(),
+              role: 'assistant',
+              content: streamingContentRef.current,
+              timestamp: new Date(),
+            };
+            setMessages(prev => [...prev, assistantMessage]);
+          }
+          setStreamingContent('');
+          streamingContentRef.current = '';
+          setIsLoading(false);
+          abortControllerRef.current = null;
         },
         abortController.signal
       );
-      
-      const assistantMessage: ChatMessage = {
-        id: assistantMessageId,
-        role: 'assistant',
-        content: streamingContentRef.current,
-        timestamp: new Date(),
-        model: apiConfig.model,
-      };
-      
-      setMessages(prev => [...prev, assistantMessage]);
     } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') {
-        if (streamingContentRef.current) {
-          const assistantMessage: ChatMessage = {
-            id: crypto.randomUUID(),
-            role: 'assistant',
-            content: streamingContentRef.current,
-            timestamp: new Date(),
-            model: apiConfig.model,
-          };
-          setMessages(prev => [...prev, assistantMessage]);
-        }
-      } else {
-        setError(err instanceof Error ? err.message : '发送失败');
+      if ((err as Error)?.name !== 'AbortError') {
+        setError((err as Error).message || '发生未知错误');
       }
-    } finally {
       setIsLoading(false);
-      setStreamingContent('');
-      streamingContentRef.current = '';
       abortControllerRef.current = null;
     }
   };
