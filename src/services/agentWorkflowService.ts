@@ -284,6 +284,34 @@ export class AgentWorkflowService {
       const verifyMatch = taskText.match(/(?:验收|标准|完成)[：:]\s*([^\n]+)/i);
       const verificationCriteria = verifyMatch?.[1]?.trim() || '按描述完成';
 
+      // 提取资源需求
+      const resources: ResourceRequirement[] = [];
+      const resourceMatch = taskText.match(/(?:资源|需要)[：:]([\s\S]*?)(?=时间|验收|$)/i);
+      if (resourceMatch) {
+        const resourceLines = resourceMatch[1].split('\n');
+        for (const line of resourceLines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('-') || trimmed.startsWith('•')) {
+            const resourceText = trimmed.substring(1).trim();
+            // 尝试识别资源类型
+            let type: ResourceType = 'time';
+            if (/钱|资金|成本|费用|元|块/i.test(resourceText)) type = 'money';
+            else if (/技能|能力|知识|经验/i.test(resourceText)) type = 'skill';
+            else if (/工具|设备|软件|硬件/i.test(resourceText)) type = 'tool';
+            else if (/人脉|关系|联系|资源/i.test(resourceText)) type = 'network';
+            else if (/信息|数据|资料|情报/i.test(resourceText)) type = 'information';
+            else if (/空间|场地|位置/i.test(resourceText)) type = 'space';
+            else if (/精力|体力|能量/i.test(resourceText)) type = 'energy';
+
+            resources.push({
+              type,
+              description: resourceText,
+              isEssential: true,
+            });
+          }
+        }
+      }
+
       tasks.push({
         id: crypto.randomUUID(),
         title: title.slice(0, 50),
@@ -291,7 +319,7 @@ export class AgentWorkflowService {
         priority,
         estimatedTime,
         dependencies: [],
-        requiredResources: [],
+        requiredResources: resources,
         verificationCriteria: verificationCriteria.slice(0, 100),
         status: 'pending',
         createdAt: new Date(),
@@ -300,6 +328,180 @@ export class AgentWorkflowService {
     }
 
     return tasks;
+  }
+
+  // ========== 可行性评估 ==========
+
+  static async assessTaskFeasibility(
+    task: ExecutableTask,
+    userContext?: string
+  ): Promise<ExecutableTask> {
+    const prompt = `请对以下任务进行可行性评估：
+
+任务名称：${task.title}
+任务描述：${task.description}
+预计耗时：${task.estimatedTime}分钟
+所需资源：${task.requiredResources.map(r => r.description).join('、') || '未明确'}
+
+${userContext ? `用户背景：${userContext}` : ''}
+
+请从以下维度评估：
+1. 时间可行性（当前时间是否足够）
+2. 资源可行性（资源是否可获取）
+3. 技能可行性（是否具备必要技能）
+4. 风险等级（低/中/高）
+5. 条件匹配（需要满足什么条件）
+6. 缺失资源（缺少什么）
+7. 改进建议
+
+输出格式：
+总体评分：（0-100分）
+时间可行性：（0-100分）
+资源可行性：（0-100分）
+技能可行性：（0-100分）
+风险等级：（低/中/高）
+条件匹配：
+- 条件1：（满足/不满足）- 说明
+- 条件2：（满足/不满足）- 说明
+缺失资源：
+- 资源1：说明
+- 资源2：说明
+改进建议：
+- 建议1
+- 建议2`;
+
+    const messages: ChatMessage[] = [
+      {
+        id: crypto.randomUUID(),
+        role: 'system',
+        content: '你是专业的可行性评估专家，擅长分析任务的可执行性和资源匹配度。',
+        timestamp: new Date(),
+      },
+      {
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: prompt,
+        timestamp: new Date(),
+      },
+    ];
+
+    let fullResponse = '';
+
+    return new Promise((resolve) => {
+      apiService.streamChat(
+        messages,
+        (chunk) => {
+          fullResponse += chunk;
+        },
+        () => {
+          const feasibility = this.parseFeasibilityFromResponse(fullResponse);
+          resolve({
+            ...task,
+            feasibility,
+          });
+        },
+        () => {
+          // 评估失败时返回基础评估
+          resolve({
+            ...task,
+            feasibility: {
+              overallScore: 70,
+              timeFeasibility: 70,
+              resourceFeasibility: 70,
+              skillFeasibility: 70,
+              riskLevel: 'medium',
+              conditions: [],
+              missingResources: [],
+              recommendations: ['建议进一步评估'],
+            },
+          });
+        }
+      );
+    });
+  }
+
+  static parseFeasibilityFromResponse(response: string) {
+    const overallMatch = response.match(/总体评分[：:]\s*(\d+)/i);
+    const timeMatch = response.match(/时间可行性[：:]\s*(\d+)/i);
+    const resourceMatch = response.match(/资源可行性[：:]\s*(\d+)/i);
+    const skillMatch = response.match(/技能可行性[：:]\s*(\d+)/i);
+    const riskMatch = response.match(/风险等级[：:]\s*(低|中|高)/i);
+
+    const conditions: ConditionMatch[] = [];
+    const conditionSection = response.match(/条件匹配[：:]([\s\S]*?)(?=缺失资源|改进建议|$)/i);
+    if (conditionSection) {
+      const lines = conditionSection[1].split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('-') || trimmed.startsWith('•')) {
+          const text = trimmed.substring(1).trim();
+          const isMet = text.includes('满足') && !text.includes('不满足');
+          const conditionMatch = text.match(/^(.+?)[：:]/);
+          conditions.push({
+            condition: conditionMatch ? conditionMatch[1].trim() : text,
+            isMet,
+            confidence: isMet ? 80 : 20,
+          });
+        }
+      }
+    }
+
+    const missingResources: ResourceRequirement[] = [];
+    const resourceSection = response.match(/缺失资源[：:]([\s\S]*?)(?=改进建议|$)/i);
+    if (resourceSection) {
+      const lines = resourceSection[1].split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('-') || trimmed.startsWith('•')) {
+          missingResources.push({
+            type: 'time',
+            description: trimmed.substring(1).trim(),
+            isEssential: true,
+          });
+        }
+      }
+    }
+
+    const recommendations: string[] = [];
+    const suggestionSection = response.match(/改进建议[：:]([\s\S]*?)$/i);
+    if (suggestionSection) {
+      const lines = suggestionSection[1].split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('-') || trimmed.startsWith('•')) {
+          recommendations.push(trimmed.substring(1).trim());
+        }
+      }
+    }
+
+    return {
+      overallScore: overallMatch ? parseInt(overallMatch[1]) : 70,
+      timeFeasibility: timeMatch ? parseInt(timeMatch[1]) : 70,
+      resourceFeasibility: resourceMatch ? parseInt(resourceMatch[1]) : 70,
+      skillFeasibility: skillMatch ? parseInt(skillMatch[1]) : 70,
+      riskLevel: (riskMatch?.[1] as 'low' | 'medium' | 'high') || 'medium',
+      conditions,
+      missingResources,
+      recommendations: recommendations.length > 0 ? recommendations : ['建议进一步评估'],
+    };
+  }
+
+  // ========== 价值交换评估 ==========
+
+  static async assessValueExchange(
+    tasks: ExecutableTask[],
+    goal: string
+  ): Promise<ValueExchangeAssessment> {
+    const totalTime = tasks.reduce((sum, t) => sum + t.estimatedTime, 0);
+    const allResources = tasks.flatMap(t => t.requiredResources);
+
+    return {
+      inputResources: allResources,
+      outputValue: [`完成目标：${goal}`, `产出${tasks.length}个可执行任务`],
+      roi: 100, // 简化计算
+      sustainability: totalTime < 60 ? 'short' : totalTime < 300 ? 'medium' : 'long',
+      marketFit: 75,
+    };
   }
 
   // ========== 记忆管理 ==========

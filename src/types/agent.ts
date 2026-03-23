@@ -10,6 +10,58 @@ export type AgentRole =
 export type TaskPriority = 'high' | 'medium' | 'low';
 export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'blocked';
 
+// 资源类型
+export type ResourceType = 
+  | 'time'        // 时间
+  | 'money'       // 资金
+  | 'energy'      // 精力/体力
+  | 'skill'       // 技能
+  | 'tool'        // 工具/设备
+  | 'network'     // 人脉/关系
+  | 'information' // 信息/数据
+  | 'space';      // 空间/场地
+
+// 资源需求
+export interface ResourceRequirement {
+  type: ResourceType;
+  description: string;
+  amount?: number;              // 数量
+  unit?: string;                // 单位
+  isEssential: boolean;         // 是否必需
+  alternatives?: string[];      // 替代方案
+}
+
+// 条件匹配
+export interface ConditionMatch {
+  condition: string;            // 条件描述
+  isMet: boolean;               // 是否满足
+  confidence: number;           // 置信度 0-100
+  evidence?: string;            // 证据/依据
+  gap?: string;                 // 差距（如果不满足）
+}
+
+// 可行性评估
+export interface FeasibilityAssessment {
+  overallScore: number;         // 总体可行性 0-100
+  timeFeasibility: number;      // 时间可行性
+  resourceFeasibility: number;  // 资源可行性
+  skillFeasibility: number;     // 技能可行性
+  riskLevel: 'low' | 'medium' | 'high';
+  conditions: ConditionMatch[]; // 条件匹配情况
+  missingResources: ResourceRequirement[]; // 缺失资源
+  recommendations: string[];    // 改进建议
+}
+
+// 价值交换评估
+export interface ValueExchangeAssessment {
+  inputResources: ResourceRequirement[];   // 投入资源
+  outputValue: string[];                   // 产出价值
+  roi: number;                             // 投资回报率估计
+  breakEvenTime?: number;                  // 盈亏平衡时间（天）
+  sustainability: 'short' | 'medium' | 'long'; // 可持续性
+  marketFit: number;                       // 市场匹配度 0-100
+}
+
 // 可执行任务
 export interface ExecutableTask {
   id: string;
@@ -19,13 +71,27 @@ export interface ExecutableTask {
   estimatedTime: number;        // 预计耗时（分钟）
   deadline?: Date;              // 截止日期
   dependencies: string[];       // 依赖的其他任务ID
-  requiredResources: string[];  // 所需资源
+  requiredResources: ResourceRequirement[];  // 所需资源
   verificationCriteria: string; // 完成标准
   status: TaskStatus;
   createdAt: Date;
   completedAt?: Date;
   tags: string[];
   assignee?: string;            // 执行人
+  
+  // 新增：可行性评估
+  feasibility?: FeasibilityAssessment;
+  
+  // 新增：价值交换评估
+  valueExchange?: ValueExchangeAssessment;
+  
+  // 新增：市场匹配
+  marketFit?: {
+    targetAudience: string[];   // 目标受众
+    competition: string[];      // 竞争对手/替代方案
+    differentiation: string;    // 差异化优势
+    timing: string;             // 时机评估
+  };
 }
 
 // 目标对象（模拟用户/测试对象）
