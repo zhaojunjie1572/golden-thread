@@ -183,52 +183,132 @@ export default function ActionProtocolView() {
     localStorage.setItem('think-tank-selected-memory-modules', JSON.stringify(selectedMemoryModuleIds));
   }, [selectedMemoryModuleIds]);
 
+  // 提取对话摘要
+  const extractSummary = (messages: ChatMessage[]): string => {
+    if (messages.length === 0) return '';
+    
+    // 提取关键信息：前3轮和最后3轮对话
+    const keyMessages = [
+      ...messages.slice(0, 3),
+      ...(messages.length > 6 ? [{ role: 'system', content: `...(中间省略 ${messages.length - 6} 条消息)...` } as ChatMessage] : []),
+      ...messages.slice(-3)
+    ];
+    
+    return keyMessages.map(msg => {
+      const prefix = msg.role === 'user' ? '用户' : msg.role === 'assistant' ? 'AI' : '系统';
+      // 限制单条消息长度
+      const content = msg.content.length > 200 
+        ? msg.content.slice(0, 200) + '...' 
+        : msg.content;
+      return `${prefix}: ${content}`;
+    }).join('\n');
+  };
+
   const prepareConversationHistory = (userMessage: ChatMessage): ChatMessage[] => {
     if (!selectedModule) return [userMessage];
     
-    const history: ChatMessage[] = [
-      {
-        id: crypto.randomUUID(),
-        role: 'system',
-        content: selectedModule.prompt,
-        timestamp: new Date(),
-      } as ChatMessage,
-    ];
+    const history: ChatMessage[] = [];
+    
+    // 1. 系统预设提示词
+    history.push({
+      id: crypto.randomUUID(),
+      role: 'system',
+      content: selectedModule.prompt,
+      timestamp: new Date(),
+    } as ChatMessage);
 
-    selectedMemoryModuleIds.forEach(moduleId => {
-      if (moduleId === selectedModuleId) return;
+    // 2. 引用其他模块的记忆（如果有）
+    const validMemoryModules = selectedMemoryModuleIds.filter(moduleId => {
+      if (moduleId === selectedModuleId) return false;
       const module = modules.find(m => m.id === moduleId);
       const moduleMsgs = moduleMessages[moduleId];
-      if (module && moduleMsgs && moduleMsgs.length > 0) {
+      return module && moduleMsgs && moduleMsgs.length > 0;
+    });
+
+    if (validMemoryModules.length > 0) {
+      // 构建记忆说明
+      const memoryIntro = validMemoryModules.map(moduleId => {
+        const module = modules.find(m => m.id === moduleId);
+        return module ? `${module.icon} ${module.name}` : '';
+      }).filter(Boolean).join('、');
+
+      history.push({
+        id: crypto.randomUUID(),
+        role: 'system',
+        content: `【相关记忆】以下是你与其他模块（${memoryIntro}）的对话历史，可能对你回答当前问题有帮助：`,
+        timestamp: new Date(),
+      } as ChatMessage);
+
+      // 添加每个模块的记忆（保持原始role）
+      validMemoryModules.forEach(moduleId => {
+        const module = modules.find(m => m.id === moduleId);
+        const moduleMsgs = moduleMessages[moduleId];
+        if (!module || !moduleMsgs) return;
+
+        // 模块分隔标识
         history.push({
           id: crypto.randomUUID(),
           role: 'system',
-          content: `--- 来自「${module.icon} ${module.name}」模块的记忆 ---`,
+          content: `--- ${module.icon} ${module.name} 的对话记录 ---`,
           timestamp: new Date(),
         } as ChatMessage);
-        
-        // 根据配置限制记忆字数
-        let memoryContent = '';
-        moduleMsgs.forEach(msg => {
-          memoryContent += `${msg.role === 'user' ? '用户' : 'AI'}: ${msg.content}\n`;
-        });
-        
-        // 如果超过最大字数，截取最近的内容
+
+        // 根据配置决定使用摘要还是完整内容
+        let memoryContent: string;
+        if (memoryConfig.autoExtract && moduleMsgs.length > 6) {
+          memoryContent = extractSummary(moduleMsgs);
+        } else {
+          memoryContent = moduleMsgs.map(msg => {
+            const prefix = msg.role === 'user' ? '用户' : 'AI';
+            return `${prefix}: ${msg.content}`;
+          }).join('\n');
+        }
+
+        // 字数限制
         if (memoryContent.length > memoryConfig.maxWords) {
           memoryContent = memoryContent.slice(-memoryConfig.maxWords);
           memoryContent = '...(前面内容已省略)\n' + memoryContent;
         }
-        
+
+        // 将记忆内容作为系统消息，但明确标识来源
         history.push({
           id: crypto.randomUUID(),
           role: 'system',
           content: memoryContent,
           timestamp: new Date(),
         } as ChatMessage);
-      }
-    });
+      });
 
-    history.push(...currentMessages);
+      // 记忆结束标识
+      history.push({
+        id: crypto.randomUUID(),
+        role: 'system',
+        content: '【记忆结束】以上是相关历史对话，请基于这些信息回答当前问题。',
+        timestamp: new Date(),
+      } as ChatMessage);
+    }
+
+    // 3. 当前模块的对话历史（保持原始role）
+    if (currentMessages.length > 0) {
+      history.push({
+        id: crypto.randomUUID(),
+        role: 'system',
+        content: `【当前对话】以下是你与用户在「${selectedModule.icon} ${selectedModule.name}」模块的对话：`,
+        timestamp: new Date(),
+      } as ChatMessage);
+
+      currentMessages.forEach(msg => {
+        history.push({
+          id: msg.id || crypto.randomUUID(),
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date(msg.timestamp),
+          model: msg.model,
+        } as ChatMessage);
+      });
+    }
+
+    // 4. 用户新消息
     history.push(userMessage);
     
     return history;
