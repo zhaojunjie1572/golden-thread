@@ -606,7 +606,11 @@ export default function AIAssistantView() {
           <div className="absolute inset-0 bg-[#ededed]" />
         )}
 
-        <div className={`relative z-10 flex items-center px-3 py-2 ${topBarTransparent ? 'bg-transparent border-b border-transparent' : 'bg-white/95 backdrop-blur-sm border-b border-gray-200'} shrink-0`}>
+        <div className={`relative z-10 flex items-center px-3 py-2 ${
+            (topBarTransparent || (bubbleTransparent && backgroundImage)) 
+              ? 'bg-transparent border-b border-transparent' 
+              : 'bg-white/95 backdrop-blur-sm border-b border-gray-200'
+          } shrink-0`}>
           <button
             onClick={() => setIsFullscreen(false)}
             className="p-2 text-gray-700 hover:text-gray-900 transition-colors"
@@ -747,10 +751,14 @@ export default function AIAssistantView() {
         )}
 
         <div className="relative z-10 flex-1 flex flex-col min-h-0">
-          <div className={`flex-1 flex flex-col mx-2 my-2 rounded-2xl shadow-sm border overflow-hidden ${
-            backgroundImage ? 'bg-white/80 backdrop-blur-sm border-white/20' : 'bg-white border-gray-100'
+          <div className={`flex-1 flex flex-col mx-2 my-2 rounded-2xl overflow-hidden ${
+            bubbleTransparent && backgroundImage 
+              ? 'bg-transparent border-transparent shadow-none' 
+              : (backgroundImage ? 'bg-white/80 backdrop-blur-sm border-white/20 shadow-none' : 'bg-white border-gray-100 shadow-sm')
           }`}>
-            <div className="flex-1 overflow-y-auto p-3 space-y-3">
+            <div className={`flex-1 overflow-y-auto p-3 space-y-3 ${
+              bubbleTransparent && backgroundImage ? 'bg-transparent' : ''
+            }`}>
               {messages.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="text-4xl mb-3">🤖</div>
@@ -905,7 +913,11 @@ export default function AIAssistantView() {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className={`p-3 border-t shrink-0 ${inputBarTransparent ? 'bg-transparent border-transparent' : (backgroundImage ? 'bg-white/50 border-white/20' : 'bg-white border-gray-100')}`}>
+            <div className={`p-3 border-t shrink-0 ${
+              (inputBarTransparent || (bubbleTransparent && backgroundImage)) 
+                ? 'bg-transparent border-transparent' 
+                : (backgroundImage ? 'bg-white/50 border-white/20' : 'bg-white border-gray-100')
+            }`}>
               {attachedFiles.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-2">
                   {attachedFiles.map((file) => (
