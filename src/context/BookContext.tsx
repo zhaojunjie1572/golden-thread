@@ -719,7 +719,19 @@ export function BookProvider({ children }: { children: ReactNode }) {
       return [];
     }
     try {
-      const response = await fetchWithTimeout(`${source.url}/search?q=${encodeURIComponent(query)}`);
+      let searchUrl = `${source.url}/search`;
+      
+      if (source.searchUrl) {
+        searchUrl = source.searchUrl.replace('{{key}}', encodeURIComponent(query))
+                                   .replace('{key}', encodeURIComponent(query));
+        searchUrl = resolveUrl(source.url, searchUrl);
+      } else {
+        searchUrl = `${source.url}/search?q=${encodeURIComponent(query)}`;
+      }
+      
+      const response = await fetchWithTimeout(searchUrl, {
+        headers: source.header,
+      });
       if (!response.ok) {
         throw new Error(`搜索失败: HTTP ${response.status}`);
       }

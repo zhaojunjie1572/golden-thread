@@ -103,11 +103,15 @@ export default function BookReader({ book, onUpdateProgress, onClose }: BookRead
     let currentStart = 0;
     
     parsedParagraphs.forEach((paragraph, index) => {
-      if (paragraph.length < 50 && (
-        paragraph.includes('第') && (paragraph.includes('章') || paragraph.includes('节') || paragraph.includes('卷')) ||
-        /^第\s*\d+\s*[章节卷篇]/.test(paragraph) ||
-        /^[一二三四五六七八九十百千万]+[章节卷篇]/.test(paragraph)
-      )) {
+      const isChapterTitle = (
+        paragraph.length < 50 && (
+          (paragraph.includes('第') && (paragraph.includes('章') || paragraph.includes('节') || paragraph.includes('卷'))) ||
+          /^第\s*\d+\s*[章节卷篇]/.test(paragraph) ||
+          /^[一二三四五六七八九十百千万零〇]+[章节卷篇部]/.test(paragraph)
+        )
+      );
+      
+      if (isChapterTitle) {
         if (currentStart < index) {
           extractedChapters.push({
             title: parsedParagraphs[currentStart] || '未命名章节',
@@ -146,9 +150,10 @@ export default function BookReader({ book, onUpdateProgress, onClose }: BookRead
   }, [paragraphs, book.totalCharacters, onUpdateProgress]);
 
   const toggleSpeaking = useCallback(() => {
-    console.log('=== toggleSpeaking 被调用');
-    console.log('当前段落索引:', currentParagraphIndex);
-    console.log('段落总数:', paragraphs.length);
+    if (paragraphs.length === 0) {
+      alert('书籍内容为空，无法朗读');
+      return;
+    }
     
     if (isSpeaking) {
       if (isPaused) {
@@ -163,10 +168,9 @@ export default function BookReader({ book, onUpdateProgress, onClose }: BookRead
         onUpdateProgress(progress);
       };
       
-      console.log('从段落', currentParagraphIndex, '开始朗读');
       startSpeaking(book.title, book.author, paragraphs, currentParagraphIndex, handleProgress);
     }
-  }, [isSpeaking, isPaused, startSpeaking, resumeSpeaking, pauseSpeaking, book.title, book.author, paragraphs, currentParagraphIndex, book.totalCharacters, onUpdateProgress]);
+  }, [paragraphs.length, isSpeaking, isPaused, resumeSpeaking, pauseSpeaking, startSpeaking, book.title, book.author, currentParagraphIndex, book.totalCharacters, onUpdateProgress]);
 
   const nextParagraph = useCallback(() => {
     if (currentParagraphIndex < paragraphs.length - 1) {

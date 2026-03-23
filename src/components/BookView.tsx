@@ -33,7 +33,7 @@ export default function BookView() {
           addBook(book);
           successCount++;
         } catch (error) {
-          console.error(`Failed to import ${file.name}:`, error);
+          console.error(`导入书籍失败: ${file.name}`, error);
           failCount++;
         }
         setImportProgress(Math.round(((i + 1) / files.length) * 100));
