@@ -942,6 +942,23 @@ export default function AIAssistantView() {
               </div>
               <div className="flex items-center gap-2">
                 <button
+                  onClick={() => {
+                    if (messages.length > 0) {
+                      if (confirm('确定要开启新聊天吗？当前对话内容将被保存到历史记录。')) {
+                        createNewSession();
+                      }
+                    } else {
+                      createNewSession();
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm flex items-center gap-1.5 hover:bg-gray-200"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  新聊天
+                </button>
+                <button
                   onClick={() => setShowChatHistory(!showChatHistory)}
                   className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm flex items-center gap-1.5 hover:bg-gray-200"
                 >
