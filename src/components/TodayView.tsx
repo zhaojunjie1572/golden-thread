@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProtocols } from '../context/ProtocolContext';
 import { useMusic } from '../context/MusicContext';
-import { ProtocolModel, goalTypeLabels, triggerTypeLabels, createEmptyProtocol } from '../types/protocol';
+import { ProtocolModel, goalTypeLabels, triggerTypeLabels } from '../types/protocol';
 
 const defaultWisdomQuotes = [
   { text: "千里之行，始于足下", author: "老子" },
@@ -18,92 +18,6 @@ const defaultWisdomQuotes = [
 ];
 
 const STORAGE_KEY = 'wisdom_quotes';
-
-const goalMatchTemplates = [
-  {
-    title: "情境感知",
-    content: "敏锐觉察环境变化，把握行动时机",
-    template: {
-      principle: "情境感知",
-      goalType: "habit",
-      action: "观察记录环境变化",
-      minimumAction: "觉察1个关键信号"
-    }
-  },
-  {
-    title: "资源嗅探",
-    content: "主动发现可用资源，为行动铺路",
-    template: {
-      principle: "资源嗅探",
-      goalType: "habit",
-      action: "寻找并整合3种资源",
-      minimumAction: "发现1种可用资源"
-    }
-  },
-  {
-    title: "供需解析",
-    content: "分析需求与供给，找到平衡点",
-    template: {
-      principle: "供需解析",
-      goalType: "habit",
-      action: "深度分析供需关系",
-      minimumAction: "识别1个关键需求"
-    }
-  },
-  {
-    title: "权力允许",
-    content: "明确权限边界，在允许范围内行动",
-    template: {
-      principle: "权力允许",
-      goalType: "habit",
-      action: "在权限内自主决策",
-      minimumAction: "确认1项可执行权限"
-    }
-  }
-];
-
-const valueExchangeTemplates = [
-  {
-    title: "行业信息",
-    content: "收集行业动态，把握趋势脉搏",
-    template: {
-      principle: "行业信息",
-      goalType: "habit",
-      action: "阅读3篇行业资讯",
-      minimumAction: "浏览1条行业新闻"
-    }
-  },
-  {
-    title: "市场节点",
-    content: "识别关键节点，捕捉市场机会",
-    template: {
-      principle: "市场节点",
-      goalType: "habit",
-      action: "分析2个市场关键节点",
-      minimumAction: "标记1个重要节点"
-    }
-  },
-  {
-    title: "资源利用",
-    content: "优化资源配置，最大化价值产出",
-    template: {
-      principle: "资源利用",
-      goalType: "habit",
-      action: "优化3项资源使用",
-      minimumAction: "改进1项资源利用方式"
-    }
-  },
-  {
-    title: "风险收益",
-    content: "评估风险与收益，做出明智决策",
-    template: {
-      principle: "风险收益",
-      goalType: "habit",
-      action: "分析2个决策的风险收益",
-      minimumAction: "评估1个选项的利弊"
-    }
-  }
-];
 
 const formatDate = (() => {
   const formatter = new Intl.DateTimeFormat('zh-CN', {
@@ -165,69 +79,63 @@ const WisdomQuoteCard = ({
   </div>
 );
 
-const TemplateCard = ({ 
-  template, 
-  color, 
-  onClick 
-}: { 
-  template: any; 
-  color: 'blue' | 'green'; 
+const QuickActionCard = ({
+  title,
+  subtitle,
+  icon,
+  color,
+  onClick,
+  stats
+}: {
+  title: string;
+  subtitle: string;
+  icon: string;
+  color: 'blue' | 'green' | 'purple' | 'orange';
   onClick: () => void;
+  stats: string;
 }) => {
-  return (
-    <div
-      className="bg-white rounded-xl p-4 border cursor-pointer hover:shadow-md transition-all duration-300"
-      style={{ borderColor: color === 'blue' ? '#dbeafe' : '#d1fae5' }}
-      onClick={onClick}
-    >
-      <h3 className={`font-semibold mb-1 ${color === 'blue' ? 'text-blue-700' : 'text-green-700'}`}>
-        {template.title}
-      </h3>
-      <p className="text-sm text-gray-600">{template.content}</p>
-    </div>
-  );
-};
+  const colorClasses = {
+    blue: 'from-blue-50 to-blue-100 border-blue-200 hover:border-blue-300 text-blue-700',
+    green: 'from-green-50 to-green-100 border-green-200 hover:border-green-300 text-green-700',
+    purple: 'from-purple-50 to-purple-100 border-purple-200 hover:border-purple-300 text-purple-700',
+    orange: 'from-orange-50 to-orange-100 border-orange-200 hover:border-orange-300 text-orange-700'
+  };
 
-const TemplateSection = ({ 
-  title, 
-  icon, 
-  templates, 
-  color, 
-  onTemplateClick 
-}: { 
-  title: string; 
-  icon: string; 
-  templates: any[]; 
-  color: 'blue' | 'green'; 
-  onTemplateClick: (template: any) => void;
-}) => {
-  const bgColors = {
-    blue: 'from-blue-50 to-indigo-50 border-blue-200',
-    green: 'from-green-50 to-emerald-50 border-green-200'
+  const iconBgClasses = {
+    blue: 'bg-blue-500',
+    green: 'bg-green-500',
+    purple: 'bg-purple-500',
+    orange: 'bg-orange-500'
   };
-  
-  const textColors = {
-    blue: 'text-blue-800',
-    green: 'text-green-800'
-  };
-  
+
   return (
-    <div className={`bg-gradient-to-br ${bgColors[color]} rounded-2xl border-2 ${bgColors[color].split(' ')[2]} p-6 shadow-lg`}>
-      <div className="flex items-center gap-2 mb-4">
-        <span className="text-2xl">{icon}</span>
-        <h2 className={`text-xl font-bold ${textColors[color]}`}>{title}</h2>
+    <button
+      onClick={onClick}
+      className={`w-full bg-gradient-to-br ${colorClasses[color]} rounded-2xl border-2 p-6 transition-all hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] text-left group`}
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <div className="flex items-center gap-3 mb-2">
+            <div className={`w-12 h-12 ${iconBgClasses[color]} rounded-xl flex items-center justify-center text-white text-2xl shadow-lg group-hover:scale-110 transition-transform`}>
+              {icon}
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-800 group-hover:text-gray-900">{title}</h2>
+              <p className="text-sm text-gray-500">{subtitle}</p>
+            </div>
+          </div>
+        </div>
+        <div className="text-right">
+          <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium bg-white/60 ${colorClasses[color]}`}>
+            {stats}
+          </span>
+        </div>
       </div>
-      <div className="grid grid-cols-1 gap-3">
-        {templates.map((template, index) => (
-          <TemplateCard
-            key={index}
-            template={template}
-            color={color}
-            onClick={() => onTemplateClick(template)}
-          />
-        ))}
+      <div className="mt-4 flex items-center text-sm text-gray-500 group-hover:text-gray-700 transition-colors">
+        <span>点击进入</span>
+        <span className="ml-1 group-hover:translate-x-1 transition-transform">→</span>
       </div>
-    </div>
+    </button>
   );
 };
 
@@ -1063,17 +971,6 @@ export default function TodayView() {
     });
   }, [saveQuotesToStorage]);
 
-  const handleTemplateClick = useCallback((template: any) => {
-    const newProtocol = createEmptyProtocol();
-    const mergedProtocol = {
-      ...newProtocol,
-      ...template.template,
-      triggerCondition: template.content,
-      successCriteria: template.content
-    };
-    navigate('/create', { state: { prefillData: mergedProtocol } });
-  }, [navigate]);
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-64">
@@ -1101,20 +998,26 @@ export default function TodayView() {
         </div>
       </div>
       
+      {/* 快速入口区域 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <TemplateSection
-          title="目标匹配"
-          icon="🎯"
-          templates={goalMatchTemplates}
+        {/* 创建协议入口 */}
+        <QuickActionCard
+          title="创建新协议"
+          subtitle="定义你的行动规则"
+          icon="➕"
           color="blue"
-          onTemplateClick={handleTemplateClick}
+          onClick={() => navigate('/create')}
+          stats={protocols.length > 0 ? `${protocols.length} 个协议` : '开始创建'}
         />
-        <TemplateSection
-          title="价值交换"
-          icon="💎"
-          templates={valueExchangeTemplates}
+
+        {/* 协议列表入口 */}
+        <QuickActionCard
+          title="我的协议库"
+          subtitle="管理和追踪所有协议"
+          icon="📋"
           color="green"
-          onTemplateClick={handleTemplateClick}
+          onClick={() => navigate('/protocols')}
+          stats={`${protocols.filter(p => p.successCount > 0).length} 个已执行`}
         />
       </div>
 
