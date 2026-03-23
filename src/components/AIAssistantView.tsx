@@ -125,6 +125,7 @@ export default function AIAssistantView() {
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('web-search-enabled', webSearchEnabled.toString());
@@ -579,8 +580,461 @@ export default function AIAssistantView() {
     }
   };
 
+  if (isFullscreen) {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex flex-col"
+        style={{
+          backgroundImage: backgroundImage ? `url(${backgroundImage})` : undefined,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundColor: backgroundImage ? 'transparent' : '#f5f5f5',
+        }}
+      >
+        {!backgroundImage && (
+          <div className="absolute inset-0 bg-[#ededed]" />
+        )}
+
+        <div className={`relative z-10 flex items-center px-3 py-2 ${topBarTransparent ? 'bg-transparent border-b border-transparent' : 'bg-white/95 backdrop-blur-sm border-b border-gray-200'} shrink-0`}>
+          <button
+            onClick={() => setIsFullscreen(false)}
+            className="p-2 text-gray-700 hover:text-gray-900 transition-colors"
+            title="退出全屏"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
+            </svg>
+          </button>
+          <div className="flex-1 flex items-center justify-center gap-2">
+            <span className="text-lg">🤖</span>
+            <h1 className="text-base font-semibold text-gray-800">AI 助手</h1>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowColorSettings(!showColorSettings)}
+              className="p-2 text-gray-700 hover:text-gray-900 transition-colors"
+              title="显示设置"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {showColorSettings && (
+          <div className="relative z-10 bg-white/90 backdrop-blur-sm rounded-b-2xl shadow-sm border border-gray-200 p-4 mx-4 mt-2 max-h-[60vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-800">显示设置</h2>
+              <button
+                onClick={() => setShowColorSettings(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">背景图片</label>
+                <div className="flex gap-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleBackgroundImageUpload}
+                    className="hidden"
+                    id="ai-bg-upload-fs"
+                  />
+                  <label
+                    htmlFor="ai-bg-upload-fs"
+                    className="flex-1 px-4 py-3 border-2 border-dashed border-gray-300 rounded-xl text-center cursor-pointer hover:border-golden hover:bg-golden/5 transition-colors"
+                  >
+                    <span className="text-gray-500">点击上传背景图片</span>
+                  </label>
+                  {backgroundImage && (
+                    <button
+                      onClick={removeBackgroundImage}
+                      className="px-4 py-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors"
+                    >
+                      移除
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">用户文字颜色</label>
+                <input
+                  type="color"
+                  value={userTextColor}
+                  onChange={(e) => setUserTextColor(e.target.value)}
+                  className="w-full h-12 rounded-xl cursor-pointer"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">AI文字颜色</label>
+                <input
+                  type="color"
+                  value={aiTextColor}
+                  onChange={(e) => setAiTextColor(e.target.value)}
+                  className="w-full h-12 rounded-xl cursor-pointer"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">文字大小: {(textScale * 100).toFixed(0)}%</label>
+                <input
+                  type="range"
+                  min="0.7"
+                  max="1.5"
+                  step="0.1"
+                  value={textScale}
+                  onChange={(e) => setTextScale(parseFloat(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-gray-700">顶部栏透明</label>
+                <button
+                  onClick={() => setTopBarTransparent(!topBarTransparent)}
+                  className={`w-12 h-6 rounded-full transition-colors ${
+                    topBarTransparent ? 'bg-golden' : 'bg-gray-300'
+                  }`}
+                >
+                  <div className={`w-5 h-5 rounded-full bg-white transition-transform ${
+                    topBarTransparent ? 'translate-x-6' : 'translate-x-0.5'
+                  }`} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-gray-700">输入栏透明</label>
+                <button
+                  onClick={() => setInputBarTransparent(!inputBarTransparent)}
+                  className={`w-12 h-6 rounded-full transition-colors ${
+                    inputBarTransparent ? 'bg-golden' : 'bg-gray-300'
+                  }`}
+                >
+                  <div className={`w-5 h-5 rounded-full bg-white transition-transform ${
+                    inputBarTransparent ? 'translate-x-6' : 'translate-x-0.5'
+                  }`} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="relative z-10 flex-1 flex flex-col min-h-0">
+          <div className={`flex-1 flex flex-col mx-2 my-2 rounded-2xl shadow-sm border overflow-hidden ${
+            backgroundImage ? 'bg-white/80 backdrop-blur-sm border-white/20' : 'bg-white border-gray-100'
+          }`}>
+            <div className="flex-1 overflow-y-auto p-3 space-y-3">
+              {messages.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-3">🤖</div>
+                  <h2 className="text-base font-semibold text-gray-800 mb-1.5">你好，我是金线 AI 助手</h2>
+                  <p className="text-gray-500 max-w-md mx-auto mb-4 text-sm">
+                    我可以帮你：<br />
+                    设计行动协议 · 优化习惯养成 · 解决执行卡点
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 justify-center max-w-md mx-auto">
+                    <QuickQuestion
+                      text="如何设计一个好的行动协议？"
+                      onClick={() => setInput('如何设计一个好的行动协议？')}
+                    />
+                    <QuickQuestion
+                      text="连续失败后怎么调整？"
+                      onClick={() => setInput('连续失败后怎么调整？')}
+                    />
+                    <QuickQuestion
+                      text="如何养成早起的习惯？"
+                      onClick={() => setInput('如何养成早起的习惯？')}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} px-1`}
+                    >
+                      <div className={`max-w-[85%] flex items-start gap-2 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                        {message.role === 'assistant' && (
+                          <div className={`w-10 h-10 rounded-full ${backgroundImage ? 'bg-white/60' : 'bg-white/80'} backdrop-blur-sm flex items-center justify-center text-lg shrink-0 shadow-sm`}>
+                            🤖
+                          </div>
+                        )}
+                        <div className={`relative ${message.role === 'user' ? 'items-end' : 'items-start'} flex flex-col`}>
+                          <div
+                            className={`px-3.5 py-2.5 ${
+                              backgroundImage
+                                ? `shadow-none`
+                                : `${message.role === 'user' ? 'bg-[#95ec69] rounded-br-sm' : 'bg-white rounded-bl-sm'} rounded-xl shadow-sm`
+                            }`}
+                            style={{
+                              color: message.role === 'user' ? userTextColor : aiTextColor,
+                              backgroundColor: backgroundImage ? (message.role === 'user' ? 'rgba(149, 236, 105, 0.9)' : 'rgba(255, 255, 255, 0.9)') : undefined,
+                            }}
+                          >
+                            {message.attachments && message.attachments.length > 0 && (
+                              <div className="mb-2 flex flex-wrap gap-2">
+                                {message.attachments.map((attachment) => (
+                                  <div
+                                    key={attachment.id}
+                                    className="bg-white/20 rounded-lg p-2 border border-white/30"
+                                  >
+                                    {attachment.type === 'image' && attachment.preview ? (
+                                      <img
+                                        src={attachment.preview}
+                                        alt={attachment.name}
+                                        className="w-32 h-32 object-cover rounded"
+                                      />
+                                    ) : (
+                                      <div className="flex items-center gap-2">
+                                        <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        <div>
+                                          <p className="text-xs text-gray-700">{attachment.name}</p>
+                                          <p className="text-xs text-gray-400">{formatFileSize(attachment.size)}</p>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <p className="whitespace-pre-wrap font-medium" style={{ fontSize: `${16 * textScale}px` }}>{message.content}</p>
+                          </div>
+                          {message.role === 'assistant' && (
+                            <div className="flex items-center gap-1 mt-1">
+                              {speakingId === message.id ? (
+                                <>
+                                  <button
+                                    onClick={handlePauseSpeaking}
+                                    className="p-1 text-gray-500 hover:text-gray-700"
+                                  >
+                                    {isPaused ? (
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                      </svg>
+                                    ) : (
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                      </svg>
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={handleStopSpeaking}
+                                    className="p-1 text-gray-500 hover:text-gray-700"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                                    </svg>
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  onClick={() => handleSpeak(message)}
+                                  className="p-1 text-gray-500 hover:text-gray-700"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        {message.role === 'user' && (
+                          <div className={`w-10 h-10 rounded-full ${backgroundImage ? 'bg-[#95ec69]/60' : 'bg-[#95ec69]/80'} backdrop-blur-sm flex items-center justify-center text-lg shrink-0 shadow-sm`}>
+                            👤
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {streamingContent && (
+                    <div className="flex justify-start px-1">
+                      <div className="max-w-[85%] flex items-start gap-2">
+                        <div className={`w-10 h-10 rounded-full ${backgroundImage ? 'bg-white/60' : 'bg-white/80'} backdrop-blur-sm flex items-center justify-center text-lg shrink-0 shadow-sm`}>
+                          🤖
+                        </div>
+                        <div className="relative items-start flex flex-col">
+                          <div
+                            className={`px-3.5 py-2.5 ${backgroundImage ? 'shadow-none' : 'bg-white rounded-bl-sm rounded-xl shadow-sm'}`}
+                            style={{
+                              color: aiTextColor,
+                              backgroundColor: backgroundImage ? 'rgba(255, 255, 255, 0.9)' : undefined,
+                            }}
+                          >
+                            <p className="whitespace-pre-wrap font-medium" style={{ fontSize: `${16 * textScale}px` }}>{streamingContent}</p>
+                            <span className="inline-block w-1.5 h-4 ml-1 align-middle animate-pulse" style={{ backgroundColor: aiTextColor }} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            <div className={`p-3 border-t shrink-0 ${inputBarTransparent ? 'bg-transparent border-transparent' : (backgroundImage ? 'bg-white/50 border-white/20' : 'bg-white border-gray-100')}`}>
+              {attachedFiles.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {attachedFiles.map((file) => (
+                    <div
+                      key={file.id}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg"
+                    >
+                      {file.type === 'image' && file.preview ? (
+                        <img
+                          src={file.preview}
+                          alt={file.file.name}
+                          className="w-8 h-8 object-cover rounded"
+                        />
+                      ) : (
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      )}
+                      <span className="text-xs text-gray-700 truncate max-w-[100px]">{file.file.name}</span>
+                      <button
+                        onClick={() => removeAttachedFile(file.id)}
+                        className="text-gray-400 hover:text-red-500"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {isLoading && (
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-3.5 h-3.5 border-2 border-golden/30 border-t-golden rounded-full animate-spin" />
+                  <span className="text-xs text-gray-600">
+                    {isSearching ? '搜索网络中...' : '思考中...'}
+                  </span>
+                  <button
+                    onClick={handleStopGeneration}
+                    className="ml-auto text-xs text-red-500 hover:text-red-600 hover:bg-red-50 px-2.5 py-1 rounded-lg transition-colors"
+                  >
+                    中断
+                  </button>
+                </div>
+              )}
+
+              <div className="flex gap-2 items-end">
+                <div className="flex gap-1">
+                  <input
+                    type="file"
+                    ref={imageInputRef}
+                    accept="image/*"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => imageInputRef.current?.click()}
+                    disabled={isLoading}
+                    className="p-2.5 text-gray-500 hover:text-golden hover:bg-golden/10 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="上传图片"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    multiple
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isLoading}
+                    className="p-2.5 text-gray-500 hover:text-golden hover:bg-golden/10 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="上传文件"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={toggleListening}
+                    disabled={isLoading}
+                    className={`p-2.5 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                      isListening
+                        ? 'text-red-500 bg-red-50 animate-pulse'
+                        : 'text-gray-500 hover:text-golden hover:bg-golden/10'
+                    }`}
+                    title="语音输入"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                  </button>
+                </div>
+
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyPress}
+                  placeholder=""
+                  disabled={isLoading || !apiService.hasApiKey()}
+                  className={`flex-1 px-3 py-2.5 rounded-lg outline-none resize-none max-h-28 text-base ${
+                    inputBarTransparent
+                      ? 'bg-white/80 backdrop-blur-sm border border-white/30 text-black placeholder-gray-500'
+                      : 'border border-gray-300 text-black placeholder-gray-500'
+                  }`}
+                  rows={1}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck="false"
+                />
+
+                <button
+                  onClick={isLoading ? handleStopGeneration : handleSend}
+                  disabled={!isLoading && !input.trim() && attachedFiles.length === 0 || !apiService.hasApiKey()}
+                  className={`px-4 py-2.5 rounded-xl font-semibold transition-colors flex items-center gap-1.5 ${
+                    isLoading
+                      ? 'bg-red-500 text-white hover:bg-red-600'
+                      : !input.trim() && attachedFiles.length === 0 || !apiService.hasApiKey()
+                      ? 'bg-gray-300 text-gray-50 cursor-not-allowed'
+                      : 'bg-[#07c160] text-white hover:opacity-90'
+                  }`}
+                >
+                  {isLoading ? (
+                    <>
+                      <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                      </svg>
+                      中断
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                      发送
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div 
+    <div
       className="max-w-6xl mx-auto px-4 py-8 flex flex-col h-[calc(100vh-140px)] relative"
       style={{
         backgroundImage: backgroundImage ? `url(${backgroundImage})` : 'none',
@@ -612,6 +1066,21 @@ export default function AIAssistantView() {
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
           </svg>
+        </button>
+        <button
+          onClick={() => setIsFullscreen(!isFullscreen)}
+          className="p-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
+          title={isFullscreen ? "退出全屏" : "全屏模式"}
+        >
+          {isFullscreen ? (
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
+            </svg>
+          ) : (
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+            </svg>
+          )}
         </button>
         <button
           onClick={() => setShowSettings(!showSettings)}
