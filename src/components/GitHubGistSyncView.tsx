@@ -13,8 +13,14 @@ export function GitHubGistSyncView() {
   const [showToken, setShowToken] = useState(false);
   const [conflict, setConflict] = useState<{ hasConflict: boolean; details: any } | null>(null);
   const [storageAvailable, setStorageAvailable] = useState(true);
+  const [isEdge, setIsEdge] = useState(false);
 
   useEffect(() => {
+    // 检测是否是 Edge 浏览器
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isEdgeBrowser = userAgent.includes('edg') && !userAgent.includes('chrome');
+    setIsEdge(isEdgeBrowser);
+
     // 检测 localStorage 是否可用
     try {
       const testKey = '__storage_test__';
@@ -192,6 +198,21 @@ export function GitHubGistSyncView() {
           使用 GitHub Gist 免费存储空间，实现多设备数据自动同步
         </p>
       </div>
+
+      {/* Edge 浏览器提示 */}
+      {isEdge && (
+        <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+          <p className="font-semibold text-blue-800">🌐 Edge 浏览器 detected</p>
+          <p className="text-sm text-blue-700 mt-1">
+            如果同步失败，请检查以下设置：
+          </p>
+          <ul className="text-sm text-blue-600 mt-1 list-disc list-inside space-y-1">
+            <li>地址栏左侧的<strong>盾牌图标</strong> → 关闭"跟踪防护"</li>
+            <li>设置 → Cookie 和网站权限 → 允许本地存储</li>
+            <li>确保不在 InPrivate 模式下使用</li>
+          </ul>
+        </div>
+      )}
 
       {/* 存储不可用警告 */}
       {!storageAvailable && (
