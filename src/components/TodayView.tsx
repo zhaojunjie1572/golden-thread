@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProtocols } from '../context/ProtocolContext';
 import { ProtocolModel, goalTypeLabels, triggerTypeLabels } from '../types/protocol';
@@ -418,20 +418,38 @@ export default function TodayView() {
 
   // 语录状态 - 使用单个 state 对象减少重渲染
   const [quoteState, setQuoteState] = useState(() => {
-    const savedQuotes = localStorage.getItem(STORAGE_KEY);
-    const quotes = savedQuotes ? JSON.parse(savedQuotes) : defaultWisdomQuotes;
-    const today = new Date().getDate();
-    return {
-      quotes,
-      currentIndex: today % quotes.length,
-      showEditModal: false,
-      editingIndex: null as number | null,
-      newText: '',
-      newAuthor: ''
-    };
+    try {
+      const savedQuotes = localStorage.getItem(STORAGE_KEY);
+      let quotes = defaultWisdomQuotes;
+      if (savedQuotes) {
+        const parsed = JSON.parse(savedQuotes);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          quotes = parsed;
+        }
+      }
+      const today = new Date().getDate();
+      return {
+        quotes,
+        currentIndex: today % quotes.length,
+        showEditModal: false,
+        editingIndex: null as number | null,
+        newText: '',
+        newAuthor: ''
+      };
+    } catch (e) {
+      console.error('Failed to load quotes:', e);
+      return {
+        quotes: defaultWisdomQuotes,
+        currentIndex: 0,
+        showEditModal: false,
+        editingIndex: null as number | null,
+        newText: '',
+        newAuthor: ''
+      };
+    }
   });
 
-  const currentQuote = quoteState.quotes[quoteState.currentIndex];
+  const currentQuote = quoteState.quotes[quoteState.currentIndex] || defaultWisdomQuotes[0];
 
   // 保存语录到 localStorage
   const saveQuotesToStorage = useCallback((quotes: typeof defaultWisdomQuotes) => {

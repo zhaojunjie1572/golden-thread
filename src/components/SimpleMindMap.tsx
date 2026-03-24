@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { apiService, ChatMessage } from '../services/apiService';
 
 // 类型定义
@@ -68,8 +68,19 @@ const defaultMindMapData: MindMapNode = {
 
 export default function SimpleMindMap() {
   const [mindMapData, setMindMapData] = useState<MindMapNode>(() => {
-    const saved = localStorage.getItem('simple-mindmap-data');
-    return saved ? JSON.parse(saved) : defaultMindMapData;
+    try {
+      const saved = localStorage.getItem('simple-mindmap-data');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // 验证解析后的数据是否有效
+        if (parsed && typeof parsed === 'object' && parsed.id && parsed.label) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load mind map data:', e);
+    }
+    return defaultMindMapData;
   });
   const [nodePositions, setNodePositions] = useState<Map<string, NodePosition>>(new Map());
   const [selectedNode, setSelectedNode] = useState<MindMapNode | null>(null);
