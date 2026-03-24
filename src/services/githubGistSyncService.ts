@@ -262,31 +262,19 @@ export class GitHubGistSyncService {
     const localData = SyncService.collectData();
     console.log('[syncFromCloud] 本地书籍数量:', localData.books?.length || 0);
 
-    const conflictCheck = this.checkConflict(localData, result.data);
+    // 直接使用 mergeData 进行智能合并，而不是返回冲突错误
+    console.log('[syncFromCloud] 开始智能合并数据...');
+    const mergeResult = SyncService.mergeData(result.data);
+    console.log('[syncFromCloud] 合并完成，新增书籍:', mergeResult.books.added);
 
-    if (conflictCheck.hasConflict) {
-      console.log('[syncFromCloud] 检测到数据冲突');
-      return {
-        success: false,
-        message: '检测到数据冲突，请选择保留哪个版本',
-        hasConflict: true,
-        conflictDetails: conflictCheck.details
-      };
-    }
+    // 保存合并后的配置
+    const newConfig: GitHubGistConfig = {
+      ...config,
+      lastSyncTime: new Date().toISOString()
+    };
+    this.saveConfig(newConfig);
 
-    console.log('[syncFromCloud] 开始导入数据...');
-    const importSuccess = SyncService.importFromJSON(JSON.stringify(result.data));
-    if (importSuccess) {
-      console.log('[syncFromCloud] 数据导入成功');
-      const newConfig: GitHubGistConfig = {
-        ...config,
-        lastSyncTime: new Date().toISOString()
-      };
-      this.saveConfig(newConfig);
-      return { success: true, message: '下载成功！页面即将刷新...' };
-    }
-
-    return { success: false, message: '数据导入失败' };
+    return { success: true, message: `下载成功！新增 ${mergeResult.books.added} 本书籍，页面即将刷新...` };
   }
 
   static forceSyncFromCloud(): Promise<{ success: boolean; message: string }> {
