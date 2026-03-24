@@ -1318,14 +1318,24 @@ export default function AIAssistantView() {
                 </div>
 
                 <p className="text-sm text-gray-500">
-                  {apiConfig.provider === 'deepseek' 
+                  {apiConfig.provider === 'deepseek'
                     ? '获取 API 密钥：<a href="https://platform.deepseek.com/" target="_blank" rel="noopener noreferrer" className="text-golden hover:underline">platform.deepseek.com</a>'
                     : '支持所有兼容 OpenAI Chat Completions API 格式的接口'
                   }
                 </p>
+
+                <button
+                  onClick={handleSaveApiConfig}
+                  className="w-full px-4 py-3 bg-golden text-white rounded-xl hover:opacity-90 transition-colors font-medium flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                  </svg>
+                  保存 API 配置
+                </button>
               </div>
             </div>
-            
+
             <div>
               <h3 className="text-sm font-medium text-gray-700 mb-3">联网搜索配置</h3>
               <div className="space-y-3">
