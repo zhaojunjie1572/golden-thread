@@ -132,7 +132,9 @@ export class GitHubGistSyncService {
       let jsonData;
       try {
         jsonData = JSON.parse(file.content);
-      } catch {
+      } catch (parseError) {
+        console.error('[downloadFromGist] JSON 解析失败:', parseError);
+        console.error('[downloadFromGist] 文件内容前 200 字符:', file.content?.substring(0, 200));
         return { success: false, error: '数据格式无效' };
       }
 
