@@ -387,10 +387,6 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
               e.stopPropagation();
               setSelectedNode(node);
             }}
-            onTouchStart={(e) => {
-              e.stopPropagation();
-              setSelectedNode(node);
-            }}
             onMouseDown={(e) => handleNodeDragStart(e, node)}
             onTouchStart={(e) => {
               e.stopPropagation();
@@ -803,21 +799,45 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
     setTranslateY(0);
   };
 
+  // 将屏幕坐标转换为 SVG 坐标
+  const screenToSVG = (clientX: number, clientY: number) => {
+    if (!svgRef.current) return { x: clientX, y: clientY };
+    
+    const svg = svgRef.current;
+    const pt = svg.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    
+    // 获取 SVG 的 CTM (Current Transformation Matrix)
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return { x: clientX, y: clientY };
+    
+    // 将屏幕坐标转换为 SVG 坐标
+    const svgP = pt.matrixTransform(ctm.inverse());
+    return { x: svgP.x, y: svgP.y };
+  };
+
   // 节点拖拽开始
   const handleNodeDragStart = (e: React.MouseEvent | React.TouchEvent, node: MindMapNode) => {
     e.stopPropagation();
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
     
+    // 转换为 SVG 坐标
+    const svgPos = screenToSVG(clientX, clientY);
+    
     setDraggingNode(node);
     const currentPos = nodePositions.get(node.id);
     if (currentPos) {
       setNodeDragOffset({
-        x: clientX - currentPos.x,
-        y: clientY - currentPos.y
+        x: svgPos.x - currentPos.x,
+        y: svgPos.y - currentPos.y
       });
     } else {
-      setNodeDragOffset({ x: clientX, y: clientY });
+      // 如果没有自定义位置，使用原始位置
+      // 需要通过 renderTree 的递归计算获取原始位置
+      // 这里简化处理，使用 SVG 坐标作为偏移
+      setNodeDragOffset({ x: svgPos.x, y: svgPos.y });
     }
   };
 
@@ -828,11 +848,14 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
     
+    // 转换为 SVG 坐标
+    const svgPos = screenToSVG(clientX, clientY);
+    
     setNodePositions(prev => {
       const newMap = new Map(prev);
       newMap.set(draggingNode.id, {
-        x: clientX - nodeDragOffset.x,
-        y: clientY - nodeDragOffset.y
+        x: svgPos.x - nodeDragOffset.x,
+        y: svgPos.y - nodeDragOffset.y
       });
       return newMap;
     });
