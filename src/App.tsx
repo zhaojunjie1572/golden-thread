@@ -166,35 +166,10 @@ function AppContentWithMusicAndSpeech() {
       console.log('[自动同步] 未配置 Gist ID，首次同步将创建新的 Gist');
     }
     
-    console.log('[自动同步] 正在启动...');
+    // 暂时禁用自动同步，专注于手动同步调试
+    console.log('[自动同步] 已禁用，请使用手动同步');
     
-    // 延迟 2 秒启动同步，确保所有 Context 已经完全加载
-    const syncTimeout = setTimeout(() => {
-      GitHubGistSyncService.startAutoSync((result) => {
-        if (result.success) {
-          console.log('[自动同步] 同步成功:', result.message);
-          // 如果是合并类型的同步（下载了云端数据），刷新页面以加载新数据
-          if (result.type === 'merge' || result.type === 'download') {
-            // 检查是否已经刷新过，避免无限刷新
-            const hasReloaded = sessionStorage.getItem('sync-reloaded');
-            if (!hasReloaded) {
-              console.log('[自动同步] 数据已合并，刷新页面...');
-              sessionStorage.setItem('sync-reloaded', 'true');
-              window.location.reload();
-            } else {
-              console.log('[自动同步] 已经刷新过，跳过重复刷新');
-              // 清除标记，允许下次同步时刷新
-              sessionStorage.removeItem('sync-reloaded');
-            }
-          }
-        } else {
-          console.log('[自动同步] 同步失败:', result.message);
-        }
-      });
-    }, 2000);
-
     return () => {
-      clearTimeout(syncTimeout);
       GitHubGistSyncService.stopAutoSync();
     };
   }, []);
