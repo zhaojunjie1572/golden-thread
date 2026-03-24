@@ -760,10 +760,17 @@ export default function SimpleMindMap() {
               left: pos.x + NODE_WIDTH / 2 - 40,
               top: pos.y - 35
             }}
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
           >
             <button
               onClick={(e) => {
                 e.stopPropagation();
+                openEditModal(node);
+              }}
+              onTouchEnd={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
                 openEditModal(node);
               }}
               className="w-7 h-7 flex items-center justify-center rounded-full bg-blue-500 hover:bg-blue-600 text-white text-xs transition-colors"
@@ -776,6 +783,11 @@ export default function SimpleMindMap() {
                 e.stopPropagation();
                 addChildNode(node);
               }}
+              onTouchEnd={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                addChildNode(node);
+              }}
               className="w-7 h-7 flex items-center justify-center rounded-full bg-green-500 hover:bg-green-600 text-white text-xs transition-colors"
               title="添加子节点"
             >
@@ -785,6 +797,11 @@ export default function SimpleMindMap() {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
+                  deleteNode(node);
+                }}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
                   deleteNode(node);
                 }}
                 className="w-7 h-7 flex items-center justify-center rounded-full bg-red-500 hover:bg-red-600 text-white text-xs transition-colors"
