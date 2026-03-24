@@ -14,6 +14,7 @@ export function GitHubGistSyncView() {
   const [conflict, setConflict] = useState<{ hasConflict: boolean; details: any } | null>(null);
   const [storageAvailable, setStorageAvailable] = useState(true);
   const [isEdge, setIsEdge] = useState(false);
+  const [diagnosticInfo, setDiagnosticInfo] = useState<string>('');
 
   useEffect(() => {
     // 检测是否是 Edge 浏览器
@@ -467,6 +468,37 @@ export function GitHubGistSyncView() {
               )}
             </button>
           </div>
+
+          {/* 诊断按钮 */}
+          <button
+            onClick={() => {
+              const info = {
+                userAgent: navigator.userAgent,
+                gistId: config.gistId || '未设置',
+                hasToken: config.token ? '已设置' : '未设置',
+                autoSync: config.autoSync,
+                lastSyncTime: config.lastSyncTime || '从未同步',
+                storageAvailable: storageAvailable,
+                localBooks: JSON.parse(localStorage.getItem('golden-thread-books') || '[]').length,
+                localProtocols: JSON.parse(localStorage.getItem('golden-thread-protocols') || '[]').length,
+                localMindMaps: JSON.parse(localStorage.getItem('mindmap-saved-records') || '[]').length,
+              };
+              const infoText = JSON.stringify(info, null, 2);
+              setDiagnosticInfo(infoText);
+              navigator.clipboard.writeText(infoText);
+              setMessage({ text: '诊断信息已复制到剪贴板', type: 'success' });
+              setTimeout(() => setMessage(null), 3000);
+            }}
+            className="w-full mt-4 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm"
+          >
+            🔍 复制诊断信息（用于排查同步问题）
+          </button>
+
+          {diagnosticInfo && (
+            <div className="mt-2 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs font-mono overflow-auto max-h-40">
+              <pre>{diagnosticInfo}</pre>
+            </div>
+          )}
         </div>
       )}
 
