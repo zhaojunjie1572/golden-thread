@@ -59,7 +59,6 @@ interface SyncData {
     personas: any[];
   };
   protocolUiModules: any[]; // 协议创建界面的 UI 模块
-  aiAssistant: {
 }
 
 export interface MergeStats {
