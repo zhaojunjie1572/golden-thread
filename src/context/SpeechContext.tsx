@@ -51,19 +51,24 @@ const SpeechContext = createContext<SpeechContextType | undefined>(undefined);
 
 // 去除标点符号，用停顿代替
 function removePunctuationMarks(text: string): string {
-  // 定义需要去除的标点符号
-  const punctuationMarks = /[，。！？、；：""''（）【】《》〈〉「」『』〔〕［］｛｝＼｜．·…—～｀@#￥%……&*（）——+｛｝｜：""《》？｛｝｜]+/g;
+  // 定义需要去除的所有标点符号和特殊字符
+  // 包括：中文标点、英文标点、数学符号、货币符号、箭头、表情符号修饰符等
+  const punctuationMarks = /[
+    \u3000-\u303F\uFF00-\uFFEF  /* CJK 符号和标点、全角 ASCII 变体 */
+    \u2000-\u206F  /* 常用标点 */
+    \u0021-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E  /* 基本 ASCII 标点 */
+    \u20A0-\u20CF  /* 货币符号 */
+    \u2190-\u21FF\u27F0-\u27FF\u2900-\u297F  /* 箭头符号 */
+    \u2600-\u26FF\u2700-\u27BF  /* 杂项符号和装饰符号 */
+    \u1F300-\u1F5FF\u1F600-\u1F64F\u1F680-\u1F6FF\u1F900-\u1F9FF  /* 表情符号 */
+    \u2500-\u257F\u2580-\u259F  /* 制表符和方块元素 */
+    \uE000-\uF8FF  /* 私用区 */
+  ]+/gu;
 
   // 将标点替换为空格（产生停顿效果）
   let cleaned = text.replace(punctuationMarks, ' ');
 
   // 合并多个空格为一个
-  cleaned = cleaned.replace(/\s+/g, ' ');
-
-  // 去除英文标点
-  cleaned = cleaned.replace(/[,\.!?;:"'()\[\]{}]+/g, ' ');
-
-  // 再次合并空格
   cleaned = cleaned.replace(/\s+/g, ' ').trim();
 
   return cleaned;
