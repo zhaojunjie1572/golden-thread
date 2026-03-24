@@ -40,7 +40,22 @@ export function GitHubGistSyncView() {
 
     GitHubGistSyncService.saveConfig(newConfig);
     setConfig(newConfig);
-    setMessage({ text: '配置已保存！', type: 'success' });
+
+    // 根据自动同步开关启动或停止自动同步
+    if (autoSync) {
+      GitHubGistSyncService.startAutoSync((result) => {
+        if (result.success) {
+          console.log('[自动同步] 同步成功');
+        } else {
+          console.log('[自动同步] 同步失败:', result.message);
+        }
+      });
+      setMessage({ text: '配置已保存！自动同步已开启', type: 'success' });
+    } else {
+      GitHubGistSyncService.stopAutoSync();
+      setMessage({ text: '配置已保存！自动同步已关闭', type: 'success' });
+    }
+
     setTimeout(() => setMessage(null), 3000);
   };
 
@@ -297,8 +312,8 @@ export function GitHubGistSyncView() {
         {/* 自动同步开关 */}
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <label className="text-sm font-medium">自动同步</label>
-            <p className="text-xs text-gray-500">开启后，每次数据变化自动同步到云端</p>
+            <label className="text-sm font-medium">双向自动同步</label>
+            <p className="text-xs text-gray-500">开启后，自动下载云端数据并合并，再上传更新</p>
           </div>
           <button
             onClick={() => setAutoSync(!autoSync)}
@@ -311,6 +326,21 @@ export function GitHubGistSyncView() {
             }`} />
           </button>
         </div>
+
+        {/* 自动同步说明 */}
+        {autoSync && (
+          <div className="mb-4 p-3 bg-blue-50 rounded-lg text-sm">
+            <p className="text-blue-700">
+              <span className="font-semibold">🔄 双向同步流程：</span>
+            </p>
+            <ol className="text-blue-600 text-xs mt-1 space-y-1 list-decimal list-inside">
+              <li>每分钟自动检查云端数据</li>
+              <li>下载云端数据并与本地数据智能合并</li>
+              <li>将合并后的数据上传到云端</li>
+              <li>所有设备保持数据一致</li>
+            </ol>
+          </div>
+        )}
 
         {/* 保存按钮 */}
         <button

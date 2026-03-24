@@ -86,6 +86,195 @@ export class AgentWorkflowService {
     return agents;
   }
 
+  // ========== 智能体 CRUD 操作 ==========
+
+  static createAgent(agentData: Partial<AgentModule>): AgentModule {
+    const now = new Date();
+    const newAgent: AgentModule = {
+      id: crypto.randomUUID(),
+      name: agentData.name || '未命名智能体',
+      icon: agentData.icon || '🤖',
+      role: agentData.role || 'analyzer',
+      description: agentData.description || '',
+      systemPrompt: agentData.systemPrompt || '',
+      capabilities: agentData.capabilities || [],
+      inputFormat: agentData.inputFormat || '',
+      outputFormat: agentData.outputFormat || '',
+      dependencies: agentData.dependencies || [],
+      outputsTo: agentData.outputsTo || [],
+      taskGeneration: {
+        enabled: agentData.taskGeneration?.enabled ?? true,
+        template: agentData.taskGeneration?.template || '',
+        defaultPriority: agentData.taskGeneration?.defaultPriority || 'medium',
+      },
+      memoryConfig: {
+        maxMessages: agentData.memoryConfig?.maxMessages ?? 50,
+        extractSummary: agentData.memoryConfig?.extractSummary ?? true,
+        shareable: agentData.memoryConfig?.shareable ?? true,
+      },
+      simulationConfig: {
+        enabled: agentData.simulationConfig?.enabled ?? false,
+        targetPersonas: agentData.simulationConfig?.targetPersonas || [],
+        maxIterations: agentData.simulationConfig?.maxIterations ?? 3,
+        minScoreThreshold: agentData.simulationConfig?.minScoreThreshold ?? 70,
+        autoIterate: agentData.simulationConfig?.autoIterate ?? false,
+      },
+      createdAt: now,
+      updatedAt: now,
+      version: 1,
+    };
+
+    const agents = this.getAgents();
+    agents.push(newAgent);
+    this.saveAgents(agents);
+    return newAgent;
+  }
+
+  static updateAgent(agentId: string, updates: Partial<AgentModule>): AgentModule | null {
+    const agents = this.getAgents();
+    const index = agents.findIndex(a => a.id === agentId);
+    
+    if (index === -1) return null;
+
+    const updatedAgent = {
+      ...agents[index],
+      ...updates,
+      id: agents[index].id, // 保持ID不变
+      createdAt: agents[index].createdAt, // 保持创建时间不变
+      updatedAt: new Date(),
+      version: agents[index].version + 1,
+    };
+
+    agents[index] = updatedAgent;
+    this.saveAgents(agents);
+    return updatedAgent;
+  }
+
+  static deleteAgent(agentId: string): boolean {
+    const agents = this.getAgents();
+    const filteredAgents = agents.filter(a => a.id !== agentId);
+    
+    if (filteredAgents.length === agents.length) {
+      return false; // 没有找到要删除的智能体
+    }
+    
+    this.saveAgents(filteredAgents);
+    return true;
+  }
+
+  static duplicateAgent(agentId: string): AgentModule | null {
+    const agents = this.getAgents();
+    const agent = agents.find(a => a.id === agentId);
+    
+    if (!agent) return null;
+
+    const now = new Date();
+    const duplicatedAgent: AgentModule = {
+      ...agent,
+      id: crypto.randomUUID(),
+      name: `${agent.name} (复制)`,
+      createdAt: now,
+      updatedAt: now,
+      version: 1,
+    };
+
+    agents.push(duplicatedAgent);
+    this.saveAgents(agents);
+    return duplicatedAgent;
+  }
+
+  static exportAgent(agentId: string): string | null {
+    const agents = this.getAgents();
+    const agent = agents.find(a => a.id === agentId);
+    
+    if (!agent) return null;
+    
+    return JSON.stringify(agent, null, 2);
+  }
+
+  static importAgent(jsonString: string): AgentModule | null {
+    try {
+      const agentData = JSON.parse(jsonString);
+      
+      // 验证必要字段
+      if (!agentData.name || !agentData.systemPrompt) {
+        throw new Error('缺少必要字段');
+      }
+
+      return this.createAgent(agentData);
+    } catch (error) {
+      console.error('导入智能体失败:', error);
+      return null;
+    }
+  }
+
+  // ========== AI 辅助生成智能体 ==========
+
+  static async generateAgentWithAI(
+    description: string,
+    role: string,
+    onProgress?: (message: string) => void
+  ): Promise<Partial<AgentModule> | null> {
+    const prompt = `基于以下描述，创建一个完整的智能体配置：
+
+描述：${description}
+角色定位：${role}
+
+请生成一个JSON格式的智能体配置，包含以下字段：
+{
+  "name": "智能体名称（带emoji）",
+  "icon": "emoji图标",
+  "role": "${role}",
+  "description": "简短描述",
+  "systemPrompt": "详细的系统提示词，指导AI如何工作",
+  "capabilities": ["能力1", "能力2", "能力3"],
+  "inputFormat": "期望的输入格式说明",
+  "outputFormat": "期望的输出格式说明",
+  "taskGeneration": {
+    "enabled": true,
+    "template": "任务生成提示词模板",
+    "defaultPriority": "medium"
+  },
+  "memoryConfig": {
+    "maxMessages": 50,
+    "extractSummary": true,
+    "shareable": true
+  }
+}
+
+请确保：
+1. systemPrompt 详细且实用
+2. capabilities 至少包含3-5个核心能力
+3. taskGeneration.template 能够生成可执行的任务
+4. 所有字段都有合理的值`;
+
+    try {
+      onProgress?.('正在分析需求...');
+      
+      const response = await apiService.chat([
+        { role: 'system', content: '你是一个智能体设计专家，擅长创建高质量的AI智能体配置。' },
+        { role: 'user', content: prompt }
+      ]);
+
+      onProgress?.('正在解析配置...');
+      
+      // 提取JSON
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('无法解析AI响应');
+      }
+
+      const config = JSON.parse(jsonMatch[0]);
+      
+      onProgress?.('配置生成完成！');
+      return config;
+    } catch (error) {
+      console.error('生成智能体失败:', error);
+      onProgress?.('生成失败，请重试');
+      return null;
+    }
+  }
+
   // ========== 工作流管理 ==========
 
   static getWorkflows(): Workflow[] {
@@ -865,6 +1054,33 @@ ${userContext ? `用户背景：${userContext}` : ''}
       localStorage.setItem(this.INSTANCE_STORAGE_KEY, JSON.stringify(instances));
     } catch (error) {
       console.error('保存实例失败:', error);
+    }
+  }
+
+  static deleteInstance(instanceId: string): boolean {
+    try {
+      const instances = this.getInstances();
+      const filteredInstances = instances.filter(i => i.id !== instanceId);
+      
+      if (filteredInstances.length === instances.length) {
+        return false; // 没有找到要删除的实例
+      }
+      
+      localStorage.setItem(this.INSTANCE_STORAGE_KEY, JSON.stringify(filteredInstances));
+      return true;
+    } catch (error) {
+      console.error('删除实例失败:', error);
+      return false;
+    }
+  }
+
+  static clearAllInstances(): boolean {
+    try {
+      localStorage.removeItem(this.INSTANCE_STORAGE_KEY);
+      return true;
+    } catch (error) {
+      console.error('清空所有实例失败:', error);
+      return false;
     }
   }
 

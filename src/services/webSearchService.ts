@@ -55,6 +55,15 @@ class WebSearchService {
     return this.openWeatherApiKey;
   }
 
+  /**
+   * 搜索方法（兼容 AIAssistantView 的调用）
+   * 返回格式化的搜索上下文字符串
+   */
+  async search(query: string): Promise<string> {
+    const results = await this.searchWeb(query);
+    return this.buildSearchContext(query, results);
+  }
+
   detectQueryType(query: string): 'weather' | 'gold' | 'crypto' | 'stock' | 'news' | 'general' {
     const lowerQuery = query.toLowerCase();
     

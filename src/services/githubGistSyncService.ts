@@ -323,7 +323,7 @@ export class GitHubGistSyncService {
     }
   }
 
-  static startAutoSync(onSync?: (result: { success: boolean; message: string }) => void): void {
+  static startAutoSync(onSync?: (result: { success: boolean; message: string; type?: 'upload' | 'download' | 'merge' }) => void): void {
     if (autoSyncInterval !== null) {
       this.stopAutoSync();
     }
@@ -334,14 +334,117 @@ export class GitHubGistSyncService {
     }
 
     autoSyncInterval = window.setInterval(async () => {
-      const result = await this.syncToCloud();
+      // 双向同步：先下载合并，再上传
+      const syncResult = await this.syncBidirectional();
       if (onSync) {
-        onSync(result);
+        onSync(syncResult);
       }
-      console.log(`[自动同步] ${result.success ? '✅' : '❌'} ${result.message}`);
+      console.log(`[自动同步] ${syncResult.success ? '✅' : '❌'} ${syncResult.message}`);
     }, AUTO_SYNC_INTERVAL);
 
-    console.log('[自动同步] 已启动，每分钟检查一次');
+    console.log('[自动同步] 已启动，每分钟双向同步一次');
+  }
+
+  /**
+   * 双向同步：下载云端数据并合并，然后上传合并后的数据
+   */
+  static async syncBidirectional(): Promise<{ success: boolean; message: string; type?: 'upload' | 'download' | 'merge' }> {
+    const config = this.getConfig();
+    if (!config || !config.token) {
+      return { success: false, message: '未配置 GitHub Token' };
+    }
+
+    try {
+      // 1. 获取云端数据
+      let cloudData: any = null;
+      let hasCloudData = false;
+
+      if (config.gistId) {
+        const downloadResult = await this.downloadFromGist(config.token, config.gistId);
+        if (downloadResult.success && downloadResult.data) {
+          cloudData = downloadResult.data;
+          hasCloudData = true;
+        }
+      }
+
+      // 2. 获取本地数据
+      const localData = SyncService.collectData();
+
+      // 3. 如果没有云端数据，直接上传本地数据
+      if (!hasCloudData) {
+        const uploadResult = await this.syncToCloud();
+        return {
+          success: uploadResult.success,
+          message: uploadResult.success ? '首次同步，已上传本地数据' : uploadResult.message,
+          type: 'upload'
+        };
+      }
+
+      // 4. 检查数据版本时间戳
+      const localTime = new Date(localData.timestamp || 0).getTime();
+      const cloudTime = new Date(cloudData.timestamp || 0).getTime();
+      const timeDiff = Math.abs(cloudTime - localTime);
+
+      // 如果时间差小于5秒，认为数据已经同步，无需操作
+      if (timeDiff < 5000) {
+        return { success: true, message: '数据已是最新，无需同步', type: 'upload' };
+      }
+
+      // 5. 智能合并数据（优先使用云端数据作为基础，合并本地新增内容）
+      console.log('[自动同步] 检测到数据差异，开始智能合并...');
+      
+      // 使用 SyncService 的合并功能
+      const mergeResult = SyncService.mergeData(cloudData);
+      
+      // 6. 上传合并后的数据
+      const data = SyncService.exportToJSON();
+      const headers = {
+        'Authorization': `Bearer ${config.token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/vnd.github+json'
+      };
+
+      const response = await fetch(`https://api.github.com/gists/${config.gistId}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          description: GIST_DESCRIPTION,
+          files: {
+            [GIST_FILENAME]: {
+              content: data
+            }
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { success: false, message: errorData.message || '上传合并数据失败' };
+      }
+
+      // 7. 更新同步时间
+      const newConfig: GitHubGistConfig = {
+        ...config,
+        lastSyncTime: new Date().toISOString()
+      };
+      this.saveConfig(newConfig);
+
+      // 8. 统计合并结果
+      const totalAdded = mergeResult.books.added + mergeResult.protocols.added + 
+                        mergeResult.thinkTankModules.added + mergeResult.aiAssistantChatSessions.added +
+                        mergeResult.agentWorkflow.added;
+      const totalUpdated = mergeResult.books.updated + mergeResult.protocols.updated + mergeResult.thinkTankModules.updated;
+
+      return {
+        success: true,
+        message: `双向同步完成！新增 ${totalAdded} 项，更新 ${totalUpdated} 项`,
+        type: 'merge'
+      };
+
+    } catch (error) {
+      console.error('双向同步失败:', error);
+      return { success: false, message: error instanceof Error ? error.message : '同步失败' };
+    }
   }
 
   static stopAutoSync(): void {

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, useNavigate } from 'react-router-dom';
 import { ProtocolProvider } from './context/ProtocolContext';
 import { BookProvider } from './context/BookContext';
@@ -14,6 +14,7 @@ import AIAssistantView from './components/AIAssistantView';
 import BookView from './components/BookView';
 import { SyncManagerView } from './components/SyncManagerView';
 import AgentWorkflowView from './components/AgentWorkflowView';
+import { GitHubGistSyncService } from './services/githubGistSyncService';
 
 const themeColors: Record<string, any> = {
   golden: { primary: '#DAA520' },
@@ -212,6 +213,24 @@ function AppContentWithMusicAndSpeech() {
   } = useTheme();
   const [showThemeSettings, setShowThemeSettings] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 启动自动同步
+  useEffect(() => {
+    const config = GitHubGistSyncService.getConfig();
+    if (config?.autoSync) {
+      GitHubGistSyncService.startAutoSync((result) => {
+        if (result.success) {
+          console.log('[自动同步] 同步成功');
+        } else {
+          console.log('[自动同步] 同步失败:', result.message);
+        }
+      });
+    }
+
+    return () => {
+      GitHubGistSyncService.stopAutoSync();
+    };
+  }, []);
 
   return (
     <ThemeWrapper>
