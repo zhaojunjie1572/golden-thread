@@ -46,6 +46,7 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
   // 触摸状态管理
   const lastTouchDistanceRef = useRef<number>(0);
   const touchStartNodeRef = useRef<MindMapNode | null>(null);
+  const touchLockedRef = useRef<boolean>(false);
 
   const parseProtocolToText = (proto: ProtocolModel): string => {
     let text = `# ${proto.principle}\n\n`;
@@ -880,6 +881,9 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
     // 转换为 SVG 坐标
     const svgPos = screenToSVG(clientX, clientY);
     
+    // 锁定触摸，画布不再响应
+    touchLockedRef.current = true;
+    
     // 同步更新 state 和 ref
     draggingNodeRef.current = node;
     setDraggingNode(node);
@@ -915,6 +919,7 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
   const handleNodeDragEnd = () => {
     draggingNodeRef.current = null;
     setDraggingNode(null);
+    touchLockedRef.current = false;
   };
 
   // 计算两点之间的距离
@@ -936,8 +941,8 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
 
   // 处理画布触摸开始（空白处）
   const handleCanvasTouchStart = (e: React.TouchEvent) => {
-    // 如果正在拖拽节点，不处理画布事件
-    if (draggingNodeRef.current) return;
+    // 如果触摸被节点锁定，不处理任何画布事件
+    if (touchLockedRef.current) return;
     
     const touches = e.touches;
     touchStartNodeRef.current = null;
@@ -959,8 +964,8 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
   const handleCanvasTouchMove = (e: React.TouchEvent) => {
     e.preventDefault();
     
-    // 如果正在拖拽节点，不处理画布事件
-    if (draggingNodeRef.current) return;
+    // 如果触摸被节点锁定，不处理任何画布事件
+    if (touchLockedRef.current) return;
     
     const touches = e.touches;
 
