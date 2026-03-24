@@ -59,6 +59,7 @@ interface SyncData {
     personas: any[];
   };
   protocolUiModules: any[]; // 协议创建界面的 UI 模块
+  mindMaps: any[]; // 保存的思维导图
 }
 
 export interface MergeStats {
@@ -79,6 +80,7 @@ export interface MergeResult {
   musicWebsites: MergeStats;
   agentWorkflow: MergeStats;
   protocolUiModules: MergeStats;
+  mindMaps: MergeStats;
   aiAssistantChatSessions: MergeStats;
 }
 
@@ -120,6 +122,7 @@ const STORAGE_KEYS = {
   agentFeedbacks: 'agent-feedbacks',
   agentPersonas: 'agent-personas',
   protocolUiModules: 'protocol-ui-modules',
+  mindMaps: 'saved-mindmaps',
   aiAssistantChatSessions: 'chat-sessions',
   aiAssistantBackground: 'ai-assistant-background',
   aiAssistantUserTextColor: 'ai-assistant-user-text-color',
@@ -194,6 +197,7 @@ export class SyncService {
         personas: this.getFromLocalStorage(STORAGE_KEYS.agentPersonas, []),
       },
       protocolUiModules: this.getFromLocalStorage(STORAGE_KEYS.protocolUiModules, []),
+      mindMaps: this.getFromLocalStorage(STORAGE_KEYS.mindMaps, []),
     };
   }
 
@@ -301,6 +305,11 @@ export class SyncService {
       this.saveToLocalStorage(STORAGE_KEYS.protocolUiModules, data.protocolUiModules);
     }
 
+    // 恢复思维导图
+    if (data.mindMaps && data.mindMaps.length > 0) {
+      this.saveToLocalStorage(STORAGE_KEYS.mindMaps, data.mindMaps);
+    }
+
     // 恢复 AI 助手数据
     if (data.aiAssistant) {
       if (data.aiAssistant.chatSessions && data.aiAssistant.chatSessions.length > 0) {
@@ -363,6 +372,7 @@ export class SyncService {
       musicWebsites: { added: 0, updated: 0, conflicts: 0 },
       agentWorkflow: { added: 0, updated: 0, conflicts: 0 },
       protocolUiModules: { added: 0, updated: 0, conflicts: 0 },
+      mindMaps: { added: 0, updated: 0, conflicts: 0 },
       aiAssistantChatSessions: { added: 0, updated: 0, conflicts: 0 },
     };
     
@@ -480,6 +490,15 @@ export class SyncService {
       result.protocolUiModules
     );
 
+    // 14. 合并思维导图 - 按 ID 去重，保留最新的
+    const mergedMindMaps = this.mergeArrayById(
+      currentData.mindMaps,
+      importedData.mindMaps || [],
+      'id',
+      (a, b) => new Date(b.savedAt || 0).getTime() - new Date(a.savedAt || 0).getTime(),
+      result.mindMaps
+    );
+
     // 保存合并后的数据
     this.saveToLocalStorage(STORAGE_KEYS.books, mergedBooks);
     this.saveToLocalStorage(STORAGE_KEYS.bookSources, mergedBookSources);
@@ -502,6 +521,9 @@ export class SyncService {
 
     // 保存协议 UI 模块
     this.saveToLocalStorage(STORAGE_KEYS.protocolUiModules, mergedProtocolUiModules);
+
+    // 保存思维导图
+    this.saveToLocalStorage(STORAGE_KEYS.mindMaps, mergedMindMaps);
 
     // 保存 AI 助手聊天记录
     this.saveToLocalStorage(STORAGE_KEYS.aiAssistantChatSessions, mergedChatSessions);

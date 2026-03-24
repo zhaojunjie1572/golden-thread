@@ -36,6 +36,11 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
   const [translateY, setTranslateY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  
+  // 节点拖拽移动状态
+  const [draggingNode, setDraggingNode] = useState<MindMapNode | null>(null);
+  const [nodeDragOffset, setNodeDragOffset] = useState({ x: 0, y: 0 });
+  const [nodePositions, setNodePositions] = useState<Map<string, { x: number; y: number }>>(new Map());
 
   const parseProtocolToText = (proto: ProtocolModel): string => {
     let text = `# ${proto.principle}\n\n`;
@@ -343,10 +348,21 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
 
     // 判断是否选中
     const isSelected = selectedNode?.id === node.id;
+    
+    // 获取节点的自定义位置（如果有）
+    const customPos = nodePositions.get(node.id);
+    const nodeX = customPos ? customPos.x : x;
+    const nodeY = customPos ? customPos.y : y;
+    
+    // 判断是否正在拖拽
+    const isDraggingNode = draggingNode?.id === node.id;
 
     return (
       <React.Fragment key={node.id}>
-        <g transform={`translate(${x}, ${y})`}>
+        <g 
+          transform={`translate(${nodeX}, ${nodeY})`}
+          className={isDraggingNode ? 'opacity-70' : ''}
+        >
           {/* 节点阴影 */}
           <rect
             x={-nodeWidth / 2 + 2}
@@ -364,9 +380,9 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
             height={nodeHeight}
             rx={10}
             fill={color.fill}
-            stroke={isSelected ? '#2563eb' : color.stroke}
-            strokeWidth={isSelected ? 3 : level <= 1 ? 2.5 : 1.5}
-            className="cursor-pointer transition-all hover:opacity-90"
+            stroke={isSelected ? '#2563eb' : isDraggingNode ? '#8b5cf6' : color.stroke}
+            strokeWidth={isSelected || isDraggingNode ? 3 : level <= 1 ? 2.5 : 1.5}
+            className={`transition-all hover:opacity-90 ${draggingNode ? 'cursor-grabbing' : 'cursor-grab'}`}
             onClick={(e) => {
               e.stopPropagation();
               setSelectedNode(node);
@@ -374,6 +390,12 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
             onTouchStart={(e) => {
               e.stopPropagation();
               setSelectedNode(node);
+            }}
+            onMouseDown={(e) => handleNodeDragStart(e, node)}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              setSelectedNode(node);
+              handleNodeDragStart(e, node);
             }}
           />
           {/* 节点文字 */}
@@ -781,6 +803,108 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
     setTranslateY(0);
   };
 
+  // 节点拖拽开始
+  const handleNodeDragStart = (e: React.MouseEvent | React.TouchEvent, node: MindMapNode) => {
+    e.stopPropagation();
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    
+    setDraggingNode(node);
+    const currentPos = nodePositions.get(node.id);
+    if (currentPos) {
+      setNodeDragOffset({
+        x: clientX - currentPos.x,
+        y: clientY - currentPos.y
+      });
+    } else {
+      setNodeDragOffset({ x: clientX, y: clientY });
+    }
+  };
+
+  // 节点拖拽移动
+  const handleNodeDragMove = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!draggingNode) return;
+    
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    
+    setNodePositions(prev => {
+      const newMap = new Map(prev);
+      newMap.set(draggingNode.id, {
+        x: clientX - nodeDragOffset.x,
+        y: clientY - nodeDragOffset.y
+      });
+      return newMap;
+    });
+  };
+
+  // 节点拖拽结束
+  const handleNodeDragEnd = () => {
+    setDraggingNode(null);
+  };
+
+  // 保存思维导图到本地
+  const saveMindMap = () => {
+    if (!mindMapData) return;
+    
+    const mindMapExport = {
+      data: mindMapData,
+      positions: Array.from(nodePositions.entries()),
+      savedAt: new Date().toISOString(),
+      protocolId: protocol?.id,
+      protocolName: protocol?.principle
+    };
+    
+    const blob = new Blob([JSON.stringify(mindMapExport, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mindmap_${protocol?.principle?.replace(/\s+/g, '_') || 'untitled'}_${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    // 同时保存到 localStorage
+    const savedMindMaps = JSON.parse(localStorage.getItem('saved-mindmaps') || '[]');
+    savedMindMaps.push({
+      id: crypto.randomUUID(),
+      ...mindMapExport
+    });
+    localStorage.setItem('saved-mindmaps', JSON.stringify(savedMindMaps));
+    
+    alert('思维导图已保存！');
+  };
+
+  // 导出思维导图为图片
+  const exportAsImage = () => {
+    if (!svgRef.current || !mindMapData) return;
+    
+    const svgElement = svgRef.current;
+    const svgData = new XMLSerializer().serializeToString(svgElement);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    const img = new Image();
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+      
+      const pngUrl = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = pngUrl;
+      a.download = `mindmap_${protocol?.principle?.replace(/\s+/g, '_') || 'untitled'}_${Date.now()}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    };
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div
@@ -926,6 +1050,20 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
                       <RefreshIcon />
                       重新生成
                     </button>
+                    <button
+                      onClick={saveMindMap}
+                      className="px-4 py-2 text-sm bg-green-100 hover:bg-green-200 text-green-700 rounded-lg transition-colors flex items-center gap-2"
+                      title="保存思维导图"
+                    >
+                      💾 保存
+                    </button>
+                    <button
+                      onClick={exportAsImage}
+                      className="px-4 py-2 text-sm bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg transition-colors flex items-center gap-2"
+                      title="导出为图片"
+                    >
+                      🖼️ 导出图片
+                    </button>
                   </div>
                 </div>
                 
@@ -933,18 +1071,33 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
                 <div className="mb-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
                   <p className="flex items-center gap-2">
                     <HandIcon />
-                    <span>鼠标滚轮缩放 | 拖拽移动 | 点击节点编辑</span>
+                    <span>鼠标滚轮缩放 | 拖拽画布移动 | 拖拽节点调整位置 | 点击节点编辑</span>
                   </p>
                 </div>
                 
                 <div 
                   className="bg-gray-50 rounded-xl overflow-hidden"
-                  style={{ height: '600px', cursor: isDragging ? 'grabbing' : 'grab' }}
+                  style={{ height: '600px', cursor: draggingNode ? 'grabbing' : isDragging ? 'grabbing' : 'grab' }}
                   onWheel={handleWheel}
                   onMouseDown={handleMouseDown}
-                  onMouseMove={handleMouseMove}
-                  onMouseUp={handleMouseUp}
-                  onMouseLeave={handleMouseUp}
+                  onMouseMove={(e) => {
+                    handleMouseMove(e);
+                    handleNodeDragMove(e);
+                  }}
+                  onMouseUp={() => {
+                    handleMouseUp();
+                    handleNodeDragEnd();
+                  }}
+                  onMouseLeave={() => {
+                    handleMouseUp();
+                    handleNodeDragEnd();
+                  }}
+                  onTouchMove={(e) => {
+                    handleNodeDragMove(e);
+                  }}
+                  onTouchEnd={() => {
+                    handleNodeDragEnd();
+                  }}
                   onClick={() => setSelectedNode(null)}
                 >
                   <svg

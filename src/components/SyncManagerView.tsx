@@ -84,7 +84,7 @@ export function SyncManagerView() {
           <p className="text-sm opacity-70 mb-3">☁️ GitHub Gist 免费云同步 | 📤 JSON 手动导出</p>
           <div className="text-xs opacity-60 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
             <p className="font-semibold text-blue-700 dark:text-blue-300 mb-1">📋 同步范围：</p>
-            <p>✅ 书籍、书源、协议、协议执行历史、醒世恒言、智库、AI助手聊天记录、AI配置、音乐网站、读书器设置、朗读设置、工作流智能体</p>
+            <p>✅ 书籍、书源、协议、协议执行历史、醒世恒言、智库、AI助手聊天记录、AI配置、音乐网站、读书器设置、朗读设置、工作流智能体、思维导图</p>
             <p className="font-semibold text-red-600 dark:text-red-400 mt-1 mb-1">❌ 不同步：</p>
             <p>主题、背景图片（每个设备独立设置）</p>
           </div>
@@ -264,6 +264,12 @@ export function SyncManagerView() {
                     <span className="text-green-600">+{showMergeResult.protocolUiModules.added} 个</span>
                   </div>
                 )}
+                {showMergeResult.mindMaps.added > 0 && (
+                  <div className="flex justify-between">
+                    <span>🧠 思维导图</span>
+                    <span className="text-green-600">+{showMergeResult.mindMaps.added} 个</span>
+                  </div>
+                )}
                 {showMergeResult.quotes.added > 0 && (
                   <div className="flex justify-between">
                     <span>✨ 醒世恒言</span>
@@ -341,6 +347,7 @@ export function SyncManagerView() {
             <li>• 🔊 朗读设置（语速、声音）</li>
             <li>• 🤖 AI 助手 API 配置（API Key、Base URL、模型等）</li>
             <li>• ⚙️ 工作流智能体（agents、workflows、instances、memories、feedbacks、personas）</li>
+            <li>• 🧠 思维导图（保存的导图数据）</li>
           </ul>
         </div>
       </div>
