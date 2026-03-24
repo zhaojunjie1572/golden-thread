@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, useNavigate } from 'react-router-dom';
 import { ProtocolProvider } from './context/ProtocolContext';
 import { BookProvider } from './context/BookContext';
-import { MusicProvider, useMusic } from './context/MusicContext';
+import { MusicProvider } from './context/MusicContext';
 import { SpeechProvider, useSpeech } from './context/SpeechContext';
 import { useTheme } from './context/ThemeContext';
 import ThemeWrapper from './components/ThemeWrapper';
@@ -123,79 +123,7 @@ function SpeechPlayer() {
   );
 }
 
-function MusicPlayer() {
-  const {
-    tracks,
-    currentTrackIndex,
-    isPlaying,
-    togglePlay,
-    nextTrack,
-    prevTrack,
-    isMusicPlayerVisible,
-    toggleMusicPlayerVisible,
-  } = useMusic();
 
-  if (tracks.length === 0 || !isMusicPlayerVisible) return null;
-
-  return (
-    <div className="border-b theme-border-color px-4 py-3 bg-gradient-to-r from-purple-50 to-pink-50 shadow-sm">
-      <div className="max-w-xl mx-auto flex items-center gap-3">
-        <div className={`w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-400 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md ${isPlaying ? 'animate-pulse' : ''}`}>
-          <span className="text-lg">🎶</span>
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold text-purple-900 truncate">
-            {tracks[currentTrackIndex]?.name}
-          </div>
-          <div className="text-xs text-purple-600 mt-0.5">
-            {currentTrackIndex + 1} / {tracks.length}
-          </div>
-        </div>
-        <button
-          onClick={prevTrack}
-          disabled={tracks.length <= 1}
-          className="p-2 text-purple-700 hover:bg-purple-100 rounded-full disabled:opacity-30 transition-all hover:scale-110"
-        >
-          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
-          </svg>
-        </button>
-        <button
-          onClick={togglePlay}
-          className="p-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full hover:from-purple-600 hover:to-pink-600 shadow-lg transition-all hover:scale-105 active:scale-95"
-        >
-          {isPlaying ? (
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M6 4h4v16H6zM14 4h4v16h-4z" />
-            </svg>
-          ) : (
-            <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          )}
-        </button>
-        <button
-          onClick={nextTrack}
-          disabled={tracks.length <= 1}
-          className="p-2 text-purple-700 hover:bg-purple-100 rounded-full disabled:opacity-30 transition-all hover:scale-110"
-        >
-          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
-          </svg>
-        </button>
-        <button
-          onClick={toggleMusicPlayerVisible}
-          className="p-2 text-red-600 hover:bg-red-100 rounded-full transition-all hover:scale-110"
-          title="隐藏音乐播放器"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function AppContentWithMusicAndSpeech() {
   const navigate = useNavigate();
@@ -371,7 +299,6 @@ function AppContentWithMusicAndSpeech() {
         </header>
 
         <nav className="fixed bottom-0 left-0 right-0 z-40 theme-card-bg border-t theme-border-color">
-          <MusicPlayer />
           <SpeechPlayer />
           <div className="px-2 sm:px-4 py-1 sm:py-2">
             <div className="max-w-xl mx-auto">
