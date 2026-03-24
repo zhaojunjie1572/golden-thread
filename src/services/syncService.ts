@@ -2,14 +2,9 @@ interface SyncData {
   version: string;
   timestamp: string;
   books: any[];
-  bookSources: any[];
   protocols: any[];
   protocolExecutionHistory: Record<string, any[]>; // 协议执行历史
   quotes: any[]; // 醒世恒言语录
-  music: {
-    volume: number;
-    tracks: any[]; // 本地音乐元数据
-  };
   thinkTank: {
     modules: any[];
     selectedModule: string | null;
@@ -26,15 +21,6 @@ interface SyncData {
     };
   };
   customProtocolThemes: any[];
-  reader: {
-    backgroundColor: string | null;
-    textColor: string | null;
-    selectedVoice: string | null;
-  };
-  speech: {
-    rate: number;
-    selectedVoice: string | null;
-  };
   aiConfig: any | null;
   aiAssistant: {
     chatSessions: any[];
@@ -49,7 +35,6 @@ interface SyncData {
       webSearchEnabled: boolean;
     };
   };
-  musicWebsites: any[];
   agentWorkflow: {
     agents: any[];
     workflows: any[];
@@ -72,14 +57,11 @@ export interface MergeStats {
 
 export interface MergeResult {
   books: MergeStats;
-  bookSources: MergeStats;
   protocols: MergeStats;
   protocolExecutionHistory: MergeStats;
   quotes: MergeStats;
-  musicTracks: MergeStats;
   thinkTankModules: MergeStats;
   thinkTankMessages: MergeStats;
-  musicWebsites: MergeStats;
   agentWorkflow: MergeStats;
   protocolUiModules: MergeStats;
   mindMaps: MergeStats;
@@ -144,14 +126,9 @@ export class SyncService {
       version: '1.0.0',
       timestamp: new Date().toISOString(),
       books: this.getFromLocalStorage(STORAGE_KEYS.books, []),
-      bookSources: this.getFromLocalStorage(STORAGE_KEYS.bookSources, []),
       protocols: this.getFromLocalStorage(STORAGE_KEYS.protocols, []),
       protocolExecutionHistory: this.getFromLocalStorage(STORAGE_KEYS.protocolExecutionHistory, {}),
       quotes: this.getFromLocalStorage(STORAGE_KEYS.quotes, []),
-      music: {
-        volume: this.getFromLocalStorage(STORAGE_KEYS.musicVolume, 0.5),
-        tracks: this.getFromLocalStorage(STORAGE_KEYS.musicTracks, []),
-      },
       thinkTank: {
         modules: this.getFromLocalStorage(STORAGE_KEYS.thinkTankModules, []),
         selectedModule: this.getFromLocalStorage(STORAGE_KEYS.thinkTankSelectedModule, null),
@@ -168,15 +145,6 @@ export class SyncService {
         },
       },
       customProtocolThemes: this.getFromLocalStorage(STORAGE_KEYS.customProtocolThemes, []),
-      reader: {
-        backgroundColor: this.getFromLocalStorage(STORAGE_KEYS.readerBgColor, null),
-        textColor: this.getFromLocalStorage(STORAGE_KEYS.readerTextColor, null),
-        selectedVoice: this.getFromLocalStorage(STORAGE_KEYS.readerSelectedVoice, null),
-      },
-      speech: {
-        rate: this.getFromLocalStorage(STORAGE_KEYS.speechRate, 1),
-        selectedVoice: this.getFromLocalStorage(STORAGE_KEYS.speechSelectedVoice, null),
-      },
       aiConfig: this.getFromLocalStorage(STORAGE_KEYS.aiConfig, null),
       aiAssistant: {
         chatSessions: this.getFromLocalStorage(STORAGE_KEYS.aiAssistantChatSessions, []),
@@ -191,7 +159,6 @@ export class SyncService {
           webSearchEnabled: this.getFromLocalStorage(STORAGE_KEYS.aiAssistantWebSearchEnabled, false),
         },
       },
-      musicWebsites: this.getFromLocalStorage(STORAGE_KEYS.musicWebsites, []),
       agentWorkflow: {
         agents: this.getFromLocalStorage(STORAGE_KEYS.agentModules, []),
         workflows: this.getFromLocalStorage(STORAGE_KEYS.agentWorkflows, []),
@@ -209,9 +176,7 @@ export class SyncService {
 
   static restoreData(data: SyncData): void {
     this.saveToLocalStorage(STORAGE_KEYS.books, data.books);
-    this.saveToLocalStorage(STORAGE_KEYS.bookSources, data.bookSources);
     this.saveToLocalStorage(STORAGE_KEYS.protocols, data.protocols);
-    this.saveToLocalStorage(STORAGE_KEYS.musicVolume, data.music.volume);
 
     // 恢复协议执行历史
     if (data.protocolExecutionHistory && Object.keys(data.protocolExecutionHistory).length > 0) {
@@ -221,11 +186,6 @@ export class SyncService {
     // 恢复醒世恒言语录
     if (data.quotes && data.quotes.length > 0) {
       this.saveToLocalStorage(STORAGE_KEYS.quotes, data.quotes);
-    }
-
-    // 恢复本地音乐元数据
-    if (data.music.tracks && data.music.tracks.length > 0) {
-      this.saveToLocalStorage(STORAGE_KEYS.musicTracks, data.music.tracks);
     }
 
     if (data.thinkTank) {
@@ -256,32 +216,8 @@ export class SyncService {
       this.saveToLocalStorage(STORAGE_KEYS.customProtocolThemes, data.customProtocolThemes);
     }
     
-    if (data.reader) {
-      if (data.reader.backgroundColor) {
-        this.saveToLocalStorage(STORAGE_KEYS.readerBgColor, data.reader.backgroundColor);
-      }
-      if (data.reader.textColor) {
-        this.saveToLocalStorage(STORAGE_KEYS.readerTextColor, data.reader.textColor);
-      }
-      if (data.reader.selectedVoice) {
-        this.saveToLocalStorage(STORAGE_KEYS.readerSelectedVoice, data.reader.selectedVoice);
-      }
-    }
-
-    // 恢复朗读设置
-    if (data.speech) {
-      this.saveToLocalStorage(STORAGE_KEYS.speechRate, data.speech.rate);
-      if (data.speech.selectedVoice) {
-        this.saveToLocalStorage(STORAGE_KEYS.speechSelectedVoice, data.speech.selectedVoice);
-      }
-    }
-    
     if (data.aiConfig) {
       this.saveToLocalStorage(STORAGE_KEYS.aiConfig, data.aiConfig);
-    }
-    
-    if (data.musicWebsites && data.musicWebsites.length > 0) {
-      this.saveToLocalStorage(STORAGE_KEYS.musicWebsites, data.musicWebsites);
     }
 
     // 恢复工作流数据
@@ -374,14 +310,11 @@ export class SyncService {
     const currentData = this.collectData();
     const result: MergeResult = {
       books: { added: 0, updated: 0, conflicts: 0 },
-      bookSources: { added: 0, updated: 0, conflicts: 0 },
       protocols: { added: 0, updated: 0, conflicts: 0 },
       protocolExecutionHistory: { added: 0, updated: 0, conflicts: 0 },
       quotes: { added: 0, updated: 0, conflicts: 0 },
-      musicTracks: { added: 0, updated: 0, conflicts: 0 },
       thinkTankModules: { added: 0, updated: 0, conflicts: 0 },
       thinkTankMessages: { added: 0, updated: 0, conflicts: 0 },
-      musicWebsites: { added: 0, updated: 0, conflicts: 0 },
       agentWorkflow: { added: 0, updated: 0, conflicts: 0 },
       protocolUiModules: { added: 0, updated: 0, conflicts: 0 },
       mindMaps: { added: 0, updated: 0, conflicts: 0 },
@@ -402,15 +335,7 @@ export class SyncService {
       result.books
     );
 
-    // 2. 合并书源 - 按 URL 去重
-    const mergedBookSources = this.mergeArrayByKey(
-      currentData.bookSources,
-      importedData.bookSources,
-      'url',
-      result.bookSources
-    );
-
-    // 3. 合并协议 - 按 ID 去重，保留执行次数更多的
+    // 2. 合并协议 - 按 ID 去重，保留执行次数更多的
     const mergedProtocols = this.mergeArrayById(
       currentData.protocols,
       importedData.protocols,
@@ -419,7 +344,7 @@ export class SyncService {
       result.protocols
     );
 
-    // 4. 合并智库模块 - 按 ID 去重，保留最新的
+    // 3. 合并智库模块 - 按 ID 去重，保留最新的
     const mergedModules = this.mergeArrayById(
       currentData.thinkTank.modules,
       importedData.thinkTank?.modules || [],
@@ -428,29 +353,21 @@ export class SyncService {
       result.thinkTankModules
     );
 
-    // 5. 合并智库对话历史 - 按模块合并消息
+    // 4. 合并智库对话历史 - 按模块合并消息
     const mergedMessages = this.mergeModuleMessages(
       currentData.thinkTank.moduleMessages,
       importedData.thinkTank?.moduleMessages || {},
       result.thinkTankMessages
     );
 
-    // 6. 合并音乐网站 - 按 URL 去重
-    const mergedMusicWebsites = this.mergeArrayByKey(
-      currentData.musicWebsites,
-      importedData.musicWebsites || [],
-      'url',
-      result.musicWebsites
-    );
-
-    // 7. 合并工作流数据
+    // 5. 合并工作流数据
     const mergedAgentWorkflow = this.mergeAgentWorkflow(
       currentData.agentWorkflow,
       importedData.agentWorkflow,
       result.agentWorkflow
     );
 
-    // 8. 合并自定义协议主题
+    // 6. 合并自定义协议主题
     const mergedThemes = this.mergeArrayById(
       currentData.customProtocolThemes,
       importedData.customProtocolThemes || [],
@@ -459,7 +376,7 @@ export class SyncService {
       internalStats.themes
     );
 
-    // 9. 合并 AI 助手聊天记录 - 按会话 ID 去重
+    // 7. 合并 AI 助手聊天记录 - 按会话 ID 去重
     const mergedChatSessions = this.mergeArrayById(
       currentData.aiAssistant.chatSessions,
       importedData.aiAssistant?.chatSessions || [],
@@ -468,14 +385,14 @@ export class SyncService {
       result.aiAssistantChatSessions
     );
 
-    // 10. 合并协议执行历史 - 合并每一天的记录
+    // 8. 合并协议执行历史 - 合并每一天的记录
     const mergedExecutionHistory = this.mergeExecutionHistory(
       currentData.protocolExecutionHistory,
       importedData.protocolExecutionHistory || {},
       result.protocolExecutionHistory
     );
 
-    // 11. 合并醒世恒言语录 - 按 ID 去重
+    // 9. 合并醒世恒言语录 - 按 ID 去重
     const mergedQuotes = this.mergeArrayById(
       currentData.quotes,
       importedData.quotes || [],
@@ -484,16 +401,7 @@ export class SyncService {
       result.quotes
     );
 
-    // 12. 合并本地音乐元数据 - 按 ID 去重
-    const mergedMusicTracks = this.mergeArrayById(
-      currentData.music.tracks,
-      importedData.music?.tracks || [],
-      'id',
-      null,
-      result.musicTracks
-    );
-
-    // 13. 合并协议 UI 模块 - 按 ID 去重
+    // 10. 合并协议 UI 模块 - 按 ID 去重
     const mergedProtocolUiModules = this.mergeArrayById(
       currentData.protocolUiModules,
       importedData.protocolUiModules || [],
@@ -502,7 +410,7 @@ export class SyncService {
       result.protocolUiModules
     );
 
-    // 14. 合并思维导图 - 按 ID 去重，保留最新的
+    // 11. 合并思维导图 - 按 ID 去重，保留最新的
     const mergedMindMaps = this.mergeArrayById(
       currentData.mindMaps,
       importedData.mindMaps || [],
@@ -513,14 +421,11 @@ export class SyncService {
 
     // 保存合并后的数据
     this.saveToLocalStorage(STORAGE_KEYS.books, mergedBooks);
-    this.saveToLocalStorage(STORAGE_KEYS.bookSources, mergedBookSources);
     this.saveToLocalStorage(STORAGE_KEYS.protocols, mergedProtocols);
     this.saveToLocalStorage(STORAGE_KEYS.protocolExecutionHistory, mergedExecutionHistory);
     this.saveToLocalStorage(STORAGE_KEYS.quotes, mergedQuotes);
-    this.saveToLocalStorage(STORAGE_KEYS.musicTracks, mergedMusicTracks);
     this.saveToLocalStorage(STORAGE_KEYS.thinkTankModules, mergedModules);
     this.saveToLocalStorage(STORAGE_KEYS.thinkTankModuleMessages, mergedMessages);
-    this.saveToLocalStorage(STORAGE_KEYS.musicWebsites, mergedMusicWebsites);
     this.saveToLocalStorage(STORAGE_KEYS.customProtocolThemes, mergedThemes);
 
     // 保存工作流数据
@@ -540,33 +445,9 @@ export class SyncService {
     // 保存 AI 助手聊天记录
     this.saveToLocalStorage(STORAGE_KEYS.aiAssistantChatSessions, mergedChatSessions);
 
-    // 音量取平均值
-    const mergedVolume = (currentData.music.volume + importedData.music.volume) / 2;
-    this.saveToLocalStorage(STORAGE_KEYS.musicVolume, mergedVolume);
-
     // AI 配置：如果当前没有则使用导入的，否则保留当前的
     if (!currentData.aiConfig && importedData.aiConfig) {
       this.saveToLocalStorage(STORAGE_KEYS.aiConfig, importedData.aiConfig);
-    }
-
-    // 阅读器设置：保留当前的，除非当前没有
-    if (importedData.reader) {
-      if (!currentData.reader.backgroundColor && importedData.reader.backgroundColor) {
-        this.saveToLocalStorage(STORAGE_KEYS.readerBgColor, importedData.reader.backgroundColor);
-      }
-      if (!currentData.reader.textColor && importedData.reader.textColor) {
-        this.saveToLocalStorage(STORAGE_KEYS.readerTextColor, importedData.reader.textColor);
-      }
-      if (!currentData.reader.selectedVoice && importedData.reader.selectedVoice) {
-        this.saveToLocalStorage(STORAGE_KEYS.readerSelectedVoice, importedData.reader.selectedVoice);
-      }
-    }
-
-    // 朗读设置：如果当前没有则使用导入的
-    if (importedData.speech) {
-      if (!currentData.speech.selectedVoice && importedData.speech.selectedVoice) {
-        this.saveToLocalStorage(STORAGE_KEYS.speechSelectedVoice, importedData.speech.selectedVoice);
-      }
     }
 
     return result;

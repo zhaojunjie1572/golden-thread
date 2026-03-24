@@ -84,9 +84,9 @@ export function SyncManagerView() {
           <p className="text-sm opacity-70 mb-3">☁️ GitHub Gist 免费云同步 | 📤 JSON 手动导出</p>
           <div className="text-xs opacity-60 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
             <p className="font-semibold text-blue-700 dark:text-blue-300 mb-1">📋 同步范围：</p>
-            <p>✅ 书籍、书源、协议、协议执行历史、醒世恒言、智库、AI助手聊天记录、AI配置、音乐网站、读书器设置、朗读设置、工作流智能体、思维导图</p>
+            <p>✅ 书籍、协议、协议执行历史、醒世恒言、智库、AI助手聊天记录、AI配置、工作流智能体、思维导图</p>
             <p className="font-semibold text-red-600 dark:text-red-400 mt-1 mb-1">❌ 不同步：</p>
-            <p>主题、背景图片（每个设备独立设置）</p>
+            <p>主题、背景图片、书源、音乐网站、本地音乐元数据、读书器设置、朗读设置（每个设备独立设置）</p>
           </div>
         </div>
         <button
@@ -234,18 +234,7 @@ export function SyncManagerView() {
                     <span className="text-green-600">+{showMergeResult.thinkTankMessages.added} 条</span>
                   </div>
                 )}
-                {showMergeResult.bookSources.added > 0 && (
-                  <div className="flex justify-between">
-                    <span>📖 书源</span>
-                    <span className="text-green-600">+{showMergeResult.bookSources.added} 个</span>
-                  </div>
-                )}
-                {showMergeResult.musicWebsites.added > 0 && (
-                  <div className="flex justify-between">
-                    <span>🎵 音乐网站</span>
-                    <span className="text-green-600">+{showMergeResult.musicWebsites.added} 个</span>
-                  </div>
-                )}
+
                 {showMergeResult.aiAssistantChatSessions.added > 0 && (
                   <div className="flex justify-between">
                     <span>🤖 AI 聊天记录</span>
@@ -329,8 +318,7 @@ export function SyncManagerView() {
           <h4 className="font-semibold mt-4 mb-2">📦 同步内容包括：</h4>
           <ul className="space-y-1 text-sm opacity-80">
             <li>• 📚 所有书籍数据</li>
-            <li>• 📖 所有书源配置</li>
-            <li>• 📋 所有协议</li>
+            <li>•  所有协议</li>
             <li>• 📊 协议执行历史（打卡记录）</li>
             <li>• ✨ 醒世恒言语录</li>
             <li>• 🧠 智库模块（包括你辛苦写的提示词！）</li>
@@ -338,13 +326,8 @@ export function SyncManagerView() {
             <li>• 🎨 智库模块 UI 设置（背景、颜色、透明度）</li>
             <li>• 🤖 AI 助手聊天记录（所有会话）</li>
             <li>• 🎨 AI 助手 UI 设置（背景、颜色、透明度）</li>
-            <li>• 🎵 音乐音量</li>
-            <li>• 🎶 本地音乐元数据</li>
-            <li>• 🌐 音乐网站列表（自定义的音乐网站）</li>
             <li>• 📝 自定义协议主题</li>
             <li>• 🧩 协议创建界面 UI 模块（预设）</li>
-            <li>• 📖 读书器设置（背景色、文字色、声音）</li>
-            <li>• 🔊 朗读设置（语速、声音）</li>
             <li>• 🤖 AI 助手 API 配置（API Key、Base URL、模型等）</li>
             <li>• ⚙️ 工作流智能体（agents、workflows、instances、memories、feedbacks、personas）</li>
             <li>• 🧠 思维导图（保存的导图数据）</li>

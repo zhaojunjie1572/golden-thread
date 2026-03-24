@@ -171,13 +171,6 @@ export class GitHubGistSyncService {
         };
       }
 
-      if (localData.bookSources?.length !== cloudData.bookSources?.length) {
-        conflicts.bookSources = {
-          local: localData.bookSources?.length || 0,
-          cloud: cloudData.bookSources?.length || 0
-        };
-      }
-
       // 检查工作流数据冲突
       const localAgents = localData.agentWorkflow?.agents?.length || 0;
       const cloudAgents = cloudData.agentWorkflow?.agents?.length || 0;

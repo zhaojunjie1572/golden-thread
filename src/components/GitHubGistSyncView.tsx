@@ -222,15 +222,6 @@ export function GitHubGistSyncView() {
                 </span>
               </div>
             )}
-            {conflict.details.bookSources && (
-              <div className="flex justify-between items-center p-3 bg-white rounded-lg">
-                <span className="font-medium">📖 书源</span>
-                <span className="text-sm">
-                  本地: <strong>{conflict.details.bookSources.local}</strong> 个 |
-                  云端: <strong>{conflict.details.bookSources.cloud}</strong> 个
-                </span>
-              </div>
-            )}
             {conflict.details.mindMaps && (
               <div className="flex justify-between items-center p-3 bg-white rounded-lg">
                 <span className="font-medium">🧠 思维导图</span>
