@@ -392,9 +392,12 @@ export class GitHubGistSyncService {
 
       // 5. 智能合并数据（优先使用云端数据作为基础，合并本地新增内容）
       console.log('[自动同步] 检测到数据差异，开始智能合并...');
+      console.log('[自动同步] 云端书籍数量:', cloudData.books?.length || 0);
+      console.log('[自动同步] 本地书籍数量:', localData.books?.length || 0);
       
       // 使用 SyncService 的合并功能
       const mergeResult = SyncService.mergeData(cloudData);
+      console.log('[自动同步] 合并完成，新增书籍:', mergeResult.books.added);
       
       // 6. 上传合并后的数据
       const data = SyncService.exportToJSON();

@@ -424,6 +424,7 @@ export class SyncService {
 
     // 保存合并后的数据
     this.saveToLocalStorage(STORAGE_KEYS.books, mergedBooks);
+    console.log('[SyncService.mergeData] 保存书籍数量:', mergedBooks.length);
     this.saveToLocalStorage(STORAGE_KEYS.protocols, mergedProtocols);
     this.saveToLocalStorage(STORAGE_KEYS.protocolExecutionHistory, mergedExecutionHistory);
     this.saveToLocalStorage(STORAGE_KEYS.quotes, mergedQuotes);
