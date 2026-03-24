@@ -74,6 +74,11 @@ export default function SimpleMindMap() {
         const parsed = JSON.parse(saved);
         // 验证解析后的数据是否有效
         if (parsed && typeof parsed === 'object' && parsed.id && parsed.label) {
+          // 验证 children 是否为数组
+          if (parsed.children && !Array.isArray(parsed.children)) {
+            console.error('Invalid mind map data: children is not an array');
+            return defaultMindMapData;
+          }
           return parsed;
         }
       }
@@ -82,6 +87,7 @@ export default function SimpleMindMap() {
     }
     return defaultMindMapData;
   });
+  const [hasError, setHasError] = useState(false);
   const [nodePositions, setNodePositions] = useState<Map<string, NodePosition>>(new Map());
   const [selectedNode, setSelectedNode] = useState<MindMapNode | null>(null);
   const [editingNode, setEditingNode] = useState<MindMapNode | null>(null);
@@ -1167,17 +1173,45 @@ export default function SimpleMindMap() {
     );
   };
 
-  // 普通模式
-  if (!isFullscreen) {
+  // 错误状态显示
+  if (hasError) {
     return (
-      <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-2xl border-2 border-amber-200 p-4 shadow-lg">
-        {renderHeader()}
-        {renderInputPanel()}
-        {renderHelp()}
-        {renderCanvas(false)}
-        {renderEditModal()}
+      <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-2xl border-2 border-red-200 p-6 shadow-lg">
+        <div className="text-center">
+          <div className="text-4xl mb-3">⚠️</div>
+          <h3 className="text-lg font-bold text-red-800 mb-2">思维导图加载失败</h3>
+          <p className="text-sm text-red-600 mb-4">数据可能已损坏</p>
+          <button
+            onClick={() => {
+              localStorage.removeItem('simple-mindmap-data');
+              window.location.reload();
+            }}
+            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+          >
+            重置数据
+          </button>
+        </div>
       </div>
     );
+  }
+
+  // 普通模式
+  if (!isFullscreen) {
+    try {
+      return (
+        <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-2xl border-2 border-amber-200 p-4 shadow-lg">
+          {renderHeader()}
+          {renderInputPanel()}
+          {renderHelp()}
+          {renderCanvas(false)}
+          {renderEditModal()}
+        </div>
+      );
+    } catch (error) {
+      console.error('思维导图渲染错误:', error);
+      setHasError(true);
+      return null;
+    }
   }
 
   // 全屏模式
