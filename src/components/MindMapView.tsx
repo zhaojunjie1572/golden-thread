@@ -371,6 +371,10 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
               e.stopPropagation();
               setSelectedNode(node);
             }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              setSelectedNode(node);
+            }}
           />
           {/* 节点文字 */}
           <text
@@ -386,69 +390,133 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
           
           {/* 选中节点的操作按钮 */}
           {isSelected && (
-            <g transform={`translate(${nodeWidth / 2 + 10}, 0)`}>
-              {/* 编辑按钮 */}
-              <circle
-                cx={0}
-                cy={-15}
-                r={12}
-                fill="#3b82f6"
-                className="cursor-pointer hover:opacity-80"
+            <g transform={`translate(${nodeWidth / 2 + 20}, 0)`}>
+              {/* 按钮背景条 */}
+              <rect
+                x={-5}
+                y={-22}
+                width={node.id !== 'root' ? 110 : 75}
+                height={44}
+                rx={22}
+                fill="white"
+                stroke="#e5e7eb"
+                strokeWidth={1}
+                filter="drop-shadow(0 2px 4px rgba(0,0,0,0.1))"
+              />
+              
+              {/* 编辑按钮 - 增大点击区域 */}
+              <g 
+                className="cursor-pointer"
                 onClick={(e) => {
                   e.stopPropagation();
                   openEditModal(node);
                 }}
-              />
-              <text
-                x={0}
-                y={-11}
-                textAnchor="middle"
-                fill="white"
-                fontSize={10}
-              >✏️</text>
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                  openEditModal(node);
+                }}
+              >
+                {/* 透明点击区域 */}
+                <circle
+                  cx={15}
+                  cy={0}
+                  r={20}
+                  fill="transparent"
+                />
+                <circle
+                  cx={15}
+                  cy={0}
+                  r={16}
+                  fill="#3b82f6"
+                  className="hover:opacity-80 active:opacity-60 transition-opacity"
+                  style={{ pointerEvents: 'none' }}
+                />
+                <text
+                  x={15}
+                  y={5}
+                  textAnchor="middle"
+                  fill="white"
+                  fontSize={14}
+                  style={{ pointerEvents: 'none' }}
+                >✏️</text>
+              </g>
               
               {/* 添加子节点按钮 */}
-              <circle
-                cx={0}
-                cy={0}
-                r={12}
-                fill="#10b981"
-                className="cursor-pointer hover:opacity-80"
+              <g 
+                transform="translate(35, 0)"
+                className="cursor-pointer"
                 onClick={(e) => {
                   e.stopPropagation();
                   addChildNode(node);
                 }}
-              />
-              <text
-                x={0}
-                y={4}
-                textAnchor="middle"
-                fill="white"
-                fontSize={10}
-              >➕</text>
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                  addChildNode(node);
+                }}
+              >
+                {/* 透明点击区域 */}
+                <circle
+                  cx={15}
+                  cy={0}
+                  r={20}
+                  fill="transparent"
+                />
+                <circle
+                  cx={15}
+                  cy={0}
+                  r={16}
+                  fill="#10b981"
+                  className="hover:opacity-80 active:opacity-60 transition-opacity"
+                  style={{ pointerEvents: 'none' }}
+                />
+                <text
+                  x={15}
+                  y={5}
+                  textAnchor="middle"
+                  fill="white"
+                  fontSize={14}
+                  style={{ pointerEvents: 'none' }}
+                >➕</text>
+              </g>
               
               {/* 删除按钮（根节点除外） */}
               {node.id !== 'root' && (
-                <>
+                <g 
+                  transform="translate(70, 0)"
+                  className="cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteNode(node);
+                  }}
+                  onTouchStart={(e) => {
+                    e.stopPropagation();
+                    deleteNode(node);
+                  }}
+                >
+                  {/* 透明点击区域 */}
                   <circle
-                    cx={0}
-                    cy={15}
-                    r={12}
+                    cx={15}
+                    cy={0}
+                    r={20}
+                    fill="transparent"
+                  />
+                  <circle
+                    cx={15}
+                    cy={0}
+                    r={16}
                     fill="#ef4444"
-                    className="cursor-pointer hover:opacity-80"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteNode(node);
-                    }}
+                    className="hover:opacity-80 active:opacity-60 transition-opacity"
+                    style={{ pointerEvents: 'none' }}
                   />
                   <text
-                    x={0}
-                    y={19}
+                    x={15}
+                    y={5}
                     textAnchor="middle"
                     fill="white"
-                    fontSize={10}
+                    fontSize={14}
+                    style={{ pointerEvents: 'none' }}
                   >🗑️</text>
-                </>
+                </g>
               )}
             </g>
           )}
