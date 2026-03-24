@@ -333,6 +333,16 @@ export class GitHubGistSyncService {
       return;
     }
 
+    // 立即执行一次同步
+    console.log('[自动同步] 立即执行首次同步...');
+    this.syncBidirectional().then((syncResult) => {
+      if (onSync) {
+        onSync(syncResult);
+      }
+      console.log(`[自动同步] 首次同步 ${syncResult.success ? '✅' : '❌'} ${syncResult.message}`);
+    });
+
+    // 然后每10分钟执行一次
     autoSyncInterval = window.setInterval(async () => {
       // 双向同步：先下载合并，再上传
       const syncResult = await this.syncBidirectional();
