@@ -38,8 +38,9 @@ export class GitHubGistSyncService {
   static async uploadToGist(token: string, gistId?: string): Promise<{ success: boolean; gistId?: string; error?: string }> {
     try {
       console.log('[uploadToGist] 开始上传，Gist ID:', gistId);
-      const data = SyncService.exportToJSON();
-      console.log('[uploadToGist] 数据大小:', data.length, '字符');
+      // 上传时不包含书籍内容，避免文件过大
+      const data = SyncService.exportToJSON(false);
+      console.log('[uploadToGist] 数据大小:', data.length, '字符（不包含书籍内容）');
       
       const headers = {
         'Authorization': `Bearer ${token}`,

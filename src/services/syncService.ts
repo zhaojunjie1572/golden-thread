@@ -121,9 +121,18 @@ const STORAGE_KEYS = {
 };
 
 export class SyncService {
-  static collectData(): SyncData {
-    const books = this.getFromLocalStorage(STORAGE_KEYS.books, []);
-    console.log('[SyncService.collectData] 书籍数量:', books.length);
+  static collectData(includeBookContent: boolean = true): SyncData {
+    let books = this.getFromLocalStorage(STORAGE_KEYS.books, []);
+    
+    // 如果不包含书籍内容，只保留元数据
+    if (!includeBookContent) {
+      books = books.map((book: any) => ({
+        ...book,
+        content: '', // 清空内容，只保留元数据
+      }));
+    }
+    
+    console.log('[SyncService.collectData] 书籍数量:', books.length, '包含内容:', includeBookContent);
     
     return {
       version: '1.0.0',
@@ -282,8 +291,8 @@ export class SyncService {
     }
   }
 
-  static exportToJSON(): string {
-    const data = this.collectData();
+  static exportToJSON(includeBookContent: boolean = true): string {
+    const data = this.collectData(includeBookContent);
     return JSON.stringify(data, null, 2);
   }
 
