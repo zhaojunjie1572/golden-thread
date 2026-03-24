@@ -23,6 +23,19 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
   const [sourceText, setSourceText] = useState('');
   const svgRef = useRef<SVGSVGElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  
+  // 编辑功能状态
+  const [editingNode, setEditingNode] = useState<MindMapNode | null>(null);
+  const [editLabel, setEditLabel] = useState('');
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedNode, setSelectedNode] = useState<MindMapNode | null>(null);
+  
+  // 拖拽和缩放状态
+  const [scale, setScale] = useState(1);
+  const [translateX, setTranslateX] = useState(0);
+  const [translateY, setTranslateY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   const parseProtocolToText = (proto: ProtocolModel): string => {
     let text = `# ${proto.principle}\n\n`;
@@ -328,6 +341,9 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
     // 计算字体大小
     const fontSize = level === 0 ? 15 : level === 1 ? 13 : 12;
 
+    // 判断是否选中
+    const isSelected = selectedNode?.id === node.id;
+
     return (
       <React.Fragment key={node.id}>
         <g transform={`translate(${x}, ${y})`}>
@@ -348,8 +364,13 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
             height={nodeHeight}
             rx={10}
             fill={color.fill}
-            stroke={color.stroke}
-            strokeWidth={level <= 1 ? 2.5 : 1.5}
+            stroke={isSelected ? '#2563eb' : color.stroke}
+            strokeWidth={isSelected ? 3 : level <= 1 ? 2.5 : 1.5}
+            className="cursor-pointer transition-all hover:opacity-90"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedNode(node);
+            }}
           />
           {/* 节点文字 */}
           <text
@@ -358,9 +379,79 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
             fill={color.text}
             fontSize={fontSize}
             fontWeight={level <= 2 ? '600' : '400'}
+            className="cursor-pointer pointer-events-none"
           >
             {node.label.length > 20 ? node.label.substring(0, 18) + '...' : node.label}
           </text>
+          
+          {/* 选中节点的操作按钮 */}
+          {isSelected && (
+            <g transform={`translate(${nodeWidth / 2 + 10}, 0)`}>
+              {/* 编辑按钮 */}
+              <circle
+                cx={0}
+                cy={-15}
+                r={12}
+                fill="#3b82f6"
+                className="cursor-pointer hover:opacity-80"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openEditModal(node);
+                }}
+              />
+              <text
+                x={0}
+                y={-11}
+                textAnchor="middle"
+                fill="white"
+                fontSize={10}
+              >✏️</text>
+              
+              {/* 添加子节点按钮 */}
+              <circle
+                cx={0}
+                cy={0}
+                r={12}
+                fill="#10b981"
+                className="cursor-pointer hover:opacity-80"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  addChildNode(node);
+                }}
+              />
+              <text
+                x={0}
+                y={4}
+                textAnchor="middle"
+                fill="white"
+                fontSize={10}
+              >➕</text>
+              
+              {/* 删除按钮（根节点除外） */}
+              {node.id !== 'root' && (
+                <>
+                  <circle
+                    cx={0}
+                    cy={15}
+                    r={12}
+                    fill="#ef4444"
+                    className="cursor-pointer hover:opacity-80"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteNode(node);
+                    }}
+                  />
+                  <text
+                    x={0}
+                    y={19}
+                    textAnchor="middle"
+                    fill="white"
+                    fontSize={10}
+                  >🗑️</text>
+                </>
+              )}
+            </g>
+          )}
         </g>
 
         {children.map((child) => {
@@ -438,9 +529,166 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
 
   const RefreshIcon = () => (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.001 0 01-15.357-2m15.357 2H15" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
     </svg>
   );
+
+  const EditIcon = () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+    </svg>
+  );
+
+  const AddIcon = () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+    </svg>
+  );
+
+  const DeleteIcon = () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    </svg>
+  );
+
+  const ZoomInIcon = () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+    </svg>
+  );
+
+  const ZoomOutIcon = () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
+    </svg>
+  );
+
+  const HandIcon = () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11" />
+    </svg>
+  );
+
+  // 打开编辑节点弹窗
+  const openEditModal = (node: MindMapNode) => {
+    setEditingNode(node);
+    setEditLabel(node.label);
+    setShowEditModal(true);
+  };
+
+  // 保存节点编辑
+  const saveNodeEdit = () => {
+    if (!editingNode || !mindMapData) return;
+
+    const updateNodeLabel = (node: MindMapNode): MindMapNode => {
+      if (node.id === editingNode.id) {
+        return { ...node, label: editLabel };
+      }
+      if (node.children) {
+        return {
+          ...node,
+          children: node.children.map(updateNodeLabel)
+        };
+      }
+      return node;
+    };
+
+    setMindMapData(updateNodeLabel(mindMapData));
+    setShowEditModal(false);
+    setEditingNode(null);
+  };
+
+  // 添加子节点
+  const addChildNode = (parentNode: MindMapNode) => {
+    if (!mindMapData) return;
+
+    const newChild: MindMapNode = {
+      id: `node-${crypto.randomUUID()}`,
+      label: '新节点',
+      children: []
+    };
+
+    const addChildToNode = (node: MindMapNode): MindMapNode => {
+      if (node.id === parentNode.id) {
+        return {
+          ...node,
+          children: [...(node.children || []), newChild]
+        };
+      }
+      if (node.children) {
+        return {
+          ...node,
+          children: node.children.map(addChildToNode)
+        };
+      }
+      return node;
+    };
+
+    setMindMapData(addChildToNode(mindMapData));
+  };
+
+  // 删除节点
+  const deleteNode = (nodeToDelete: MindMapNode) => {
+    if (!mindMapData || nodeToDelete.id === 'root') {
+      alert('不能删除根节点');
+      return;
+    }
+
+    if (!confirm('确定要删除这个节点吗？')) return;
+
+    const removeNode = (node: MindMapNode): MindMapNode | null => {
+      if (node.id === nodeToDelete.id) {
+        return null;
+      }
+      if (node.children) {
+        return {
+          ...node,
+          children: node.children.map(removeNode).filter(Boolean) as MindMapNode[]
+        };
+      }
+      return node;
+    };
+
+    const updated = removeNode(mindMapData);
+    if (updated) {
+      setMindMapData(updated);
+    }
+  };
+
+  // 处理鼠标滚轮缩放
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    setScale(prev => Math.max(0.3, Math.min(3, prev * delta)));
+  };
+
+  // 处理拖拽开始
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button === 0 || e.button === 1) { // 左键或中键
+      setIsDragging(true);
+      setDragStart({ x: e.clientX - translateX, y: e.clientY - translateY });
+    }
+  };
+
+  // 处理拖拽移动
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging) {
+      setTranslateX(e.clientX - dragStart.x);
+      setTranslateY(e.clientY - dragStart.y);
+    }
+  };
+
+  // 处理拖拽结束
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // 重置视图
+  const resetView = () => {
+    setScale(1);
+    setTranslateX(0);
+    setTranslateY(0);
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -553,6 +801,33 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-800">思维导图</h3>
                   <div className="flex items-center gap-2">
+                    {/* 缩放控制 */}
+                    <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                      <button
+                        onClick={() => setScale(prev => Math.max(0.3, prev * 0.9))}
+                        className="p-2 hover:bg-white rounded-md transition-colors"
+                        title="缩小"
+                      >
+                        <ZoomOutIcon />
+                      </button>
+                      <span className="text-sm text-gray-600 min-w-[60px] text-center">
+                        {Math.round(scale * 100)}%
+                      </span>
+                      <button
+                        onClick={() => setScale(prev => Math.min(3, prev * 1.1))}
+                        className="p-2 hover:bg-white rounded-md transition-colors"
+                        title="放大"
+                      >
+                        <ZoomInIcon />
+                      </button>
+                    </div>
+                    <button
+                      onClick={resetView}
+                      className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                      title="重置视图"
+                    >
+                      重置
+                    </button>
                     <button
                       onClick={handleGenerateMindMap}
                       className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-2"
@@ -562,14 +837,40 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
                     </button>
                   </div>
                 </div>
-                <div className="bg-gray-50 rounded-xl p-8 overflow-auto">
+                
+                {/* 操作提示 */}
+                <div className="mb-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
+                  <p className="flex items-center gap-2">
+                    <HandIcon />
+                    <span>鼠标滚轮缩放 | 拖拽移动 | 点击节点编辑</span>
+                  </p>
+                </div>
+                
+                <div 
+                  className="bg-gray-50 rounded-xl overflow-hidden"
+                  style={{ height: '600px', cursor: isDragging ? 'grabbing' : 'grab' }}
+                  onWheel={handleWheel}
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
+                  onClick={() => setSelectedNode(null)}
+                >
                   <svg
                     ref={svgRef}
-                    width={getTreeWidth(mindMapData, 180) + 200}
-                    height={getTreeHeight(mindMapData, 60) + 100}
-                    className="mx-auto"
+                    width="100%"
+                    height="100%"
+                    viewBox={`0 0 ${getTreeWidth(mindMapData, 180) + 400} ${Math.max(600, getTreeHeight(mindMapData, 60) + 200)}`}
+                    preserveAspectRatio="xMidYMid meet"
+                    style={{
+                      transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
+                      transformOrigin: 'center center',
+                      transition: isDragging ? 'none' : 'transform 0.1s ease-out'
+                    }}
                   >
-                    {renderTree(mindMapData, 100, (getTreeHeight(mindMapData, 60) + 100) / 2, 0)}
+                    <g transform={`translate(200, ${Math.max(300, (getTreeHeight(mindMapData, 60) + 200) / 2)})`}>
+                      {renderTree(mindMapData, 0, 0, 0)}
+                    </g>
                   </svg>
                 </div>
               </div>
@@ -577,6 +878,48 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
           </div>
         </div>
       </div>
+
+      {/* 编辑节点弹窗 */}
+      {showEditModal && editingNode && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]"
+          onClick={() => setShowEditModal(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl p-6 w-[400px] max-w-[90vw]"
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">编辑节点</h3>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                节点内容
+              </label>
+              <textarea
+                value={editLabel}
+                onChange={(e) => setEditLabel(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:border-golden focus:ring-1 focus:ring-golden"
+                rows={3}
+                placeholder="输入节点内容..."
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={saveNodeEdit}
+                className="flex-1 py-2 bg-golden text-white rounded-lg hover:bg-golden-dark transition-colors"
+              >
+                保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
