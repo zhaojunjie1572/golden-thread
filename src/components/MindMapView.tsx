@@ -326,33 +326,40 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
   const initializeNodePositions = (rootNode: MindMapNode) => {
     const positions = new Map<string, NodePosition>();
     
-    const calculatePositions = (node: MindMapNode, x: number, y: number, level: number): number => {
-      positions.set(node.id, { x, y });
-
+    // 计算以节点为根的子树高度
+    const getTreeHeight = (node: MindMapNode): number => {
       const children = node.children || [];
       if (children.length === 0) return NODE_HEIGHT;
-
-      let totalChildHeight = 0;
-      const childHeights: number[] = [];
-
+      
+      let totalHeight = 0;
       for (const child of children) {
-        const childHeight = calculatePositions(child, x + HORIZONTAL_GAP, 0, level + 1);
-        childHeights.push(childHeight);
-        totalChildHeight += childHeight + (childHeights.length > 1 ? VERTICAL_GAP : 0);
+        totalHeight += getTreeHeight(child) + (totalHeight > 0 ? VERTICAL_GAP : 0);
       }
-
-      let currentY = y - totalChildHeight / 2 + NODE_HEIGHT / 2;
-      for (let i = 0; i < children.length; i++) {
-        const child = children[i];
-        const childPos = positions.get(child.id)!;
-        positions.set(child.id, { ...childPos, y: currentY + childHeights[i] / 2 - NODE_HEIGHT / 2 });
-        currentY += childHeights[i] + VERTICAL_GAP;
-      }
-
-      return Math.max(totalChildHeight, NODE_HEIGHT);
+      return Math.max(totalHeight, NODE_HEIGHT);
     };
-
-    calculatePositions(rootNode, 0, 0, 0);
+    
+    // 递归设置节点位置
+    const setPositions = (node: MindMapNode, x: number, y: number) => {
+      positions.set(node.id, { x, y });
+      
+      const children = node.children || [];
+      if (children.length === 0) return;
+      
+      // 计算子树的总高度，用于垂直居中
+      const totalHeight = getTreeHeight(node);
+      let currentY = y - totalHeight / 2 + NODE_HEIGHT / 2;
+      
+      for (const child of children) {
+        const childHeight = getTreeHeight(child);
+        const childY = currentY + childHeight / 2 - NODE_HEIGHT / 2;
+        const childX = x + HORIZONTAL_GAP;
+        setPositions(child, childX, childY);
+        currentY += childHeight + VERTICAL_GAP;
+      }
+    };
+    
+    setPositions(rootNode, 0, 0);
+    console.log('思维导图节点位置:', Object.fromEntries(positions));
     setNodePositions(positions);
   };
 
