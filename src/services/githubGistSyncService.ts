@@ -37,7 +37,9 @@ export class GitHubGistSyncService {
 
   static async uploadToGist(token: string, gistId?: string): Promise<{ success: boolean; gistId?: string; error?: string }> {
     try {
+      console.log('[uploadToGist] 开始上传，Gist ID:', gistId);
       const data = SyncService.exportToJSON();
+      console.log('[uploadToGist] 数据大小:', data.length, '字符');
       
       const headers = {
         'Authorization': `Bearer ${token}`,
@@ -61,6 +63,7 @@ export class GitHubGistSyncService {
 
         if (!response.ok) {
           const errorData = await response.json();
+          console.error('[uploadToGist] 更新 Gist 失败:', response.status, errorData);
           if (response.status === 404) {
             return { success: false, error: 'Gist 不存在，请检查 Gist ID 或重新创建' };
           }
@@ -68,6 +71,7 @@ export class GitHubGistSyncService {
         }
 
         const result = await response.json();
+        console.log('[uploadToGist] 更新 Gist 成功:', result.id);
         return { success: true, gistId: result.id };
       } else {
         const response = await fetch('https://api.github.com/gists', {
@@ -86,10 +90,12 @@ export class GitHubGistSyncService {
 
         if (!response.ok) {
           const errorData = await response.json();
-          return { success: false, error: errorData.message || `创建失败: HTTP ${response.status}` };
+          console.error('[uploadToGist] 创建 Gist 失败:', response.status, errorData);
+          return { success: false, error: errorData.message || `创建 Gist 失败: HTTP ${response.status}` };
         }
 
         const result = await response.json();
+        console.log('[uploadToGist] 创建 Gist 成功:', result.id);
         return { success: true, gistId: result.id };
       }
     } catch (error) {
