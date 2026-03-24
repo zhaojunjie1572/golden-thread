@@ -359,7 +359,20 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
     };
     
     setPositions(rootNode, 0, 0);
+    
+    // 计算初始平移，让思维导图居中显示
+    const rootHeight = getTreeHeight(rootNode);
+    const initialX = 50;  // 左边缘留白
+    const initialY = 300 - rootHeight / 2;  // 垂直居中
+    
+    setTransform({ 
+      x: initialX, 
+      y: initialY, 
+      scale: 1 
+    });
+    
     console.log('思维导图节点位置:', Object.fromEntries(positions));
+    console.log('初始平移:', { x: initialX, y: initialY });
     setNodePositions(positions);
   };
 
@@ -909,14 +922,55 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
                   )}
                 </div>
 
-                <button
-                  onClick={handleGenerateMindMap}
-                  disabled={!apiService.hasApiKey()}
-                  className="bg-golden text-white px-8 py-3 rounded-xl font-semibold hover:bg-golden-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
-                >
-                  <ZapIcon />
-                  生成思维导图
-                </button>
+                <div className="flex gap-4 justify-center">
+                  <button
+                    onClick={handleGenerateMindMap}
+                    disabled={!apiService.hasApiKey()}
+                    className="bg-golden text-white px-8 py-3 rounded-xl font-semibold hover:bg-golden-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    <ZapIcon />
+                    AI 生成
+                  </button>
+                  <button
+                    onClick={() => {
+                      const testData: MindMapNode = {
+                        id: 'root',
+                        label: protocol?.principle || '测试思维导图',
+                        children: [
+                          {
+                            id: 'node1',
+                            label: '触发机制',
+                            children: [
+                              { id: 'node11', label: '时间触发' },
+                              { id: 'node12', label: '情境感知' }
+                            ]
+                          },
+                          {
+                            id: 'node2',
+                            label: '执行方案',
+                            children: [
+                              { id: 'node21', label: 'Plan A 标准动作' },
+                              { id: 'node22', label: 'Plan B 备用方案' }
+                            ]
+                          },
+                          {
+                            id: 'node3',
+                            label: '环境设计',
+                            children: [
+                              { id: 'node31', label: '事前准备' },
+                              { id: 'node32', label: '降低阻力' }
+                            ]
+                          }
+                        ]
+                      };
+                      initializeNodePositions(testData);
+                      setMindMapData(testData);
+                    }}
+                    className="bg-blue-500 text-white px-8 py-3 rounded-xl font-semibold hover:bg-blue-600 transition-colors flex items-center gap-2"
+                  >
+                    🌲 测试显示
+                  </button>
+                </div>
               </div>
             )}
 
