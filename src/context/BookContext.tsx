@@ -326,17 +326,44 @@ export function BookProvider({ children }: { children: ReactNode }) {
   }
 
   const addBook = (book: Book) => {
-    setBooks(prev => [book, ...prev]);
+    setBooks(prev => {
+      const newBooks = [book, ...prev];
+      // 立即保存到 localStorage，不依赖 useEffect
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(newBooks));
+      } catch (error) {
+        console.error('保存书籍失败:', error);
+      }
+      return newBooks;
+    });
   };
 
   const updateBook = (updatedBook: Book) => {
-    setBooks(prev => prev.map(book => 
-      book.id === updatedBook.id ? updatedBook : book
-    ));
+    setBooks(prev => {
+      const newBooks = prev.map(book => 
+        book.id === updatedBook.id ? updatedBook : book
+      );
+      // 立即保存到 localStorage
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(newBooks));
+      } catch (error) {
+        console.error('保存书籍失败:', error);
+      }
+      return newBooks;
+    });
   };
 
   const deleteBook = (id: string) => {
-    setBooks(prev => prev.filter(book => book.id !== id));
+    setBooks(prev => {
+      const newBooks = prev.filter(book => book.id !== id);
+      // 立即保存到 localStorage
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(newBooks));
+      } catch (error) {
+        console.error('保存书籍失败:', error);
+      }
+      return newBooks;
+    });
   };
 
   const getBookById = (id: string) => {

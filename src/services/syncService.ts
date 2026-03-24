@@ -133,6 +133,7 @@ export class SyncService {
     }
     
     console.log('[SyncService.collectData] 书籍数量:', books.length, '包含内容:', includeBookContent);
+    console.log('[SyncService.collectData] 书籍列表:', books.map((b: any) => ({ id: b.id, title: b.title, contentLength: b.content?.length || 0 })));
     
     return {
       version: '1.0.0',

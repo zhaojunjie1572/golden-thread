@@ -222,6 +222,19 @@ export class GitHubGistSyncService {
       return { success: false, message: '请先配置 GitHub Token' };
     }
 
+    // 显示本地数据概览
+    const localData = SyncService.collectData(false);
+    console.log('[syncToCloud] 本地数据概览:', {
+      books: localData.books?.length || 0,
+      protocols: localData.protocols?.length || 0,
+      quotes: localData.quotes?.length || 0,
+      mindMaps: localData.mindMaps?.length || 0,
+      thinkTankModules: localData.thinkTank?.modules?.length || 0,
+      agentWorkflowAgents: localData.agentWorkflow?.agents?.length || 0,
+      agentWorkflows: localData.agentWorkflow?.workflows?.length || 0,
+      chatSessions: localData.aiAssistant?.chatSessions?.length || 0,
+    });
+
     const result = await this.uploadToGist(config.token, config.gistId);
     
     if (result.success && result.gistId) {
@@ -231,7 +244,7 @@ export class GitHubGistSyncService {
         lastSyncTime: new Date().toISOString()
       };
       this.saveConfig(newConfig);
-      return { success: true, message: '上传成功！', gistId: result.gistId };
+      return { success: true, message: `上传成功！包含 ${localData.books?.length || 0} 本书籍，${localData.protocols?.length || 0} 个协议，${localData.quotes?.length || 0} 条语录`, gistId: result.gistId };
     }
 
     return { success: false, message: result.error || '上传失败' };
@@ -264,8 +277,26 @@ export class GitHubGistSyncService {
 
     // 直接使用 mergeData 进行智能合并，而不是返回冲突错误
     console.log('[syncFromCloud] 开始智能合并数据...');
+    console.log('[syncFromCloud] 云端数据概览:', {
+      books: result.data.books?.length || 0,
+      protocols: result.data.protocols?.length || 0,
+      quotes: result.data.quotes?.length || 0,
+      mindMaps: result.data.mindMaps?.length || 0,
+      thinkTankModules: result.data.thinkTank?.modules?.length || 0,
+      agentWorkflowAgents: result.data.agentWorkflow?.agents?.length || 0,
+      agentWorkflows: result.data.agentWorkflow?.workflows?.length || 0,
+      chatSessions: result.data.aiAssistant?.chatSessions?.length || 0,
+    });
     const mergeResult = SyncService.mergeData(result.data);
-    console.log('[syncFromCloud] 合并完成，新增书籍:', mergeResult.books.added);
+    console.log('[syncFromCloud] 合并完成:', {
+      books: `${mergeResult.books.added} 新增, ${mergeResult.books.updated} 更新`,
+      protocols: `${mergeResult.protocols.added} 新增, ${mergeResult.protocols.updated} 更新`,
+      quotes: `${mergeResult.quotes.added} 新增`,
+      mindMaps: `${mergeResult.mindMaps.added} 新增`,
+      thinkTankModules: `${mergeResult.thinkTankModules.added} 新增`,
+      agentWorkflow: `${mergeResult.agentWorkflow.added} 新增`,
+      chatSessions: `${mergeResult.aiAssistantChatSessions.added} 新增`,
+    });
 
     // 保存合并后的配置
     const newConfig: GitHubGistConfig = {
@@ -274,7 +305,7 @@ export class GitHubGistSyncService {
     };
     this.saveConfig(newConfig);
 
-    return { success: true, message: `下载成功！新增 ${mergeResult.books.added} 本书籍，页面即将刷新...` };
+    return { success: true, message: `下载成功！新增 ${mergeResult.books.added} 本书籍，${mergeResult.protocols.added} 个协议，${mergeResult.quotes.added} 条语录，页面即将刷新...` };
   }
 
   static forceSyncFromCloud(): Promise<{ success: boolean; message: string }> {
