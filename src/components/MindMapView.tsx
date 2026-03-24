@@ -393,6 +393,7 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
             onMouseDown={(e) => handleNodeDragStart(e, node, nodeX, nodeY)}
             onTouchStart={(e) => {
               e.stopPropagation();
+              e.preventDefault();
               // 单指触摸节点：开始节点拖拽
               if (e.touches.length === 1) {
                 setSelectedNode(node);
@@ -401,6 +402,7 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
             }}
             onTouchMove={(e) => {
               e.stopPropagation();
+              e.preventDefault();
               // 节点拖拽移动
               if (draggingNode && e.touches.length === 1) {
                 handleNodeDragMove(e);
@@ -408,6 +410,12 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
             }}
             onTouchEnd={(e) => {
               e.stopPropagation();
+              e.preventDefault();
+              handleNodeDragEnd();
+            }}
+            onTouchCancel={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
               handleNodeDragEnd();
             }}
           />
@@ -906,6 +914,9 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
 
   // 处理画布触摸开始（空白处）
   const handleCanvasTouchStart = (e: React.TouchEvent) => {
+    // 如果正在拖拽节点，不处理画布事件
+    if (draggingNode) return;
+    
     const touches = e.touches;
     
     if (touches.length === 2) {
@@ -924,6 +935,10 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
   // 处理画布触摸移动
   const handleCanvasTouchMove = (e: React.TouchEvent) => {
     e.preventDefault();
+    
+    // 如果正在拖拽节点，不处理画布事件
+    if (draggingNode) return;
+    
     const touches = e.touches;
 
     if (touches.length === 2) {
