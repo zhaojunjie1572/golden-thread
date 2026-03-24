@@ -2,7 +2,7 @@ import { SyncService } from './syncService';
 
 const GIST_FILENAME = 'golden-thread-backup.json';
 const GIST_DESCRIPTION = 'Golden Thread 应用数据备份 - 自动同步';
-const AUTO_SYNC_INTERVAL = 60000;
+const AUTO_SYNC_INTERVAL = 10 * 60 * 1000; // 10分钟
 
 export interface GitHubGistConfig {
   token: string;
@@ -342,7 +342,7 @@ export class GitHubGistSyncService {
       console.log(`[自动同步] ${syncResult.success ? '✅' : '❌'} ${syncResult.message}`);
     }, AUTO_SYNC_INTERVAL);
 
-    console.log('[自动同步] 已启动，每分钟双向同步一次');
+    console.log('[自动同步] 已启动，每10分钟双向同步一次');
   }
 
   /**

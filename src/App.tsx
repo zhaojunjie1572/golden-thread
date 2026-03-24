@@ -145,15 +145,34 @@ function AppContentWithMusicAndSpeech() {
   // 启动自动同步
   useEffect(() => {
     const config = GitHubGistSyncService.getConfig();
-    if (config?.autoSync) {
-      GitHubGistSyncService.startAutoSync((result) => {
-        if (result.success) {
-          console.log('[自动同步] 同步成功');
-        } else {
-          console.log('[自动同步] 同步失败:', result.message);
-        }
-      });
+    
+    if (!config) {
+      console.log('[自动同步] 未配置同步设置');
+      return;
     }
+    
+    if (!config.autoSync) {
+      console.log('[自动同步] 自动同步已关闭');
+      return;
+    }
+    
+    if (!config.token) {
+      console.log('[自动同步] 未配置 GitHub Token，无法启动自动同步');
+      return;
+    }
+    
+    if (!config.gistId) {
+      console.log('[自动同步] 未配置 Gist ID，首次同步将创建新的 Gist');
+    }
+    
+    console.log('[自动同步] 正在启动...');
+    GitHubGistSyncService.startAutoSync((result) => {
+      if (result.success) {
+        console.log('[自动同步] 同步成功:', result.message);
+      } else {
+        console.log('[自动同步] 同步失败:', result.message);
+      }
+    });
 
     return () => {
       GitHubGistSyncService.stopAutoSync();
