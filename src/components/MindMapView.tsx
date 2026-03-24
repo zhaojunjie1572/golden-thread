@@ -64,35 +64,55 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
 
   const parseProtocolToText = (proto: ProtocolModel): string => {
     let text = `# ${proto.principle}\n\n`;
-    text += `## 目标类型: ${proto.goalType}\n\n`;
+    text += `## 目标类型\n`;
+    text += `- ${proto.goalType}\n\n`;
+    
     text += `## 触发机制\n`;
-    text += `- 触发类型: ${proto.triggerType}\n`;
-    text += `- 触发条件: ${proto.triggerCondition}\n`;
-    if (proto.timeWindow) text += `- 时间窗口: ${proto.timeWindow}\n`;
-    if (proto.reminderTime) text += `- 提醒时间: ${proto.reminderTime}\n`;
-    text += `- 频率: ${proto.frequency}\n`;
-    if (proto.psychologicalBoundary) text += `- 心理边界（不做）: ${proto.psychologicalBoundary}\n`;
-    if (proto.actionPermission) text += `- 行动许可（可以做）: ${proto.actionPermission}\n\n`;
+    text += `### 触发条件\n`;
+    text += `- ${proto.triggerType}\n`;
+    text += `- ${proto.triggerCondition}\n`;
+    if (proto.timeWindow) text += `- ${proto.timeWindow}\n`;
+    if (proto.reminderTime) text += `- ${proto.reminderTime}\n`;
+    text += `- 频率: ${proto.frequency}\n\n`;
+    
+    if (proto.psychologicalBoundary || proto.actionPermission) {
+      text += `## 边界设定\n`;
+      if (proto.psychologicalBoundary) {
+        text += `### 心理边界（不做）\n`;
+        text += `- ${proto.psychologicalBoundary}\n`;
+      }
+      if (proto.actionPermission) {
+        text += `### 行动许可（可以做）\n`;
+        text += `- ${proto.actionPermission}\n\n`;
+      }
+    }
 
-    text += `## 执行动作 - Plan A\n`;
+    text += `## 执行方案\n`;
+    text += `### Plan A（标准方案）\n`;
     text += `- 标准动作: ${proto.action}\n`;
     text += `- 最小动作: ${proto.minimumAction}\n`;
     text += `- 最大时长: ${proto.maxDuration}分钟\n`;
-    if (proto.locationConstraint) text += `- 地点约束: ${proto.locationConstraint}\n\n`;
+    if (proto.locationConstraint) text += `- ${proto.locationConstraint}\n\n`;
 
     if (proto.actionPlanB) {
-      text += `## 执行动作 - Plan B\n`;
+      text += `### Plan B（备用方案）\n`;
       text += `- 标准动作: ${proto.actionPlanB}\n`;
       if (proto.minimumActionPlanB) text += `- 最小动作: ${proto.minimumActionPlanB}\n`;
       text += `- 最大时长: ${proto.maxDurationPlanB}分钟\n`;
-      if (proto.locationConstraintPlanB) text += `- 地点约束: ${proto.locationConstraintPlanB}\n\n`;
+      if (proto.locationConstraintPlanB) text += `- ${proto.locationConstraintPlanB}\n\n`;
     }
 
     if (proto.environmentPrep || proto.frictionReduce || proto.frictionIncrease) {
       text += `## 环境设计\n`;
-      if (proto.environmentPrep) text += `- 事前准备: ${proto.environmentPrep}\n`;
-      if (proto.frictionReduce) text += `- 降低阻力: ${proto.frictionReduce}\n`;
-      if (proto.frictionIncrease) text += `- 增加阻力: ${proto.frictionIncrease}\n`;
+      if (proto.environmentPrep) {
+        text += `### 事前准备\n`;
+        text += `- ${proto.environmentPrep}\n`;
+      }
+      if (proto.frictionReduce || proto.frictionIncrease) {
+        text += `### 阻力管理\n`;
+        if (proto.frictionReduce) text += `- 降低阻力: ${proto.frictionReduce}\n`;
+        if (proto.frictionIncrease) text += `- 增加阻力: ${proto.frictionIncrease}\n`;
+      }
     }
 
     return text;
