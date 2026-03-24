@@ -9,11 +9,19 @@ interface MindMapNode {
   x?: number;
   y?: number;
   collapsed?: boolean;
+  // 自定义连线目标节点ID列表
+  customConnections?: string[];
 }
 
 interface NodePosition {
   x: number;
   y: number;
+}
+
+// 自定义连线接口
+interface CustomConnection {
+  from: string;
+  to: string;
 }
 
 // 常量定义
@@ -108,6 +116,11 @@ export default function SimpleMindMap() {
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [streamingContent, setStreamingContent] = useState('');
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // 自定义连线状态
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [connectionStart, setConnectionStart] = useState<string | null>(null);
+  const [customConnections, setCustomConnections] = useState<CustomConnection[]>([]);
 
   // 双指缩放相关状态
   const [lastTouchDistance, setLastTouchDistance] = useState<number | null>(null);
@@ -240,6 +253,12 @@ export default function SimpleMindMap() {
   const handleNodeTouchEnd = (_e: React.TouchEvent, node: MindMapNode) => {
     const touchDuration = Date.now() - touchStartTimeRef.current;
     
+    // 如果正在创建连线，完成连线
+    if (isConnecting && connectionStart && connectionStart !== node.id) {
+      completeConnection(node.id);
+      return;
+    }
+    
     // 短触摸（< 300ms）且没有移动视为点击
     if (!hasMovedRef.current && touchDuration < 300 && !isPinchingRef.current) {
       setSelectedNode(node);
@@ -340,6 +359,85 @@ export default function SimpleMindMap() {
 
     setMindMapData(removeNode(mindMapData) || mindMapData);
     setSelectedNode(null);
+  };
+
+  // 添加父节点（在选中节点之前插入）
+  const addParentNode = (childNode: MindMapNode) => {
+    if (childNode.id === 'root') {
+      alert('根节点不能添加父节点');
+      return;
+    }
+
+    const newParent: MindMapNode = {
+      id: `node-${Date.now()}`,
+      label: '父节点',
+      children: [childNode]
+    };
+
+    const replaceNode = (node: MindMapNode): MindMapNode => {
+      if (node.children) {
+        const newChildren = node.children.map(child => {
+          if (child.id === childNode.id) {
+            return newParent;
+          }
+          return replaceNode(child);
+        });
+        return { ...node, children: newChildren };
+      }
+      return node;
+    };
+
+    setMindMapData(replaceNode(mindMapData));
+    setSelectedNode(newParent);
+  };
+
+  // 清除所有节点（重置为默认）
+  const clearAllNodes = () => {
+    if (!confirm('确定要清除所有节点吗？这将重置为默认状态。')) return;
+    
+    setMindMapData({
+      id: 'root',
+      label: '思维导图',
+      children: []
+    });
+    setSelectedNode(null);
+    setNodePositions(new Map());
+    localStorage.removeItem('simple-mindmap-data');
+  };
+
+  // 开始创建自定义连线
+  const startConnection = (nodeId: string) => {
+    setIsConnecting(true);
+    setConnectionStart(nodeId);
+  };
+
+  // 完成自定义连线
+  const completeConnection = (targetNodeId: string) => {
+    if (!connectionStart || connectionStart === targetNodeId) {
+      setIsConnecting(false);
+      setConnectionStart(null);
+      return;
+    }
+
+    // 检查是否已存在该连线
+    const exists = customConnections.some(
+      conn => (conn.from === connectionStart && conn.to === targetNodeId) ||
+              (conn.from === targetNodeId && conn.to === connectionStart)
+    );
+
+    if (!exists) {
+      setCustomConnections(prev => [...prev, { from: connectionStart, to: targetNodeId }]);
+    }
+
+    setIsConnecting(false);
+    setConnectionStart(null);
+  };
+
+  // 删除自定义连线
+  const removeConnection = (from: string, to: string) => {
+    setCustomConnections(prev => prev.filter(
+      conn => !((conn.from === from && conn.to === to) || (conn.from === to && conn.to === from))
+    ));
   };
 
   // 处理鼠标移动
@@ -757,12 +855,29 @@ export default function SimpleMindMap() {
           <div
             className="absolute flex items-center gap-1 bg-white rounded-full shadow-lg z-40 px-2 py-1 border border-gray-100"
             style={{
-              left: pos.x + NODE_WIDTH / 2 - 40,
+              left: pos.x + NODE_WIDTH / 2 - 60,
               top: pos.y - 35
             }}
             onClick={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
           >
+            {!isRoot && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  addParentNode(node);
+                }}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  addParentNode(node);
+                }}
+                className="w-7 h-7 flex items-center justify-center rounded-full bg-purple-500 hover:bg-purple-600 text-white text-xs transition-colors"
+                title="添加父节点"
+              >
+                ⬆️
+              </button>
+            )}
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -810,6 +925,35 @@ export default function SimpleMindMap() {
                 🗑️
               </button>
             )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isConnecting && connectionStart === node.id) {
+                  setIsConnecting(false);
+                  setConnectionStart(null);
+                } else {
+                  startConnection(node.id);
+                }
+              }}
+              onTouchEnd={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                if (isConnecting && connectionStart === node.id) {
+                  setIsConnecting(false);
+                  setConnectionStart(null);
+                } else {
+                  startConnection(node.id);
+                }
+              }}
+              className={`w-7 h-7 flex items-center justify-center rounded-full text-white text-xs transition-colors ${
+                isConnecting && connectionStart === node.id
+                  ? 'bg-orange-600 ring-2 ring-orange-300'
+                  : 'bg-orange-500 hover:bg-orange-600'
+              }`}
+              title={isConnecting && connectionStart === node.id ? '取消连线' : '创建连线'}
+            >
+              {isConnecting && connectionStart === node.id ? '❌' : '🔗'}
+            </button>
           </div>
         )}
 
@@ -823,6 +967,7 @@ export default function SimpleMindMap() {
   const renderConnections = () => {
     const connections: JSX.Element[] = [];
 
+    // 渲染父子关系连线
     const traverse = (node: MindMapNode) => {
       const parentPos = nodePositions.get(node.id);
       if (!parentPos) return;
@@ -854,6 +999,55 @@ export default function SimpleMindMap() {
     };
 
     traverse(mindMapData);
+
+    // 渲染自定义连线
+    customConnections.forEach((conn, index) => {
+      const fromPos = nodePositions.get(conn.from);
+      const toPos = nodePositions.get(conn.to);
+      if (!fromPos || !toPos) return;
+
+      const startX = fromPos.x + NODE_WIDTH / 2;
+      const startY = fromPos.y + NODE_HEIGHT / 2;
+      const endX = toPos.x + NODE_WIDTH / 2;
+      const endY = toPos.y + NODE_HEIGHT / 2;
+
+      connections.push(
+        <g key={`custom-${index}`}>
+          <line
+            x1={startX}
+            y1={startY}
+            x2={endX}
+            y2={endY}
+            stroke="#8B5CF6"
+            strokeWidth={2}
+            strokeDasharray="5,5"
+            opacity={0.8}
+          />
+          {/* 删除连线按钮 */}
+          <circle
+            cx={(startX + endX) / 2}
+            cy={(startY + endY) / 2}
+            r={8}
+            fill="#EF4444"
+            cursor="pointer"
+            onClick={() => removeConnection(conn.from, conn.to)}
+          />
+          <text
+            x={(startX + endX) / 2}
+            y={(startY + endY) / 2}
+            textAnchor="middle"
+            dominantBaseline="central"
+            fill="white"
+            fontSize={10}
+            cursor="pointer"
+            onClick={() => removeConnection(conn.from, conn.to)}
+          >
+            ×
+          </text>
+        </g>
+      );
+    });
+
     return connections;
   };
 
@@ -893,15 +1087,6 @@ export default function SimpleMindMap() {
     };
     reader.readAsText(file);
     e.target.value = '';
-  };
-
-  // 重置为默认数据
-  const resetToDefault = () => {
-    if (confirm('确定要重置为默认思维导图吗？当前数据将丢失。')) {
-      setMindMapData(defaultMindMapData);
-      initializeNodePositions(defaultMindMapData);
-      setSelectedNode(null);
-    }
   };
 
   // 工具栏按钮组件
@@ -1031,9 +1216,9 @@ export default function SimpleMindMap() {
           className="text-amber-600 hover:bg-amber-100"
         />
         <ToolbarButton
-          onClick={resetToDefault}
+          onClick={clearAllNodes}
           icon="🗑️"
-          title="重置默认"
+          title="清除所有"
           className="text-red-500 hover:bg-red-100"
         />
       </div>
