@@ -59,7 +59,9 @@ interface SyncData {
     personas: any[];
   };
   protocolUiModules: any[]; // 协议创建界面的 UI 模块
-  mindMaps: any[]; // 保存的思维导图
+  mindMaps: any[]; // 保存的思维导图历史记录
+  currentMindMap: any | null; // 当前正在编辑的思维导图
+  mindMapConnections: any[]; // 思维导图自定义连线
 }
 
 export interface MergeStats {
@@ -123,6 +125,8 @@ const STORAGE_KEYS = {
   agentPersonas: 'agent-personas',
   protocolUiModules: 'protocol-ui-modules',
   mindMaps: 'saved-mindmaps',
+  currentMindMap: 'simple-mindmap-data',
+  mindMapConnections: 'mindmap-custom-connections',
   aiAssistantChatSessions: 'chat-sessions',
   aiAssistantBackground: 'ai-assistant-background',
   aiAssistantUserTextColor: 'ai-assistant-user-text-color',
@@ -198,6 +202,8 @@ export class SyncService {
       },
       protocolUiModules: this.getFromLocalStorage(STORAGE_KEYS.protocolUiModules, []),
       mindMaps: this.getFromLocalStorage(STORAGE_KEYS.mindMaps, []),
+      currentMindMap: this.getFromLocalStorage(STORAGE_KEYS.currentMindMap, null),
+      mindMapConnections: this.getFromLocalStorage(STORAGE_KEYS.mindMapConnections, []),
     };
   }
 
@@ -308,6 +314,12 @@ export class SyncService {
     // 恢复思维导图
     if (data.mindMaps && data.mindMaps.length > 0) {
       this.saveToLocalStorage(STORAGE_KEYS.mindMaps, data.mindMaps);
+    }
+    if (data.currentMindMap) {
+      this.saveToLocalStorage(STORAGE_KEYS.currentMindMap, data.currentMindMap);
+    }
+    if (data.mindMapConnections && data.mindMapConnections.length > 0) {
+      this.saveToLocalStorage(STORAGE_KEYS.mindMapConnections, data.mindMapConnections);
     }
 
     // 恢复 AI 助手数据

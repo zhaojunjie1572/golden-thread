@@ -231,6 +231,15 @@ export function GitHubGistSyncView() {
                 </span>
               </div>
             )}
+            {conflict.details.mindMaps && (
+              <div className="flex justify-between items-center p-3 bg-white rounded-lg">
+                <span className="font-medium">🧠 思维导图</span>
+                <span className="text-sm">
+                  本地: <strong>{conflict.details.mindMaps.local}</strong> 个 |
+                  云端: <strong>{conflict.details.mindMaps.cloud}</strong> 个
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">

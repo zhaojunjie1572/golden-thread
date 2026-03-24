@@ -197,6 +197,13 @@ export class GitHubGistSyncService {
         conflicts.agentWorkflowInstances = { local: localInstances, cloud: cloudInstances };
       }
 
+      // 检查思维导图数据冲突
+      const localMindMaps = localData.mindMaps?.length || 0;
+      const cloudMindMaps = cloudData.mindMaps?.length || 0;
+      if (localMindMaps !== cloudMindMaps) {
+        conflicts.mindMaps = { local: localMindMaps, cloud: cloudMindMaps };
+      }
+
       return {
         hasConflict: Object.keys(conflicts).length > 0,
         details: conflicts
@@ -432,8 +439,8 @@ export class GitHubGistSyncService {
       // 8. 统计合并结果
       const totalAdded = mergeResult.books.added + mergeResult.protocols.added + 
                         mergeResult.thinkTankModules.added + mergeResult.aiAssistantChatSessions.added +
-                        mergeResult.agentWorkflow.added;
-      const totalUpdated = mergeResult.books.updated + mergeResult.protocols.updated + mergeResult.thinkTankModules.updated;
+                        mergeResult.agentWorkflow.added + mergeResult.mindMaps.added;
+      const totalUpdated = mergeResult.books.updated + mergeResult.protocols.updated + mergeResult.thinkTankModules.updated + mergeResult.mindMaps.updated;
 
       return {
         success: true,
