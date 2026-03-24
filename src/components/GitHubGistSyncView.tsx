@@ -7,7 +7,7 @@ export function GitHubGistSyncView() {
   const [config, setConfig] = useState<GitHubGistConfig | null>(null);
   const [token, setToken] = useState('');
   const [gistId, setGistId] = useState('');
-  const [autoSync, setAutoSync] = useState(false);
+  const [autoSync, setAutoSync] = useState(true);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [showToken, setShowToken] = useState(false);
@@ -37,7 +37,7 @@ export function GitHubGistSyncView() {
       setConfig(savedConfig);
       setToken(savedConfig.token || '');
       setGistId(savedConfig.gistId || '');
-      setAutoSync(savedConfig.autoSync || false);
+      setAutoSync(savedConfig.autoSync !== false);
     }
   }, []);
 
