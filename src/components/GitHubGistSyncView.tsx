@@ -12,8 +12,20 @@ export function GitHubGistSyncView() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [showToken, setShowToken] = useState(false);
   const [conflict, setConflict] = useState<{ hasConflict: boolean; details: any } | null>(null);
+  const [storageAvailable, setStorageAvailable] = useState(true);
 
   useEffect(() => {
+    // 检测 localStorage 是否可用
+    try {
+      const testKey = '__storage_test__';
+      localStorage.setItem(testKey, testKey);
+      localStorage.removeItem(testKey);
+      setStorageAvailable(true);
+    } catch (e) {
+      setStorageAvailable(false);
+      console.error('[GitHubGistSyncView] localStorage 不可用:', e);
+    }
+
     const savedConfig = GitHubGistSyncService.getConfig();
     if (savedConfig) {
       setConfig(savedConfig);
@@ -180,6 +192,24 @@ export function GitHubGistSyncView() {
           使用 GitHub Gist 免费存储空间，实现多设备数据自动同步
         </p>
       </div>
+
+      {/* 存储不可用警告 */}
+      {!storageAvailable && (
+        <div className="p-4 rounded-lg bg-red-100 text-red-800">
+          <p className="font-semibold">⚠️ 浏览器存储不可用</p>
+          <p className="text-sm mt-1">
+            可能是以下原因：
+          </p>
+          <ul className="text-sm mt-1 list-disc list-inside">
+            <li>浏览器处于隐私/无痕模式</li>
+            <li>浏览器禁止了第三方 Cookie/存储</li>
+            <li>存储空间已满</li>
+          </ul>
+          <p className="text-sm mt-2">
+            请尝试使用普通模式浏览，或检查浏览器设置。
+          </p>
+        </div>
+      )}
 
       {/* 消息提示 */}
       {message && (
@@ -360,21 +390,27 @@ export function GitHubGistSyncView() {
           <h4 className="font-semibold mb-4" style={{ color: colors.primary }}>🔄 同步操作</h4>
           
           {/* 同步状态 */}
-          {config.lastSyncTime && (
-            <div className="mb-4 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg">
-              <p className="text-sm">
-                <span className="opacity-70">上次同步：</span>
-                <span className="font-medium">
-                  {GitHubGistSyncService.formatLastSyncTime(config.lastSyncTime)}
-                </span>
-              </p>
-              {config.gistId && (
-                <p className="text-xs text-gray-500 mt-1 truncate">
-                  Gist ID: {config.gistId}
+          <div className="mb-4 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg space-y-2">
+            <p className="text-sm">
+              <span className="opacity-70">上次同步：</span>
+              <span className="font-medium">
+                {GitHubGistSyncService.formatLastSyncTime(config.lastSyncTime)}
+              </span>
+            </p>
+            {config.gistId && (
+              <div className="text-xs">
+                <p className="text-gray-500">
+                  <span className="opacity-70">Gist ID: </span>
+                  <code className="bg-gray-200 dark:bg-gray-700 px-1 py-0.5 rounded font-mono">
+                    {config.gistId}
+                  </code>
                 </p>
-              )}
-            </div>
-          )}
+                <p className="text-gray-400 mt-1">
+                  💡 请确保所有设备使用相同的 Gist ID 才能实现同步
+                </p>
+              </div>
+            )}
+          </div>
 
           {/* 操作按钮 */}
           <div className="grid grid-cols-2 gap-4">
