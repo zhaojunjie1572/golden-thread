@@ -386,6 +386,11 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
             stroke={isSelected ? '#2563eb' : isDraggingNode ? '#8b5cf6' : color.stroke}
             strokeWidth={isSelected || isDraggingNode ? 3 : level <= 1 ? 2.5 : 1.5}
             className={`transition-all hover:opacity-90 ${draggingNode ? 'cursor-grabbing' : 'cursor-grab'}`}
+            style={{
+              WebkitUserSelect: 'none',
+              WebkitTouchCallout: 'none',
+              userSelect: 'none'
+            }}
             onClick={(e) => {
               e.stopPropagation();
               setSelectedNode(node);
@@ -418,6 +423,7 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
               e.preventDefault();
               handleNodeDragEnd();
             }}
+            onContextMenu={(e) => e.preventDefault()}
           />
           {/* 节点文字 */}
           <text
@@ -1199,8 +1205,14 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
                 </div>
                 
                 <div 
-                  className="bg-gray-50 rounded-xl overflow-hidden"
-                  style={{ height: '600px', cursor: draggingNode ? 'grabbing' : isDragging ? 'grabbing' : 'grab' }}
+                  className="bg-gray-50 rounded-xl overflow-hidden select-none"
+                  style={{ 
+                    height: '600px', 
+                    cursor: draggingNode ? 'grabbing' : isDragging ? 'grabbing' : 'grab',
+                    WebkitUserSelect: 'none',
+                    WebkitTouchCallout: 'none',
+                    userSelect: 'none'
+                  }}
                   onWheel={handleWheel}
                   onMouseDown={handleMouseDown}
                   onMouseMove={(e) => {
@@ -1218,6 +1230,7 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
                   onTouchStart={handleCanvasTouchStart}
                   onTouchMove={handleCanvasTouchMove}
                   onTouchEnd={handleCanvasTouchEnd}
+                  onContextMenu={(e) => e.preventDefault()}
                   onClick={() => setSelectedNode(null)}
                 >
                   <svg
