@@ -395,13 +395,18 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
               e.stopPropagation();
               setSelectedNode(node);
             }}
-            onMouseDown={(e) => handleNodeDragStart(e, node, nodeX, nodeY)}
+            onMouseDown={(e) => {
+              // 只有选中的节点可以拖拽
+              if (isSelected) {
+                handleNodeDragStart(e, node, nodeX, nodeY);
+              }
+            }}
             onTouchStart={(e) => {
               e.stopPropagation();
               e.preventDefault();
-              // 单指触摸节点：开始节点拖拽
-              if (e.touches.length === 1) {
-                setSelectedNode(node);
+              setSelectedNode(node);
+              // 只有选中的节点可以拖拽
+              if (e.touches.length === 1 && isSelected) {
                 handleNodeDragStart(e, node, nodeX, nodeY);
               }
             }}
@@ -578,7 +583,9 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
 
           // 获取子节点的自定义位置（如果有）
           const childCustomPos = nodePositions.get(child.id);
-          const childX = childCustomPos ? childCustomPos.x : nodeX + horizontalGap;
+          // 子节点的位置基于原始计算位置，不依赖于父节点的自定义位置
+          const baseChildX = x + horizontalGap;
+          const childX = childCustomPos ? childCustomPos.x : baseChildX;
           const childY = childCustomPos ? childCustomPos.y : calculatedChildY;
 
           return (
@@ -594,7 +601,7 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
                 strokeWidth={level === 0 ? 2.5 : 1.5}
                 opacity={0.7}
               />
-              {renderTree(child, nodeX + horizontalGap, calculatedChildY, level + 1)}
+              {renderTree(child, baseChildX, calculatedChildY, level + 1)}
             </React.Fragment>
           );
         })}
