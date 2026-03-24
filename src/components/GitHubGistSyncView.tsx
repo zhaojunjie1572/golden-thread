@@ -106,11 +106,12 @@ export function GitHubGistSyncView() {
       const result = await GitHubGistSyncService.syncFromCloud();
 
       if (result.success) {
-        setMessage({ text: '✅ 下载成功！页面即将刷新...', type: 'success' });
+        setMessage({ text: `✅ ${result.message}`, type: 'success' });
         setConflict(null);
+        // 延迟 5 秒刷新，让用户有时间看到控制台日志
         setTimeout(() => {
           window.location.reload();
-        }, 2000);
+        }, 5000);
       } else if (result.hasConflict) {
         setConflict({ hasConflict: true, details: result.conflictDetails });
         setMessage({ text: '⚠️ 检测到数据冲突！', type: 'error' });
