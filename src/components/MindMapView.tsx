@@ -776,16 +776,22 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
     setScale(prev => Math.max(0.3, Math.min(3, prev * delta)));
   };
 
-  // 处理拖拽开始
+  // 处理画布拖拽开始
   const handleMouseDown = (e: React.MouseEvent) => {
+    // 如果正在拖拽节点，不触发画布拖拽
+    if (draggingNode) return;
+    
     if (e.button === 0 || e.button === 1) { // 左键或中键
       setIsDragging(true);
       setDragStart({ x: e.clientX - translateX, y: e.clientY - translateY });
     }
   };
 
-  // 处理拖拽移动
+  // 处理画布拖拽移动
   const handleMouseMove = (e: React.MouseEvent) => {
+    // 如果正在拖拽节点，不触发画布拖拽
+    if (draggingNode) return;
+    
     if (isDragging) {
       setTranslateX(e.clientX - dragStart.x);
       setTranslateY(e.clientY - dragStart.y);
