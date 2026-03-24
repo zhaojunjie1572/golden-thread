@@ -41,6 +41,11 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
   const [draggingNode, setDraggingNode] = useState<MindMapNode | null>(null);
   const [nodeDragOffset, setNodeDragOffset] = useState({ x: 0, y: 0 });
   const [nodePositions, setNodePositions] = useState<Map<string, { x: number; y: number }>>(new Map());
+  
+  // 触摸状态管理
+  const [touchMode, setTouchMode] = useState<'none' | 'node' | 'canvas'>('none');
+  const lastTouchDistanceRef = useRef<number>(0);
+  const lastTouchCenterRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const parseProtocolToText = (proto: ProtocolModel): string => {
     let text = `# ${proto.principle}\n\n`;
@@ -390,8 +395,12 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
             onMouseDown={(e) => handleNodeDragStart(e, node, nodeX, nodeY)}
             onTouchStart={(e) => {
               e.stopPropagation();
-              setSelectedNode(node);
-              handleNodeDragStart(e, node, nodeX, nodeY);
+              // 只有在单指且不是双指模式时才处理节点拖拽
+              if (e.touches.length === 1 && touchMode !== 'canvas') {
+                setTouchMode('node');
+                setSelectedNode(node);
+                handleNodeDragStart(e, node, nodeX, nodeY);
+              }
             }}
           />
           {/* 节点文字 */}
@@ -868,6 +877,87 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
   // 节点拖拽结束
   const handleNodeDragEnd = () => {
     setDraggingNode(null);
+    setTouchMode('none');
+  };
+
+  // 计算两点之间的距离
+  const getTouchDistance = (touches: React.TouchList) => {
+    if (touches.length < 2) return 0;
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  // 计算触摸中心点
+  const getTouchCenter = (touches: React.TouchList) => {
+    if (touches.length < 2) return { x: touches[0]?.clientX || 0, y: touches[0]?.clientY || 0 };
+    return {
+      x: (touches[0].clientX + touches[1].clientX) / 2,
+      y: (touches[0].clientY + touches[1].clientY) / 2
+    };
+  };
+
+  // 处理触摸开始
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touches = e.touches;
+    
+    if (touches.length === 2) {
+      // 双指模式：画布拖拽/缩放
+      setTouchMode('canvas');
+      lastTouchDistanceRef.current = getTouchDistance(touches);
+      lastTouchCenterRef.current = getTouchCenter(touches);
+      setDragStart({ 
+        x: lastTouchCenterRef.current.x - translateX, 
+        y: lastTouchCenterRef.current.y - translateY 
+      });
+    } else if (touches.length === 1 && touchMode === 'none') {
+      // 单指模式：等待确定是节点拖拽还是画布拖拽
+      // 在节点上的触摸会在节点的 onTouchStart 中处理
+    }
+  };
+
+  // 处理触摸移动
+  const handleTouchMove = (e: React.TouchEvent) => {
+    e.preventDefault(); // 阻止默认滚动行为
+    const touches = e.touches;
+
+    if (touches.length === 2 && touchMode === 'canvas') {
+      // 双指拖拽画布
+      const center = getTouchCenter(touches);
+      setTranslateX(center.x - dragStart.x);
+      setTranslateY(center.y - dragStart.y);
+      
+      // 双指缩放
+      const distance = getTouchDistance(touches);
+      if (lastTouchDistanceRef.current > 0) {
+        const scaleDelta = distance / lastTouchDistanceRef.current;
+        setScale(prev => Math.max(0.3, Math.min(3, prev * scaleDelta)));
+      }
+      lastTouchDistanceRef.current = distance;
+      lastTouchCenterRef.current = center;
+      setDragStart({ 
+        x: center.x - translateX, 
+        y: center.y - translateY 
+      });
+    } else if (touches.length === 1 && touchMode === 'node' && draggingNode) {
+      // 单指拖拽节点
+      handleNodeDragMove(e);
+    }
+  };
+
+  // 处理触摸结束
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const touches = e.touches;
+    
+    if (touches.length === 0) {
+      // 所有手指都离开
+      setTouchMode('none');
+      setDraggingNode(null);
+      lastTouchDistanceRef.current = 0;
+    } else if (touches.length === 1 && touchMode === 'canvas') {
+      // 从双指变为单指，切换为节点拖拽模式（如果触摸在节点上）
+      setTouchMode('none');
+    }
   };
 
   // 保存思维导图到本地
@@ -1098,7 +1188,11 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
                 <div className="mb-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
                   <p className="flex items-center gap-2">
                     <HandIcon />
-                    <span>鼠标滚轮缩放 | 拖拽画布移动 | 拖拽节点调整位置 | 点击节点编辑</span>
+                    <span>电脑：滚轮缩放 | 拖拽画布/节点 | 点击编辑</span>
+                  </p>
+                  <p className="flex items-center gap-2 mt-1">
+                    <span>📱</span>
+                    <span>手机：单指拖拽节点 | 双指拖拽画布/缩放</span>
                   </p>
                 </div>
                 
@@ -1119,12 +1213,9 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
                     handleMouseUp();
                     handleNodeDragEnd();
                   }}
-                  onTouchMove={(e) => {
-                    handleNodeDragMove(e);
-                  }}
-                  onTouchEnd={() => {
-                    handleNodeDragEnd();
-                  }}
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
                   onClick={() => setSelectedNode(null)}
                 >
                   <svg
