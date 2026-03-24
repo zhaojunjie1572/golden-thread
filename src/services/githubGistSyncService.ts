@@ -38,9 +38,15 @@ export class GitHubGistSyncService {
   static async uploadToGist(token: string, gistId?: string): Promise<{ success: boolean; gistId?: string; error?: string }> {
     try {
       console.log('[uploadToGist] 开始上传，Gist ID:', gistId);
-      // 上传时不包含书籍内容，避免文件过大
-      const data = SyncService.exportToJSON(false);
-      console.log('[uploadToGist] 数据大小:', data.length, '字符（不包含书籍内容）');
+      // 上传时包含书籍内容，确保同步后可以正常阅读
+      const data = SyncService.exportToJSON(true);
+      console.log('[uploadToGist] 数据大小:', data.length, '字符（包含书籍内容）');
+      
+      // 检查文件大小，GitHub Gist 单个文件限制约 100MB
+      const sizeInMB = data.length / 1024 / 1024;
+      if (sizeInMB > 50) {
+        console.warn('[uploadToGist] 警告：数据大小超过 50MB，可能导致上传失败');
+      }
       
       const headers = {
         'Authorization': `Bearer ${token}`,
