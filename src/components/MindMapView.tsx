@@ -102,6 +102,8 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
     if (protocol) {
       const text = parseProtocolToText(protocol);
       setSourceText(text);
+    } else {
+      setSourceText('');
     }
   }, [protocol]);
 
