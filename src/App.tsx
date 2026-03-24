@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, NavLink, useNavigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, NavLink, useNavigate } from 'react-router-dom';
 import { ProtocolProvider } from './context/ProtocolContext';
 import { BookProvider } from './context/BookContext';
 import { MusicProvider } from './context/MusicContext';
@@ -366,9 +366,9 @@ function App() {
   return (
     <ProtocolProvider>
       <BookProvider>
-        <BrowserRouter>
+        <HashRouter>
           <AppContent />
-        </BrowserRouter>
+        </HashRouter>
       </BookProvider>
     </ProtocolProvider>
   );
