@@ -66,15 +66,6 @@ const defaultMindMapData: MindMapNode = {
   ]
 };
 
-// 防抖函数
-function debounce<T extends (...args: unknown[]) => void>(func: T, wait: number): (...args: Parameters<T>) => void {
-  let timeout: ReturnType<typeof setTimeout> | null = null;
-  return (...args: Parameters<T>) => {
-    if (timeout) clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-}
-
 export default function SimpleMindMap() {
   const [mindMapData, setMindMapData] = useState<MindMapNode>(() => {
     const saved = localStorage.getItem('simple-mindmap-data');
@@ -107,25 +98,21 @@ export default function SimpleMindMap() {
   const draggingNodeIdRef = useRef<string | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // 防抖保存到 localStorage
-  const saveToLocalStorage = useCallback((data: MindMapNode) => {
+  // 保存思维导图数据（防抖）
+  useEffect(() => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
     saveTimeoutRef.current = setTimeout(() => {
-      localStorage.setItem('simple-mindmap-data', JSON.stringify(data));
+      localStorage.setItem('simple-mindmap-data', JSON.stringify(mindMapData));
     }, 500);
-  }, []);
-
-  // 保存思维导图数据（防抖）
-  useEffect(() => {
-    saveToLocalStorage(mindMapData);
+    
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [mindMapData, saveToLocalStorage]);
+  }, [mindMapData]);
 
   // 计算树的高度
   const getTreeHeight = useCallback((node: MindMapNode): number => {

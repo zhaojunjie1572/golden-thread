@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from 'react';
 import { ProtocolModel, markSuccess, markFailure, hasExecutedToday } from '../types/protocol';
 import { checkAndAdjust } from '../services/autoAdjustment';
 import { notificationService } from '../services/notificationService';
@@ -63,27 +63,27 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  function addProtocol(protocol: ProtocolModel) {
+  const addProtocol = useCallback((protocol: ProtocolModel) => {
     setProtocols(prev => [...prev, protocol]);
-  }
+  }, []);
 
-  function updateProtocol(updatedProtocol: ProtocolModel) {
-    setProtocols(prev => 
+  const updateProtocol = useCallback((updatedProtocol: ProtocolModel) => {
+    setProtocols(prev =>
       prev.map(p => p.id === updatedProtocol.id ? updatedProtocol : p)
     );
-  }
+  }, []);
 
-  function deleteProtocol(id: string) {
+  const deleteProtocol = useCallback((id: string) => {
     notificationService.cancelReminder(id);
     setProtocols(prev => prev.filter(p => p.id !== id));
-  }
+  }, []);
 
-  function getProtocolById(id: string) {
+  const getProtocolById = useCallback((id: string) => {
     return protocols.find(p => p.id === id);
-  }
+  }, [protocols]);
 
-  function markProtocolSuccess(id: string) {
-    setProtocols(prev => 
+  const markProtocolSuccess = useCallback((id: string) => {
+    setProtocols(prev =>
       prev.map(p => {
         if (p.id !== id) return p;
         let updated = markSuccess(p);
@@ -91,10 +91,10 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
         return updated;
       })
     );
-  }
+  }, []);
 
-  function markProtocolFailure(id: string) {
-    setProtocols(prev => 
+  const markProtocolFailure = useCallback((id: string) => {
+    setProtocols(prev =>
       prev.map(p => {
         if (p.id !== id) return p;
         let updated = markFailure(p);
@@ -102,21 +102,21 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
         return updated;
       })
     );
-  }
+  }, []);
 
-  function getTodayProtocols() {
+  const getTodayProtocols = useCallback(() => {
     return protocols
       .filter(p => !hasExecutedToday(p))
       .sort((a, b) => b.priority - a.priority);
-  }
+  }, [protocols]);
 
-  async function requestNotificationPermission() {
+  const requestNotificationPermission = useCallback(async () => {
     return await notificationService.requestPermission();
-  }
+  }, []);
 
-  function hasNotificationPermission() {
+  const hasNotificationPermission = useCallback(() => {
     return notificationService.hasPermission();
-  }
+  }, []);
 
   // 使用 useMemo 缓存 context value，避免不必要的重新渲染
   const contextValue = useMemo(() => ({
