@@ -321,33 +321,37 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
     }
   };
 
-  const initializeNodePositions = (node: MindMapNode, x: number = 0, y: number = 0, level: number = 0): number => {
-    const positions = new Map(nodePositions);
-    positions.set(node.id, { x, y });
+  const initializeNodePositions = (rootNode: MindMapNode) => {
+    const positions = new Map<string, NodePosition>();
+    
+    const calculatePositions = (node: MindMapNode, x: number, y: number, level: number): number => {
+      positions.set(node.id, { x, y });
+
+      const children = node.children || [];
+      if (children.length === 0) return NODE_HEIGHT;
+
+      let totalChildHeight = 0;
+      const childHeights: number[] = [];
+
+      for (const child of children) {
+        const childHeight = calculatePositions(child, x + HORIZONTAL_GAP, 0, level + 1);
+        childHeights.push(childHeight);
+        totalChildHeight += childHeight + (childHeights.length > 1 ? VERTICAL_GAP : 0);
+      }
+
+      let currentY = y - totalChildHeight / 2 + NODE_HEIGHT / 2;
+      for (let i = 0; i < children.length; i++) {
+        const child = children[i];
+        const childPos = positions.get(child.id)!;
+        positions.set(child.id, { ...childPos, y: currentY + childHeights[i] / 2 - NODE_HEIGHT / 2 });
+        currentY += childHeights[i] + VERTICAL_GAP;
+      }
+
+      return Math.max(totalChildHeight, NODE_HEIGHT);
+    };
+
+    calculatePositions(rootNode, 0, 0, 0);
     setNodePositions(positions);
-
-    const children = node.children || [];
-    if (children.length === 0) return NODE_HEIGHT;
-
-    let totalChildHeight = 0;
-    const childHeights: number[] = [];
-
-    for (const child of children) {
-      const childHeight = initializeNodePositions(child, x + HORIZONTAL_GAP, 0, level + 1);
-      childHeights.push(childHeight);
-      totalChildHeight += childHeight + (childHeights.length > 1 ? VERTICAL_GAP : 0);
-    }
-
-    let currentY = y - totalChildHeight / 2 + NODE_HEIGHT / 2;
-    for (let i = 0; i < children.length; i++) {
-      const child = children[i];
-      const childPos = positions.get(child.id)!;
-      positions.set(child.id, { ...childPos, y: currentY + childHeights[i] / 2 - NODE_HEIGHT / 2 });
-      currentY += childHeights[i] + VERTICAL_GAP;
-    }
-
-    setNodePositions(positions);
-    return Math.max(totalChildHeight, NODE_HEIGHT);
   };
 
   const getNodeColor = (level: number) => {
@@ -689,33 +693,6 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
             )}
           </div>
         )}
-
-        {node.children?.map((child) => {
-          const childPos = nodePositions.get(child.id);
-          if (!childPos) return null;
-
-          const startX = pos.x + NODE_WIDTH;
-          const startY = pos.y + NODE_HEIGHT / 2;
-          const endX = childPos.x;
-          const endY = childPos.y + NODE_HEIGHT / 2;
-          const controlOffset = (endX - startX) / 3;
-
-          return (
-            <svg
-              key={`line-${child.id}`}
-              className="absolute inset-0 pointer-events-none z-0"
-              style={{ width: '100%', height: '100%', overflow: 'visible' }}
-            >
-              <path
-                d={`M ${startX} ${startY} C ${startX + controlOffset} ${startY}, ${endX - controlOffset} ${endY}, ${endX} ${endY}`}
-                fill="none"
-                stroke={color.border}
-                strokeWidth={level === 0 ? 2.5 : 1.5}
-                opacity={0.6}
-              />
-            </svg>
-          );
-        })}
 
         {node.children?.map((child) => renderNode(child, level + 1))}
       </React.Fragment>
