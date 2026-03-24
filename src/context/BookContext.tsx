@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
 import { Book, BookSource, parseTextToBook, SearchResult, Chapter } from '../types/book';
 import { BookSourceParser } from '../utils/bookSourceParser';
+import { parseEpubFile, isEpubFile } from '../utils/epubParser';
 
 /**
  * 清洗 JSON 文本，将中文标点转换为英文标点
@@ -343,10 +344,32 @@ export function BookProvider({ children }: { children: ReactNode }) {
   };
 
   const importBookFromFile = async (file: File): Promise<Book> => {
-    // 尝试多种编码读取文件内容
-    const content = await readFileWithEncoding(file);
-    const book = parseTextToBook(content);
-    book.fileName = file.name;
+    let book: Book;
+
+    // 根据文件类型选择解析方式
+    if (isEpubFile(file)) {
+      // 解析 EPUB 文件
+      const epubContent = await parseEpubFile(file);
+      book = {
+        id: crypto.randomUUID(),
+        title: epubContent.title,
+        author: epubContent.author,
+        content: epubContent.content,
+        fileName: file.name,
+        addedAt: new Date(),
+        lastReadAt: null,
+        readingProgress: 0,
+        currentChapter: 0,
+        chapters: [],
+        isLocal: true,
+      };
+    } else {
+      // 解析 TXT 文件，尝试多种编码
+      const content = await readFileWithEncoding(file);
+      book = parseTextToBook(content);
+      book.fileName = file.name;
+    }
+
     addBook(book);
     return book;
   };
