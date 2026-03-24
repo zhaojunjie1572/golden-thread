@@ -750,19 +750,6 @@ export default function BookSourceManager({ onClose, onSelectSource }: BookSourc
         </div>
       )}
 
-      {showAddForm && (
-        <AddBookSourceForm
-          source={editingSource}
-          formData={formData}
-          setFormData={setFormData}
-          onSubmit={handleSubmit}
-          onCancel={() => {
-            setShowAddForm(false);
-            setEditingSource(null);
-          }}
-        />
-      )}
-
       {browsingSource && (
         <BookSourceBrowseView
           source={browsingSource}

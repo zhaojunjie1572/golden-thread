@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { GitHubGistSyncService, GitHubGistConfig } from '../services/githubGistSyncService';
-import { SyncService } from '../services/syncService';
 import { useTheme } from '../context/ThemeContext';
 
 export function GitHubGistSyncView() {
-  const { colors, isDarkMode } = useTheme();
+  const { colors } = useTheme();
   const [config, setConfig] = useState<GitHubGistConfig | null>(null);
   const [token, setToken] = useState('');
   const [gistId, setGistId] = useState('');
@@ -160,9 +159,6 @@ export function GitHubGistSyncView() {
     setMessage({ text: '本地配置已清除', type: 'success' });
     setTimeout(() => setMessage(null), 3000);
   };
-
-  const bgColor = isDarkMode ? colors.bgDark : colors.bgLight;
-  const textColor = isDarkMode ? '#fff' : '#000';
 
   return (
     <div className="space-y-6">

@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
 import { Book, BookSource, parseTextToBook, SearchResult, Chapter } from '../types/book';
 import { BookSourceParser } from '../utils/bookSourceParser';
-import JSZip from 'jszip';
 
 /**
  * 清洗 JSON 文本，将中文标点转换为英文标点
