@@ -246,16 +246,23 @@ export class GitHubGistSyncService {
       return { success: false, message: '请先配置 GitHub Token 和 Gist ID' };
     }
 
+    console.log('[syncFromCloud] 开始下载，Gist ID:', config.gistId);
     const result = await this.downloadFromGist(config.token, config.gistId);
 
     if (!result.success || !result.data) {
+      console.error('[syncFromCloud] 下载失败:', result.error);
       return { success: false, message: result.error || '下载失败' };
     }
 
+    console.log('[syncFromCloud] 下载成功，云端书籍数量:', result.data.books?.length || 0);
+
     const localData = SyncService.collectData();
+    console.log('[syncFromCloud] 本地书籍数量:', localData.books?.length || 0);
+
     const conflictCheck = this.checkConflict(localData, result.data);
 
     if (conflictCheck.hasConflict) {
+      console.log('[syncFromCloud] 检测到数据冲突');
       return {
         success: false,
         message: '检测到数据冲突，请选择保留哪个版本',
@@ -264,8 +271,10 @@ export class GitHubGistSyncService {
       };
     }
 
+    console.log('[syncFromCloud] 开始导入数据...');
     const importSuccess = SyncService.importFromJSON(JSON.stringify(result.data));
     if (importSuccess) {
+      console.log('[syncFromCloud] 数据导入成功');
       const newConfig: GitHubGistConfig = {
         ...config,
         lastSyncTime: new Date().toISOString()
