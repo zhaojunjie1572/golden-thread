@@ -387,11 +387,11 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
               e.stopPropagation();
               setSelectedNode(node);
             }}
-            onMouseDown={(e) => handleNodeDragStart(e, node)}
+            onMouseDown={(e) => handleNodeDragStart(e, node, nodeX, nodeY)}
             onTouchStart={(e) => {
               e.stopPropagation();
               setSelectedNode(node);
-              handleNodeDragStart(e, node);
+              handleNodeDragStart(e, node, nodeX, nodeY);
             }}
           />
           {/* 节点文字 */}
@@ -818,7 +818,7 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
   };
 
   // 节点拖拽开始
-  const handleNodeDragStart = (e: React.MouseEvent | React.TouchEvent, node: MindMapNode) => {
+  const handleNodeDragStart = (e: React.MouseEvent | React.TouchEvent, node: MindMapNode, currentX: number, currentY: number) => {
     e.stopPropagation();
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
@@ -827,18 +827,11 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
     const svgPos = screenToSVG(clientX, clientY);
     
     setDraggingNode(node);
-    const currentPos = nodePositions.get(node.id);
-    if (currentPos) {
-      setNodeDragOffset({
-        x: svgPos.x - currentPos.x,
-        y: svgPos.y - currentPos.y
-      });
-    } else {
-      // 如果没有自定义位置，使用原始位置
-      // 需要通过 renderTree 的递归计算获取原始位置
-      // 这里简化处理，使用 SVG 坐标作为偏移
-      setNodeDragOffset({ x: svgPos.x, y: svgPos.y });
-    }
+    // 记录鼠标/触摸点与节点当前位置的偏移量
+    setNodeDragOffset({
+      x: svgPos.x - currentX,
+      y: svgPos.y - currentY
+    });
   };
 
   // 节点拖拽移动
