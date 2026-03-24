@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProtocols } from '../context/ProtocolContext';
 import { ProtocolModel, goalTypeLabels, triggerTypeLabels } from '../types/protocol';
-import MindMapView from './MindMapView';
 import SimpleMindMap from './SimpleMindMap';
 
 const defaultWisdomQuotes = [
@@ -245,13 +244,11 @@ const FailureModal = ({
 const ProtocolCard = ({
   protocol,
   onSuccess,
-  onFailure,
-  onOpenMindMap
+  onFailure
 }: {
   protocol: ProtocolModel;
   onSuccess: () => void;
   onFailure: () => void;
-  onOpenMindMap?: (protocol: ProtocolModel) => void;
 }) => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showFailure, setShowFailure] = useState(false);
@@ -361,17 +358,6 @@ const ProtocolCard = ({
         </div>
 
         <div className="flex gap-3 mt-6">
-          {onOpenMindMap && (
-            <button
-              onClick={() => onOpenMindMap(protocol)}
-              className="px-4 bg-amber-100 text-amber-700 py-3.5 rounded-xl font-semibold hover:bg-amber-200 transition-colors flex items-center justify-center gap-2"
-              title="思维导图"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9z" />
-              </svg>
-            </button>
-          )}
           <button
             onClick={handleSuccessInternal}
             className="flex-1 bg-green-500 text-white py-3.5 rounded-xl font-semibold hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
@@ -418,14 +404,17 @@ export default function TodayView() {
   } = useProtocols();
   const navigate = useNavigate();
 
-  const todayProtocols = useMemo(() => getTodayProtocols(), [getTodayProtocols]);
-  const allCompleted = useMemo(() => protocols.length > 0 && todayProtocols.length === 0, [protocols.length, todayProtocols.length]);
+  // 使用 useMemo 缓存今日协议列表，避免不必要的重新计算
+  const todayProtocols = useMemo(() => {
+    return getTodayProtocols();
+  }, [getTodayProtocols]);
+
+  // 使用 useMemo 缓存完成状态
+  const allCompleted = useMemo(() => {
+    return protocols.length > 0 && todayProtocols.length === 0;
+  }, [protocols.length, todayProtocols.length]);
 
   const [showPermissionPrompt, setShowPermissionPrompt] = useState(() => !hasNotificationPermission() && protocols.length > 0);
-
-  // 思维导图状态
-  const [showMindMap, setShowMindMap] = useState(false);
-  const [selectedProtocol, setSelectedProtocol] = useState<ProtocolModel | undefined>(undefined);
 
   // 语录状态 - 使用单个 state 对象减少重渲染
   const [quoteState, setQuoteState] = useState(() => {
@@ -665,20 +654,9 @@ export default function TodayView() {
               protocol={protocol}
               onSuccess={() => handleSuccess(protocol)}
               onFailure={() => handleFailure(protocol)}
-              onOpenMindMap={(proto) => {
-                setSelectedProtocol(proto);
-                setShowMindMap(true);
-              }}
             />
           ))}
         </div>
-      )}
-
-      {showMindMap && selectedProtocol && (
-        <MindMapView
-          protocol={selectedProtocol}
-          onClose={() => setShowMindMap(false)}
-        />
       )}
     </div>
   );

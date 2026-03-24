@@ -61,11 +61,17 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     }
   }, [volume]);
 
+  // 使用 ref 来存储 tracks 避免依赖项变化导致重复触发
+  const tracksRef = useRef(tracks);
   useEffect(() => {
-    if (audioRef.current && isPlaying && tracks.length > 0) {
+    tracksRef.current = tracks;
+  }, [tracks]);
+
+  useEffect(() => {
+    if (audioRef.current && isPlaying && tracksRef.current.length > 0) {
       audioRef.current.play().catch(e => console.error('Play error:', e));
     }
-  }, [currentTrackIndex, tracks, isPlaying]);
+  }, [currentTrackIndex, isPlaying]);
 
   useEffect(() => {
     // 只保存音乐元数据，不保存临时的 blob URL
