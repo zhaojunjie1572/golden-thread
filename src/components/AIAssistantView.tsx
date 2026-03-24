@@ -4,6 +4,20 @@ import { apiService, ChatMessage, ApiConfig } from '../services/apiService';
 import { webSearchService } from '../services/webSearchService';
 import { useSpeech } from '../context/SpeechContext';
 
+// 去除标点符号，用停顿代替
+function removePunctuationMarks(text: string): string {
+  // 定义需要去除的所有标点符号和特殊字符
+  const punctuationMarks = /[\u3000-\u303F\uFF00-\uFFEF\u2000-\u206F\u0021-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E\u20A0-\u20CF\u2190-\u21FF\u27F0-\u27FF\u2900-\u297F\u2600-\u26FF\u2700-\u27BF\u1F300-\u1F5FF\u1F600-\u1F64F\u1F680-\u1F6FF\u1F900-\u1F9FF\u2500-\u257F\u2580-\u259F\uE000-\uF8FF]+/gu;
+
+  // 将标点替换为空格（产生停顿效果）
+  let cleaned = text.replace(punctuationMarks, ' ');
+
+  // 合并多个空格为一个
+  cleaned = cleaned.replace(/\s+/g, ' ').trim();
+
+  return cleaned;
+}
+
 interface ChatSession {
   id: string;
   title: string;
@@ -346,11 +360,18 @@ export default function AIAssistantView() {
     handleStopSpeaking();
     setSpeakingId(message.id);
     setIsPaused(false);
-    
-    const utterance = new SpeechSynthesisUtterance(message.content);
+
+    // 根据设置决定是否去除标点符号
+    const textToSpeak = speechState.removePunctuation
+      ? removePunctuationMarks(message.content)
+      : message.content;
+
+    const utterance = new SpeechSynthesisUtterance(textToSpeak);
     utterance.lang = 'zh-CN';
     utterance.rate = speechState.speechRate;
-    
+    utterance.volume = speechState.volume;
+    utterance.pitch = speechState.pitch;
+
     if (speechState.selectedVoice) {
       const voice = voices.find(v => v.name === speechState.selectedVoice);
       if (voice) {
@@ -362,12 +383,12 @@ export default function AIAssistantView() {
         utterance.voice = chineseVoice;
       }
     }
-    
+
     utterance.onend = () => {
       setSpeakingId(null);
       setIsPaused(false);
     };
-    
+
     utteranceRef.current = utterance;
     speechSynthesis.speak(utterance);
   };
