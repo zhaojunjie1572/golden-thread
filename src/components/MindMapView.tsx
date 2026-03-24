@@ -39,11 +39,13 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
   
   // 节点拖拽移动状态
   const [draggingNode, setDraggingNode] = useState<MindMapNode | null>(null);
+  const draggingNodeRef = useRef<MindMapNode | null>(null);
   const [nodeDragOffset, setNodeDragOffset] = useState({ x: 0, y: 0 });
   const [nodePositions, setNodePositions] = useState<Map<string, { x: number; y: number }>>(new Map());
   
   // 触摸状态管理
   const lastTouchDistanceRef = useRef<number>(0);
+  const touchStartNodeRef = useRef<MindMapNode | null>(null);
 
   const parseProtocolToText = (proto: ProtocolModel): string => {
     let text = `# ${proto.principle}\n\n`;
@@ -404,8 +406,10 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
             onTouchStart={(e) => {
               e.stopPropagation();
               e.preventDefault();
+              // 记录触摸起始的节点
+              touchStartNodeRef.current = node;
               setSelectedNode(node);
-              // 只有选中的节点可以拖拽
+              // 只有单指且选中的节点可以拖拽
               if (e.touches.length === 1 && isSelected) {
                 handleNodeDragStart(e, node, nodeX, nodeY);
               }
@@ -413,8 +417,8 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
             onTouchMove={(e) => {
               e.stopPropagation();
               e.preventDefault();
-              // 节点拖拽移动
-              if (draggingNode && e.touches.length === 1) {
+              // 节点拖拽移动 - 使用 ref 判断
+              if (draggingNodeRef.current && e.touches.length === 1) {
                 handleNodeDragMove(e);
               }
             }}
@@ -828,7 +832,7 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
   // 处理画布拖拽移动
   const handleMouseMove = (e: React.MouseEvent) => {
     // 如果正在拖拽节点，不触发画布拖拽
-    if (draggingNode) return;
+    if (draggingNodeRef.current) return;
     
     if (isDragging) {
       setTranslateX(e.clientX - dragStart.x);
@@ -869,12 +873,15 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
   // 节点拖拽开始
   const handleNodeDragStart = (e: React.MouseEvent | React.TouchEvent, node: MindMapNode, currentX: number, currentY: number) => {
     e.stopPropagation();
+    e.preventDefault();
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
     
     // 转换为 SVG 坐标
     const svgPos = screenToSVG(clientX, clientY);
     
+    // 同步更新 state 和 ref
+    draggingNodeRef.current = node;
     setDraggingNode(node);
     // 记录鼠标/触摸点与节点当前位置的偏移量
     setNodeDragOffset({
@@ -885,7 +892,8 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
 
   // 节点拖拽移动
   const handleNodeDragMove = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!draggingNode) return;
+    // 使用 ref 检查，避免 state 异步更新问题
+    if (!draggingNodeRef.current) return;
     
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
@@ -895,7 +903,7 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
     
     setNodePositions(prev => {
       const newMap = new Map(prev);
-      newMap.set(draggingNode.id, {
+      newMap.set(draggingNodeRef.current!.id, {
         x: svgPos.x - nodeDragOffset.x,
         y: svgPos.y - nodeDragOffset.y
       });
@@ -905,6 +913,7 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
 
   // 节点拖拽结束
   const handleNodeDragEnd = () => {
+    draggingNodeRef.current = null;
     setDraggingNode(null);
   };
 
@@ -928,9 +937,10 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
   // 处理画布触摸开始（空白处）
   const handleCanvasTouchStart = (e: React.TouchEvent) => {
     // 如果正在拖拽节点，不处理画布事件
-    if (draggingNode) return;
+    if (draggingNodeRef.current) return;
     
     const touches = e.touches;
+    touchStartNodeRef.current = null;
     
     if (touches.length === 2) {
       // 双指：缩放
@@ -950,7 +960,7 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
     e.preventDefault();
     
     // 如果正在拖拽节点，不处理画布事件
-    if (draggingNode) return;
+    if (draggingNodeRef.current) return;
     
     const touches = e.touches;
 
@@ -1215,7 +1225,7 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
                   className="bg-gray-50 rounded-xl overflow-hidden select-none"
                   style={{ 
                     height: '600px', 
-                    cursor: draggingNode ? 'grabbing' : isDragging ? 'grabbing' : 'grab',
+                    cursor: draggingNodeRef.current ? 'grabbing' : isDragging ? 'grabbing' : 'grab',
                     WebkitUserSelect: 'none',
                     WebkitTouchCallout: 'none',
                     userSelect: 'none'
