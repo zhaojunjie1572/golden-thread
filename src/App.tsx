@@ -172,8 +172,17 @@ function AppContentWithMusicAndSpeech() {
         console.log('[自动同步] 同步成功:', result.message);
         // 如果是合并类型的同步（下载了云端数据），刷新页面以加载新数据
         if (result.type === 'merge' || result.type === 'download') {
-          console.log('[自动同步] 数据已合并，刷新页面...');
-          window.location.reload();
+          // 检查是否已经刷新过，避免无限刷新
+          const hasReloaded = sessionStorage.getItem('sync-reloaded');
+          if (!hasReloaded) {
+            console.log('[自动同步] 数据已合并，刷新页面...');
+            sessionStorage.setItem('sync-reloaded', 'true');
+            window.location.reload();
+          } else {
+            console.log('[自动同步] 已经刷新过，跳过重复刷新');
+            // 清除标记，允许下次同步时刷新
+            sessionStorage.removeItem('sync-reloaded');
+          }
         }
       } else {
         console.log('[自动同步] 同步失败:', result.message);
