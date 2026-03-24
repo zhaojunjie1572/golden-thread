@@ -581,19 +581,33 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
     if (!editingNode || !mindMapData) return;
 
     const updateNodeLabel = (node: MindMapNode): MindMapNode => {
+      // 如果找到要编辑的节点，返回更新后的节点
       if (node.id === editingNode.id) {
         return { ...node, label: editLabel };
       }
-      if (node.children) {
-        return {
-          ...node,
-          children: node.children.map(updateNodeLabel)
-        };
+      
+      // 如果有子节点，递归更新子节点
+      if (node.children && node.children.length > 0) {
+        const updatedChildren = node.children.map(updateNodeLabel);
+        // 只有当子节点有变化时才返回新对象
+        const hasChanges = updatedChildren.some((child, index) => child !== node.children![index]);
+        if (hasChanges) {
+          return { ...node, children: updatedChildren };
+        }
       }
+      
+      // 没有变化，返回原节点
       return node;
     };
 
-    setMindMapData(updateNodeLabel(mindMapData));
+    const updatedData = updateNodeLabel(mindMapData);
+    setMindMapData(updatedData);
+    
+    // 如果当前选中的节点是被编辑的节点，更新选中状态
+    if (selectedNode?.id === editingNode.id) {
+      setSelectedNode({ ...selectedNode, label: editLabel });
+    }
+    
     setShowEditModal(false);
     setEditingNode(null);
   };
