@@ -21,6 +21,72 @@ function cleanJsonText(text: string): string {
     .replace(/】/g, ']');
 }
 
+/**
+ * 检测文本是否包含乱码（简单的启发式检测）
+ */
+function containsGarbledText(text: string): boolean {
+  // 检测常见的乱码特征
+  const garbledPatterns = [
+    /[\uFFFD\u0000-\u0008\u000B-\u000C\u000E-\u001F]/, // 替换字符和控制字符
+  ];
+
+  // 如果文本中包含大量连续的非中文字符和非英文字符，可能是乱码
+  const suspiciousChars = text.match(/[^\u4e00-\u9fa5a-zA-Z0-9\s\p{P}]/gu);
+  if (suspiciousChars && suspiciousChars.length > text.length * 0.3) {
+    return true;
+  }
+
+  return garbledPatterns.some(pattern => pattern.test(text));
+}
+
+/**
+ * 使用 FileReader 读取文件，尝试多种编码
+ */
+function readFileWithEncoding(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const encodings = ['UTF-8', 'GBK', 'GB2312', 'GB18030', 'Big5'];
+    let currentIndex = 0;
+
+    const tryNextEncoding = () => {
+      if (currentIndex >= encodings.length) {
+        // 如果所有编码都失败，使用默认的 UTF-8
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const result = e.target?.result as string;
+          resolve(result);
+        };
+        reader.onerror = () => reject(new Error('读取文件失败'));
+        reader.readAsText(file, 'UTF-8');
+        return;
+      }
+
+      const encoding = encodings[currentIndex];
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+
+        // 检查是否是乱码
+        if (!containsGarbledText(result) || currentIndex === encodings.length - 1) {
+          resolve(result);
+        } else {
+          currentIndex++;
+          tryNextEncoding();
+        }
+      };
+
+      reader.onerror = () => {
+        currentIndex++;
+        tryNextEncoding();
+      };
+
+      reader.readAsText(file, encoding);
+    };
+
+    tryNextEncoding();
+  });
+}
+
 interface BookContextType {
   books: Book[];
   addBook: (book: Book) => void;
@@ -277,7 +343,8 @@ export function BookProvider({ children }: { children: ReactNode }) {
   };
 
   const importBookFromFile = async (file: File): Promise<Book> => {
-    const content = await file.text();
+    // 尝试多种编码读取文件内容
+    const content = await readFileWithEncoding(file);
     const book = parseTextToBook(content);
     book.fileName = file.name;
     addBook(book);

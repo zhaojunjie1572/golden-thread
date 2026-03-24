@@ -32,7 +32,7 @@ function QuickQuestion({ text, onClick }: { text: string; onClick: () => void })
 
 export default function AIAssistantView() {
   const navigate = useNavigate();
-  const { speechState, voices, setSpeechRate, setSelectedVoice: setSelectedVoiceInSpeech, testVoice } = useSpeech();
+  const { speechState, voices, setSpeechRate, setSelectedVoice: setSelectedVoiceInSpeech, setVolume, setPitch, setRemovePunctuation, testVoice } = useSpeech();
   
   const [backgroundImage, setBackgroundImage] = useState<string | null>(() => {
     try {
@@ -1392,7 +1392,7 @@ export default function AIAssistantView() {
             
             <div>
               <h3 className="text-sm font-medium text-gray-700 mb-3">语音朗读设置</h3>
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div>
                   <label className="text-sm text-gray-500 mb-2 block">语速: {speechState.speechRate.toFixed(1)}x</label>
                   <input
@@ -1405,7 +1405,50 @@ export default function AIAssistantView() {
                     className="w-full"
                   />
                 </div>
-                
+
+                <div>
+                  <label className="text-sm text-gray-500 mb-2 block">音量: {Math.round(speechState.volume * 100)}%</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={speechState.volume}
+                    onChange={(e) => setVolume(parseFloat(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm text-gray-500 mb-2 block">音调: {speechState.pitch.toFixed(1)}</label>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="2"
+                    step="0.1"
+                    value={speechState.pitch}
+                    onChange={(e) => setPitch(parseFloat(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">去除标点符号</label>
+                    <p className="text-xs text-gray-500 mt-1">用停顿代替标点，朗读更流畅</p>
+                  </div>
+                  <button
+                    onClick={() => setRemovePunctuation(!speechState.removePunctuation)}
+                    className={`w-12 h-6 rounded-full transition-colors relative ${
+                      speechState.removePunctuation ? 'bg-golden' : 'bg-gray-300'
+                    }`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                      speechState.removePunctuation ? 'translate-x-7' : 'translate-x-1'
+                    }`} />
+                  </button>
+                </div>
+
                 <div>
                   <label className="text-sm text-gray-500 mb-2 block">选择声音</label>
                   <div className="flex items-center gap-2">
