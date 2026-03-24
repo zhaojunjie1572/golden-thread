@@ -14,6 +14,7 @@ import AIAssistantView from './components/AIAssistantView';
 import BookView from './components/BookView';
 import { SyncManagerView } from './components/SyncManagerView';
 import AgentWorkflowView from './components/AgentWorkflowView';
+import SimpleMindMap from './components/SimpleMindMap';
 import { GitHubGistSyncService } from './services/githubGistSyncService';
 
 const themeColors: Record<string, any> = {
@@ -342,6 +343,7 @@ function AppContentWithMusicAndSpeech() {
             <Route path="/ai" element={<AIAssistantView />} />
             <Route path="/sync" element={<SyncManagerView />} />
             <Route path="/workflow" element={<AgentWorkflowView />} />
+            <Route path="/mindmap" element={<SimpleMindMap />} />
           </Routes>
         </main>
       </div>
