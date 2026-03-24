@@ -189,12 +189,59 @@ export default function SimpleMindMap() {
     setSelectedNode(node);
   };
 
+  // 触摸开始位置记录（用于区分点击和拖拽）
+  const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const touchStartTimeRef = useRef<number>(0);
+  const hasMovedRef = useRef(false);
+
+  // 处理节点触摸开始（手机端）
+  const handleNodeTouchStart = (e: React.TouchEvent, nodeId: string) => {
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+      touchStartTimeRef.current = Date.now();
+      hasMovedRef.current = false;
+      
+      // 开始拖拽
+      const pos = nodePositions.get(nodeId);
+      if (pos) {
+        draggingNodeIdRef.current = nodeId;
+        setDraggingNodeId(nodeId);
+        setDragOffset({
+          x: touch.clientX - pos.x,
+          y: touch.clientY - pos.y
+        });
+      }
+    }
+  };
+
+  // 处理节点触摸移动（手机端）
+  const handleNodeTouchMove = (e: React.TouchEvent) => {
+    if (touchStartPosRef.current && e.touches.length === 1) {
+      const touch = e.touches[0];
+      const dx = touch.clientX - touchStartPosRef.current.x;
+      const dy = touch.clientY - touchStartPosRef.current.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      // 移动超过10像素视为拖拽
+      if (distance > 10) {
+        hasMovedRef.current = true;
+      }
+    }
+  };
+
   // 处理节点触摸结束（手机端）
   const handleNodeTouchEnd = (_e: React.TouchEvent, node: MindMapNode) => {
-    // 只有在没有拖拽的情况下才视为点击
-    if (!draggingNodeIdRef.current && !isPinchingRef.current) {
+    const touchDuration = Date.now() - touchStartTimeRef.current;
+    
+    // 短触摸（< 300ms）且没有移动视为点击
+    if (!hasMovedRef.current && touchDuration < 300 && !isPinchingRef.current) {
       setSelectedNode(node);
     }
+    
+    // 重置状态
+    touchStartPosRef.current = null;
+    hasMovedRef.current = false;
   };
 
   // 处理节点双击（展开/折叠）
@@ -399,22 +446,6 @@ export default function SimpleMindMap() {
     setDragOffset({
       x: e.clientX - pos.x,
       y: e.clientY - pos.y
-    });
-  };
-
-  // 处理节点触摸开始（移动端）
-  const handleNodeTouchStart = (e: React.TouchEvent, nodeId: string) => {
-    e.stopPropagation();
-
-    const pos = nodePositions.get(nodeId);
-    if (!pos) return;
-
-    const touch = e.touches[0];
-    setDraggingNodeId(nodeId);
-    draggingNodeIdRef.current = nodeId;
-    setDragOffset({
-      x: touch.clientX - pos.x,
-      y: touch.clientY - pos.y
     });
   };
 
@@ -699,6 +730,7 @@ export default function SimpleMindMap() {
           }}
           onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
           onTouchStart={(e) => handleNodeTouchStart(e, node.id)}
+          onTouchMove={handleNodeTouchMove}
           onTouchEnd={(e) => handleNodeTouchEnd(e, node)}
           onClick={(e) => handleNodeClick(e, node)}
           onDoubleClick={(e) => handleNodeDoubleClick(e, node)}

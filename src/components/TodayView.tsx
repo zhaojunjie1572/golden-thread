@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProtocols } from '../context/ProtocolContext';
 import { ProtocolModel, goalTypeLabels, triggerTypeLabels } from '../types/protocol';
-import SimpleMindMap from './SimpleMindMap';
+import MindMapThumbnail from './MindMapThumbnail';
 
 const defaultWisdomQuotes = [
   { text: "千里之行，始于足下", author: "老子" },
@@ -555,7 +555,7 @@ export default function TodayView() {
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <SimpleMindMap />
+          <MindMapThumbnail onClick={() => navigate('/mindmap')} />
           <WisdomQuoteCard
             quote={currentQuote}
             onAdd={openAddModal}
