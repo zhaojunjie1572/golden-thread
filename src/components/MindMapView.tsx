@@ -551,18 +551,18 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
 
           return (
             <React.Fragment key={child.id}>
-              {/* 贝塞尔曲线连接线 */}
+              {/* 贝塞尔曲线连接线 - 使用 nodeX 和 nodeY */}
               <path
-                d={`M ${x + nodeWidth / 2} ${y} 
-                    C ${x + nodeWidth / 2 + horizontalGap / 3} ${y},
-                      ${x + horizontalGap - nodeWidth / 2 - horizontalGap / 3} ${childY},
-                      ${x + horizontalGap - nodeWidth / 2} ${childY}`}
+                d={`M ${nodeX + nodeWidth / 2} ${nodeY} 
+                    C ${nodeX + nodeWidth / 2 + horizontalGap / 3} ${nodeY},
+                      ${nodeX + horizontalGap - nodeWidth / 2 - horizontalGap / 3} ${childY},
+                      ${nodeX + horizontalGap - nodeWidth / 2} ${childY}`}
                 fill="none"
                 stroke={color.stroke}
                 strokeWidth={level === 0 ? 2.5 : 1.5}
                 opacity={0.7}
               />
-              {renderTree(child, x + horizontalGap, childY, level + 1)}
+              {renderTree(child, nodeX + horizontalGap, childY, level + 1)}
             </React.Fragment>
           );
         })}
