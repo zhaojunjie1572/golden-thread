@@ -24,6 +24,16 @@ interface CustomConnection {
   to: string;
 }
 
+// 思维导图保存记录接口
+interface MindMapSaveRecord {
+  id: string;
+  name: string;
+  data: MindMapNode;
+  customConnections: CustomConnection[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 // 常量定义
 const NODE_WIDTH = 120;
 const NODE_HEIGHT = 36;
@@ -84,6 +94,22 @@ export default function SimpleMindMap() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStart, setConnectionStart] = useState<string | null>(null);
   const [customConnections, setCustomConnections] = useState<CustomConnection[]>([]);
+
+  // 保存记录状态
+  const [savedRecords, setSavedRecords] = useState<MindMapSaveRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem('mindmap-saved-records');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('Failed to load saved records:', e);
+    }
+    return [];
+  });
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [saveName, setSaveName] = useState('');
+  const [showRecordsList, setShowRecordsList] = useState(false);
 
   // 双指缩放相关状态
   const [lastTouchDistance, setLastTouchDistance] = useState<number | null>(null);
@@ -388,6 +414,47 @@ export default function SimpleMindMap() {
       ...prev,
       children: [...(prev.children || []), newModule]
     }));
+  };
+
+  // 保存当前思维导图
+  const saveCurrentMindMap = () => {
+    if (!saveName.trim()) {
+      alert('请输入保存名称');
+      return;
+    }
+
+    const newRecord: MindMapSaveRecord = {
+      id: crypto.randomUUID(),
+      name: saveName.trim(),
+      data: mindMapData,
+      customConnections,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    const updatedRecords = [newRecord, ...savedRecords].slice(0, 20); // 最多保存20条
+    setSavedRecords(updatedRecords);
+    localStorage.setItem('mindmap-saved-records', JSON.stringify(updatedRecords));
+    
+    setShowSaveDialog(false);
+    setSaveName('');
+    alert('保存成功！');
+  };
+
+  // 加载保存的记录
+  const loadRecord = (record: MindMapSaveRecord) => {
+    setMindMapData(record.data);
+    setCustomConnections(record.customConnections);
+    setShowRecordsList(false);
+    setSelectedNode(null);
+  };
+
+  // 删除保存的记录
+  const deleteRecord = (e: React.MouseEvent, recordId: string) => {
+    e.stopPropagation();
+    const updated = savedRecords.filter(r => r.id !== recordId);
+    setSavedRecords(updated);
+    localStorage.setItem('mindmap-saved-records', JSON.stringify(updated));
   };
 
   // 开始创建自定义连线
@@ -1207,6 +1274,18 @@ export default function SimpleMindMap() {
           className="text-green-500 hover:bg-green-100"
         />
         <ToolbarButton
+          onClick={() => setShowSaveDialog(true)}
+          icon="💾"
+          title="保存"
+          className="text-blue-500 hover:bg-blue-100"
+        />
+        <ToolbarButton
+          onClick={() => setShowRecordsList(true)}
+          icon="📂"
+          title="历史记录"
+          className="text-purple-500 hover:bg-purple-100"
+        />
+        <ToolbarButton
           onClick={clearAllNodes}
           icon="🗑️"
           title="清除所有"
@@ -1366,6 +1445,114 @@ export default function SimpleMindMap() {
     );
   };
 
+  // 渲染保存对话框
+  const renderSaveDialog = () => {
+    if (!showSaveDialog) return null;
+
+    return (
+      <div
+        className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4"
+        onClick={() => setShowSaveDialog(false)}
+      >
+        <div
+          className="bg-white rounded-2xl p-5 w-[350px] max-w-[90vw] shadow-xl"
+          onClick={e => e.stopPropagation()}
+        >
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">保存思维导图</h3>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              名称
+            </label>
+            <input
+              type="text"
+              value={saveName}
+              onChange={(e) => setSaveName(e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="输入保存名称..."
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') saveCurrentMindMap();
+              }}
+            />
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowSaveDialog(false)}
+              className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              取消
+            </button>
+            <button
+              onClick={saveCurrentMindMap}
+              className="flex-1 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              保存
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // 渲染历史记录列表
+  const renderRecordsList = () => {
+    if (!showRecordsList) return null;
+
+    return (
+      <div
+        className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4"
+        onClick={() => setShowRecordsList(false)}
+      >
+        <div
+          className="bg-white rounded-2xl p-5 w-[400px] max-w-[90vw] max-h-[80vh] shadow-xl flex flex-col"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-800">历史记录</h3>
+            <button
+              onClick={() => setShowRecordsList(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              ✕
+            </button>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto">
+            {savedRecords.length === 0 ? (
+              <p className="text-center text-gray-500 py-8">暂无保存的记录</p>
+            ) : (
+              <div className="space-y-2">
+                {savedRecords.map((record) => (
+                  <div
+                    key={record.id}
+                    onClick={() => loadRecord(record)}
+                    className="p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-800 truncate">{record.name}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(record.updatedAt).toLocaleString()}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => deleteRecord(e, record.id)}
+                        className="ml-2 p-1 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="删除"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // 错误状态显示
   if (hasError) {
     return (
@@ -1398,6 +1585,8 @@ export default function SimpleMindMap() {
           {renderHelp()}
           {renderCanvas(false)}
           {renderEditModal()}
+          {renderSaveDialog()}
+          {renderRecordsList()}
         </div>
       );
     } catch (error) {
@@ -1564,6 +1753,8 @@ export default function SimpleMindMap() {
 
         {/* 编辑弹窗 */}
         {renderEditModal()}
+        {renderSaveDialog()}
+        {renderRecordsList()}
       </div>
     </>
   );
