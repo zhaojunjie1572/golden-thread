@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { apiService, ChatMessage } from '../services/apiService';
 import { ProtocolModel } from '../types/protocol';
 
@@ -6,6 +6,11 @@ interface MindMapNode {
   id: string;
   label: string;
   children?: MindMapNode[];
+}
+
+interface NodePosition {
+  x: number;
+  y: number;
 }
 
 interface MindMapViewProps {
@@ -21,32 +26,29 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
   const [streamingContent, setStreamingContent] = useState('');
   const [showSourceText, setShowSourceText] = useState(false);
   const [sourceText, setSourceText] = useState('');
-  const svgRef = useRef<SVGSVGElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  
-  // 编辑功能状态
+
   const [editingNode, setEditingNode] = useState<MindMapNode | null>(null);
   const [editLabel, setEditLabel] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedNode, setSelectedNode] = useState<MindMapNode | null>(null);
-  
-  // 拖拽和缩放状态
-  const [scale, setScale] = useState(1);
-  const [translateX, setTranslateX] = useState(0);
-  const [translateY, setTranslateY] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  
-  // 节点拖拽移动状态
-  const [draggingNode, setDraggingNode] = useState<MindMapNode | null>(null);
-  const draggingNodeRef = useRef<MindMapNode | null>(null);
-  const [nodeDragOffset, setNodeDragOffset] = useState({ x: 0, y: 0 });
-  const [nodePositions, setNodePositions] = useState<Map<string, { x: number; y: number }>>(new Map());
-  
-  // 触摸状态管理
-  const lastTouchDistanceRef = useRef<number>(0);
-  const touchStartNodeRef = useRef<MindMapNode | null>(null);
-  const touchLockedRef = useRef<boolean>(false);
+
+  const [nodePositions, setNodePositions] = useState<Map<string, NodePosition>>(new Map());
+  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const draggingNodeIdRef = useRef<string | null>(null);
+  const isPanningRef = useRef(false);
+
+  const NODE_WIDTH = 140;
+  const NODE_HEIGHT = 40;
+  const HORIZONTAL_GAP = 180;
+  const VERTICAL_GAP = 60;
 
   const parseProtocolToText = (proto: ProtocolModel): string => {
     let text = `# ${proto.principle}\n\n`;
@@ -59,13 +61,13 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
     text += `- 频率: ${proto.frequency}\n`;
     if (proto.psychologicalBoundary) text += `- 心理边界（不做）: ${proto.psychologicalBoundary}\n`;
     if (proto.actionPermission) text += `- 行动许可（可以做）: ${proto.actionPermission}\n\n`;
-    
+
     text += `## 执行动作 - Plan A\n`;
     text += `- 标准动作: ${proto.action}\n`;
     text += `- 最小动作: ${proto.minimumAction}\n`;
     text += `- 最大时长: ${proto.maxDuration}分钟\n`;
     if (proto.locationConstraint) text += `- 地点约束: ${proto.locationConstraint}\n\n`;
-    
+
     if (proto.actionPlanB) {
       text += `## 执行动作 - Plan B\n`;
       text += `- 标准动作: ${proto.actionPlanB}\n`;
@@ -73,14 +75,14 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
       text += `- 最大时长: ${proto.maxDurationPlanB}分钟\n`;
       if (proto.locationConstraintPlanB) text += `- 地点约束: ${proto.locationConstraintPlanB}\n\n`;
     }
-    
+
     if (proto.environmentPrep || proto.frictionReduce || proto.frictionIncrease) {
       text += `## 环境设计\n`;
       if (proto.environmentPrep) text += `- 事前准备: ${proto.environmentPrep}\n`;
       if (proto.frictionReduce) text += `- 降低阻力: ${proto.frictionReduce}\n`;
       if (proto.frictionIncrease) text += `- 增加阻力: ${proto.frictionIncrease}\n`;
     }
-    
+
     return text;
   };
 
@@ -105,18 +107,16 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
       label: protocol?.principle || '思维导图',
       children: []
     };
-    
-    // 使用栈来跟踪当前路径
+
     const stack: MindMapNode[] = [root];
-    
+
     for (let line of lines) {
       line = line.trim();
       if (!line) continue;
-      
-      // 计算层级
+
       let level = 0;
       let content = line;
-      
+
       if (line.startsWith('# ')) {
         level = 0;
         content = line.substring(2).trim();
@@ -135,33 +135,27 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
         level = 4;
         content = line.substring(2).trim();
       } else {
-        // 无法识别的行，跳过
         continue;
       }
-      
-      // 创建新节点
+
       const newNode: MindMapNode = {
         id: `node-${crypto.randomUUID()}`,
         label: content,
         children: []
       };
-      
-      // 调整栈到正确的父节点
+
       while (stack.length > level + 1) {
         stack.pop();
       }
-      
-      // 添加到父节点
+
       const parent = stack[stack.length - 1];
       if (!parent.children) {
         parent.children = [];
       }
       parent.children.push(newNode);
-      
-      // 将新节点压入栈
       stack.push(newNode);
     }
-    
+
     return root;
   };
 
@@ -268,15 +262,14 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
           if (!abortController.signal.aborted) {
             try {
               const mindMap = parseMindMapFromText(fullContent);
-              // 验证思维导图结构
               if (!mindMap.children || mindMap.children.length === 0) {
                 throw new Error('生成的思维导图结构为空');
               }
+              initializeNodePositions(mindMap);
               setMindMapData(mindMap);
             } catch (parseError) {
               console.error('解析思维导图失败:', parseError);
               setError('AI 返回的格式不正确，请重新生成');
-              // 尝试使用备用方案：直接显示文本
               const fallbackNode: MindMapNode = {
                 id: 'fallback',
                 label: protocol?.principle || '思维导图',
@@ -291,6 +284,7 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
                   }
                 ]
               };
+              initializeNodePositions(fallbackNode);
               setMindMapData(fallbackNode);
             }
           }
@@ -315,323 +309,480 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
     }
   };
 
-  const renderTree = (node: MindMapNode, x: number, y: number, level: number): React.ReactNode => {
-    const nodeHeight = 36;
-    const horizontalGap = 200;
-    const verticalGap = 50;
-    
-    // 根据层级和内容动态计算节点宽度
-    const baseWidth = level === 0 ? 160 : level === 1 ? 140 : level === 2 ? 120 : 100;
-    const charWidth = level === 0 ? 16 : 13;
-    const nodeWidth = Math.min(
-      Math.max(baseWidth, node.label.length * charWidth + 32),
-      level === 0 ? 280 : 220
-    );
+  const initializeNodePositions = (node: MindMapNode, x: number = 0, y: number = 0, level: number = 0): number => {
+    const positions = new Map(nodePositions);
+    positions.set(node.id, { x, y });
+    setNodePositions(positions);
 
     const children = node.children || [];
-    const totalHeight = Math.max(
-      nodeHeight,
-      children.reduce((sum, child, i) => {
-        const childHeight = getTreeHeight(child, verticalGap);
-        return sum + childHeight + (i > 0 ? verticalGap : 0);
-      }, 0)
-    );
+    if (children.length === 0) return NODE_HEIGHT;
 
-    let currentY = y - totalHeight / 2 + nodeHeight / 2;
+    let totalChildHeight = 0;
+    const childHeights: number[] = [];
 
-    // 根据层级定义颜色方案
+    for (const child of children) {
+      const childHeight = initializeNodePositions(child, x + HORIZONTAL_GAP, 0, level + 1);
+      childHeights.push(childHeight);
+      totalChildHeight += childHeight + (childHeights.length > 1 ? VERTICAL_GAP : 0);
+    }
+
+    let currentY = y - totalChildHeight / 2 + NODE_HEIGHT / 2;
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i];
+      const childPos = positions.get(child.id)!;
+      positions.set(child.id, { ...childPos, y: currentY + childHeights[i] / 2 - NODE_HEIGHT / 2 });
+      currentY += childHeights[i] + VERTICAL_GAP;
+    }
+
+    setNodePositions(positions);
+    return Math.max(totalChildHeight, NODE_HEIGHT);
+  };
+
+  const getNodeColor = (level: number) => {
     const colors = [
-      { fill: '#d97706', stroke: '#92400e', text: 'white' },      // 根节点
-      { fill: '#f59e0b', stroke: '#d97706', text: '#78350f' },    // 一级
-      { fill: '#fbbf24', stroke: '#f59e0b', text: '#78350f' },    // 二级
-      { fill: '#fde68a', stroke: '#fbbf24', text: '#78350f' },    // 三级
-      { fill: '#fef3c7', stroke: '#fde68a', text: '#78350f' },    // 四级
+      { bg: 'bg-amber-600', text: 'text-white', border: 'border-amber-800' },
+      { bg: 'bg-amber-500', text: 'text-amber-900', border: 'border-amber-600' },
+      { bg: 'bg-yellow-400', text: 'text-yellow-900', border: 'border-yellow-600' },
+      { bg: 'bg-yellow-200', text: 'text-yellow-900', border: 'border-yellow-400' },
+      { bg: 'bg-yellow-100', text: 'text-yellow-900', border: 'border-yellow-300' },
     ];
-    const color = colors[Math.min(level, colors.length - 1)];
+    return colors[Math.min(level, colors.length - 1)];
+  };
 
-    // 计算字体大小
-    const fontSize = level === 0 ? 15 : level === 1 ? 13 : 12;
+  const handleNodeMouseDown = (e: React.MouseEvent, nodeId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
 
-    // 判断是否选中
+    const pos = nodePositions.get(nodeId);
+    if (!pos) return;
+
+    setDraggingNodeId(nodeId);
+    draggingNodeIdRef.current = nodeId;
+    setDragOffset({
+      x: e.clientX - pos.x,
+      y: e.clientY - pos.y
+    });
+  };
+
+  const handleNodeTouchStart = (e: React.TouchEvent, nodeId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const pos = nodePositions.get(nodeId);
+    if (!pos) return;
+
+    draggingNodeIdRef.current = nodeId;
+    setDraggingNodeId(nodeId);
+    const touch = e.touches[0];
+    setDragOffset({
+      x: touch.clientX - pos.x,
+      y: touch.clientY - pos.y
+    });
+  };
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (draggingNodeIdRef.current) {
+      const newX = e.clientX - dragOffset.x;
+      const newY = e.clientY - dragOffset.y;
+      setNodePositions(prev => {
+        const newMap = new Map(prev);
+        newMap.set(draggingNodeIdRef.current!, { x: newX, y: newY });
+        return newMap;
+      });
+    } else if (isPanningRef.current) {
+      setTransform(prev => ({
+        ...prev,
+        x: e.clientX - panStart.x,
+        y: e.clientY - panStart.y
+      }));
+    }
+  }, [dragOffset, panStart]);
+
+  const handleTouchMove = useCallback((e: TouchEvent) => {
+    if (draggingNodeIdRef.current && e.touches.length === 1) {
+      e.preventDefault();
+      const touch = e.touches[0];
+      const newX = touch.clientX - dragOffset.x;
+      const newY = touch.clientY - dragOffset.y;
+      setNodePositions(prev => {
+        const newMap = new Map(prev);
+        newMap.set(draggingNodeIdRef.current!, { x: newX, y: newY });
+        return newMap;
+      });
+    }
+  }, [dragOffset]);
+
+  const handleMouseUp = useCallback(() => {
+    draggingNodeIdRef.current = null;
+    setDraggingNodeId(null);
+    isPanningRef.current = false;
+    setIsPanning(false);
+  }, []);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    container.addEventListener('mousemove', handleMouseMove);
+    container.addEventListener('mouseup', handleMouseUp);
+    container.addEventListener('mouseleave', handleMouseUp);
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchend', handleMouseUp);
+    container.addEventListener('touchcancel', handleMouseUp);
+
+    return () => {
+      container.removeEventListener('mousemove', handleMouseMove);
+      container.removeEventListener('mouseup', handleMouseUp);
+      container.removeEventListener('mouseleave', handleMouseUp);
+      container.removeEventListener('touchmove', handleTouchMove);
+      container.removeEventListener('touchend', handleMouseUp);
+      container.removeEventListener('touchcancel', handleMouseUp);
+    };
+  }, [handleMouseMove, handleTouchMove, handleMouseUp]);
+
+  const handleCanvasMouseDown = (e: React.MouseEvent) => {
+    if (draggingNodeId) return;
+    isPanningRef.current = true;
+    setIsPanning(true);
+    setPanStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
+  };
+
+  const handleCanvasTouchStart = (e: React.TouchEvent) => {
+    if (draggingNodeId) return;
+    if (e.touches.length === 1) {
+      isPanningRef.current = true;
+      setIsPanning(true);
+      setPanStart({
+        x: e.touches[0].clientX - transform.x,
+        y: e.touches[0].clientY - transform.y
+      });
+    }
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    setTransform(prev => ({
+      ...prev,
+      scale: Math.max(0.3, Math.min(3, prev.scale * delta))
+    }));
+  };
+
+  const handleNodeClick = (e: React.MouseEvent, node: MindMapNode) => {
+    e.stopPropagation();
+    setSelectedNode(node);
+  };
+
+  const openEditModal = (node: MindMapNode) => {
+    setEditingNode(node);
+    setEditLabel(node.label);
+    setShowEditModal(true);
+  };
+
+  const saveNodeEdit = () => {
+    if (!editingNode || !mindMapData) return;
+
+    const deepClone = (node: MindMapNode): MindMapNode => ({
+      ...node,
+      children: node.children?.map(deepClone)
+    });
+
+    const updateNodeLabel = (node: MindMapNode): boolean => {
+      if (node.id === editingNode.id) {
+        node.label = editLabel;
+        return true;
+      }
+      if (node.children) {
+        for (const child of node.children) {
+          if (updateNodeLabel(child)) return true;
+        }
+      }
+      return false;
+    };
+
+    const clonedData = deepClone(mindMapData);
+    updateNodeLabel(clonedData);
+    setMindMapData(clonedData);
+
+    if (selectedNode?.id === editingNode.id) {
+      setSelectedNode({ ...selectedNode, label: editLabel });
+    }
+
+    setShowEditModal(false);
+    setEditingNode(null);
+  };
+
+  const addChildNode = (parentNode: MindMapNode) => {
+    if (!mindMapData) return;
+
+    const newChild: MindMapNode = {
+      id: `node-${crypto.randomUUID()}`,
+      label: '新节点',
+      children: []
+    };
+
+    const deepClone = (node: MindMapNode): MindMapNode => ({
+      ...node,
+      children: node.children?.map(deepClone)
+    });
+
+    const addChildToNode = (node: MindMapNode): boolean => {
+      if (node.id === parentNode.id) {
+        if (!node.children) node.children = [];
+        node.children.push(newChild);
+        return true;
+      }
+      if (node.children) {
+        for (const child of node.children) {
+          if (addChildToNode(child)) return true;
+        }
+      }
+      return false;
+    };
+
+    const clonedData = deepClone(mindMapData);
+    addChildToNode(clonedData);
+
+    const parentPos = nodePositions.get(parentNode.id);
+    if (parentPos) {
+      const newPositions = new Map(nodePositions);
+      newPositions.set(newChild.id, {
+        x: parentPos.x + HORIZONTAL_GAP,
+        y: parentPos.y
+      });
+      setNodePositions(newPositions);
+    }
+
+    setMindMapData(clonedData);
+  };
+
+  const deleteNode = (nodeToDelete: MindMapNode) => {
+    if (!mindMapData || nodeToDelete.id === 'root') {
+      alert('不能删除根节点');
+      return;
+    }
+
+    if (!confirm('确定要删除这个节点吗？')) return;
+
+    const deepClone = (node: MindMapNode): MindMapNode => ({
+      ...node,
+      children: node.children?.map(deepClone)
+    });
+
+    const removeNode = (node: MindMapNode): boolean => {
+      if (node.children) {
+        const initialLength = node.children.length;
+        node.children = node.children.filter(child => child.id !== nodeToDelete.id);
+        if (node.children.length < initialLength) return true;
+
+        for (const child of node.children) {
+          if (removeNode(child)) return true;
+        }
+      }
+      return false;
+    };
+
+    const clonedData = deepClone(mindMapData);
+    removeNode(clonedData);
+
+    if (selectedNode?.id === nodeToDelete.id) {
+      setSelectedNode(null);
+    }
+
+    const newPositions = new Map(nodePositions);
+    newPositions.delete(nodeToDelete.id);
+    setNodePositions(newPositions);
+
+    setMindMapData(clonedData);
+  };
+
+  const resetView = () => {
+    setTransform({ x: 0, y: 0, scale: 1 });
+  };
+
+  const renderNode = (node: MindMapNode, level: number = 0) => {
+    const pos = nodePositions.get(node.id);
+    if (!pos) return null;
+
     const isSelected = selectedNode?.id === node.id;
-    
-    // 获取节点的自定义位置（如果有）
-    const customPos = nodePositions.get(node.id);
-    const nodeX = customPos ? customPos.x : x;
-    const nodeY = customPos ? customPos.y : y;
-    
-    // 判断是否正在拖拽
-    const isDraggingNode = draggingNode?.id === node.id;
+    const isDragging = draggingNodeId === node.id;
+    const color = getNodeColor(level);
 
     return (
       <React.Fragment key={node.id}>
-        <g 
-          transform={`translate(${nodeX}, ${nodeY})`}
-          className={isDraggingNode ? 'opacity-70' : ''}
+        <div
+          className={`absolute flex items-center justify-center rounded-lg font-medium transition-shadow cursor-grab select-none
+            ${color.bg} ${color.text} ${isSelected ? 'ring-4 ring-blue-500 shadow-lg z-20' : ''}
+            ${isDragging ? 'opacity-80 cursor-grabbing z-30 shadow-xl' : ''}
+            hover:shadow-md`}
+          style={{
+            left: pos.x,
+            top: pos.y,
+            width: NODE_WIDTH,
+            height: NODE_HEIGHT,
+            border: `2px solid ${color.border}`,
+            WebkitUserSelect: 'none',
+            WebkitTouchCallout: 'none',
+            touchAction: 'none'
+          }}
+          onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
+          onTouchStart={(e) => handleNodeTouchStart(e, node.id)}
+          onClick={(e) => handleNodeClick(e, node)}
         >
-          {/* 节点阴影 */}
-          <rect
-            x={-nodeWidth / 2 + 2}
-            y={-nodeHeight / 2 + 2}
-            width={nodeWidth}
-            height={nodeHeight}
-            rx={10}
-            fill="rgba(0,0,0,0.1)"
-          />
-          {/* 节点主体 */}
-          <rect
-            x={-nodeWidth / 2}
-            y={-nodeHeight / 2}
-            width={nodeWidth}
-            height={nodeHeight}
-            rx={10}
-            fill={color.fill}
-            stroke={isSelected ? '#2563eb' : isDraggingNode ? '#8b5cf6' : color.stroke}
-            strokeWidth={isSelected || isDraggingNode ? 3 : level <= 1 ? 2.5 : 1.5}
-            className={`transition-all hover:opacity-90 ${draggingNode ? 'cursor-grabbing' : 'cursor-grab'}`}
+          <span className="px-2 text-center truncate text-sm">
+            {node.label.length > 18 ? node.label.substring(0, 16) + '...' : node.label}
+          </span>
+        </div>
+
+        {isSelected && (
+          <div
+            className="absolute flex items-center gap-1 bg-white rounded-full shadow-lg z-40 px-2 py-1"
             style={{
-              WebkitUserSelect: 'none',
-              WebkitTouchCallout: 'none',
-              userSelect: 'none'
+              left: pos.x + NODE_WIDTH + 8,
+              top: pos.y + NODE_HEIGHT / 2 - 16,
+              transform: 'translateY(-50%)'
             }}
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedNode(node);
-            }}
-            onMouseDown={(e) => {
-              // 只有选中的节点可以拖拽
-              if (isSelected) {
-                handleNodeDragStart(e, node, nodeX, nodeY);
-              }
-            }}
-            onTouchStart={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              // 记录触摸起始的节点
-              touchStartNodeRef.current = node;
-              setSelectedNode(node);
-              // 只有单指且选中的节点可以拖拽
-              if (e.touches.length === 1 && isSelected) {
-                handleNodeDragStart(e, node, nodeX, nodeY);
-              }
-            }}
-            onTouchMove={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              // 节点拖拽移动 - 使用 ref 判断
-              if (draggingNodeRef.current && e.touches.length === 1) {
-                handleNodeDragMove(e);
-              }
-            }}
-            onTouchEnd={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              handleNodeDragEnd();
-            }}
-            onTouchCancel={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              handleNodeDragEnd();
-            }}
-            onContextMenu={(e) => e.preventDefault()}
-          />
-          {/* 节点文字 */}
-          <text
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fill={color.text}
-            fontSize={fontSize}
-            fontWeight={level <= 2 ? '600' : '400'}
-            className="cursor-pointer pointer-events-none"
           >
-            {node.label.length > 20 ? node.label.substring(0, 18) + '...' : node.label}
-          </text>
-          
-          {/* 选中节点的操作按钮 */}
-          {isSelected && (
-            <g transform={`translate(${nodeWidth / 2 + 20}, 0)`}>
-              {/* 按钮背景条 */}
-              <rect
-                x={-5}
-                y={-22}
-                width={node.id !== 'root' ? 110 : 75}
-                height={44}
-                rx={22}
-                fill="white"
-                stroke="#e5e7eb"
-                strokeWidth={1}
-                filter="drop-shadow(0 2px 4px rgba(0,0,0,0.1))"
-              />
-              
-              {/* 编辑按钮 - 增大点击区域 */}
-              <g 
-                className="cursor-pointer"
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                openEditModal(node);
+              }}
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-500 hover:bg-blue-600 text-white text-xs"
+              title="编辑"
+            >
+              ✏️
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                addChildNode(node);
+              }}
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-green-500 hover:bg-green-600 text-white text-xs"
+              title="添加子节点"
+            >
+              ➕
+            </button>
+            {node.id !== 'root' && (
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  openEditModal(node);
+                  deleteNode(node);
                 }}
-                onTouchStart={(e) => {
-                  e.stopPropagation();
-                  openEditModal(node);
-                }}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-red-500 hover:bg-red-600 text-white text-xs"
+                title="删除"
               >
-                {/* 透明点击区域 */}
-                <circle
-                  cx={15}
-                  cy={0}
-                  r={20}
-                  fill="transparent"
-                />
-                <circle
-                  cx={15}
-                  cy={0}
-                  r={16}
-                  fill="#3b82f6"
-                  className="hover:opacity-80 active:opacity-60 transition-opacity"
-                  style={{ pointerEvents: 'none' }}
-                />
-                <text
-                  x={15}
-                  y={5}
-                  textAnchor="middle"
-                  fill="white"
-                  fontSize={14}
-                  style={{ pointerEvents: 'none' }}
-                >✏️</text>
-              </g>
-              
-              {/* 添加子节点按钮 */}
-              <g 
-                transform="translate(35, 0)"
-                className="cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  addChildNode(node);
-                }}
-                onTouchStart={(e) => {
-                  e.stopPropagation();
-                  addChildNode(node);
-                }}
-              >
-                {/* 透明点击区域 */}
-                <circle
-                  cx={15}
-                  cy={0}
-                  r={20}
-                  fill="transparent"
-                />
-                <circle
-                  cx={15}
-                  cy={0}
-                  r={16}
-                  fill="#10b981"
-                  className="hover:opacity-80 active:opacity-60 transition-opacity"
-                  style={{ pointerEvents: 'none' }}
-                />
-                <text
-                  x={15}
-                  y={5}
-                  textAnchor="middle"
-                  fill="white"
-                  fontSize={14}
-                  style={{ pointerEvents: 'none' }}
-                >➕</text>
-              </g>
-              
-              {/* 删除按钮（根节点除外） */}
-              {node.id !== 'root' && (
-                <g 
-                  transform="translate(70, 0)"
-                  className="cursor-pointer"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteNode(node);
-                  }}
-                  onTouchStart={(e) => {
-                    e.stopPropagation();
-                    deleteNode(node);
-                  }}
-                >
-                  {/* 透明点击区域 */}
-                  <circle
-                    cx={15}
-                    cy={0}
-                    r={20}
-                    fill="transparent"
-                  />
-                  <circle
-                    cx={15}
-                    cy={0}
-                    r={16}
-                    fill="#ef4444"
-                    className="hover:opacity-80 active:opacity-60 transition-opacity"
-                    style={{ pointerEvents: 'none' }}
-                  />
-                  <text
-                    x={15}
-                    y={5}
-                    textAnchor="middle"
-                    fill="white"
-                    fontSize={14}
-                    style={{ pointerEvents: 'none' }}
-                  >🗑️</text>
-                </g>
-              )}
-            </g>
-          )}
-        </g>
+                🗑️
+              </button>
+            )}
+          </div>
+        )}
 
-        {children.map((child) => {
-          const childHeight = getTreeHeight(child, verticalGap);
-          const calculatedChildY = currentY + childHeight / 2;
-          currentY += childHeight + verticalGap;
+        {node.children?.map((child) => {
+          const childPos = nodePositions.get(child.id);
+          if (!childPos) return null;
 
-          // 获取子节点的自定义位置（如果有）
-          const childCustomPos = nodePositions.get(child.id);
-          // 子节点的位置基于原始计算位置，不依赖于父节点的自定义位置
-          const baseChildX = x + horizontalGap;
-          const childX = childCustomPos ? childCustomPos.x : baseChildX;
-          const childY = childCustomPos ? childCustomPos.y : calculatedChildY;
+          const startX = pos.x + NODE_WIDTH;
+          const startY = pos.y + NODE_HEIGHT / 2;
+          const endX = childPos.x;
+          const endY = childPos.y + NODE_HEIGHT / 2;
+          const controlOffset = (endX - startX) / 3;
 
           return (
-            <React.Fragment key={child.id}>
-              {/* 贝塞尔曲线连接线 - 使用父节点和子节点的实际位置 */}
+            <svg
+              key={`line-${child.id}`}
+              className="absolute inset-0 pointer-events-none z-0"
+              style={{ width: '100%', height: '100%', overflow: 'visible' }}
+            >
               <path
-                d={`M ${nodeX + nodeWidth / 2} ${nodeY} 
-                    C ${nodeX + nodeWidth / 2 + (childX - nodeX - nodeWidth / 2) / 3} ${nodeY},
-                      ${childX - (childX - nodeX - nodeWidth / 2) / 3} ${childY},
-                      ${childX} ${childY}`}
+                d={`M ${startX} ${startY} C ${startX + controlOffset} ${startY}, ${endX - controlOffset} ${endY}, ${endX} ${endY}`}
                 fill="none"
-                stroke={color.stroke}
+                stroke={color.border}
                 strokeWidth={level === 0 ? 2.5 : 1.5}
-                opacity={0.7}
+                opacity={0.6}
               />
-              {renderTree(child, baseChildX, calculatedChildY, level + 1)}
-            </React.Fragment>
+            </svg>
           );
         })}
+
+        {node.children?.map((child) => renderNode(child, level + 1))}
       </React.Fragment>
     );
   };
 
-  const getTreeHeight = (node: MindMapNode, gap: number): number => {
-    const children = node.children || [];
-    if (children.length === 0) return 40;
-    return children.reduce((sum, child, i) => {
-      return sum + getTreeHeight(child, gap) + (i > 0 ? gap : 0);
-    }, 0);
+  const renderConnections = () => {
+    if (!mindMapData) return null;
+
+    const connections: JSX.Element[] = [];
+    const traverse = (node: MindMapNode, level: number = 0) => {
+      const parentPos = nodePositions.get(node.id);
+      if (!parentPos) return;
+
+      node.children?.forEach((child) => {
+        const childPos = nodePositions.get(child.id);
+        if (!childPos) return;
+
+        const startX = parentPos.x + NODE_WIDTH;
+        const startY = parentPos.y + NODE_HEIGHT / 2;
+        const endX = childPos.x;
+        const endY = childPos.y + NODE_HEIGHT / 2;
+        const controlOffset = (endX - startX) / 3;
+
+        const color = getNodeColor(level);
+
+        connections.push(
+          <path
+            key={`${node.id}-${child.id}`}
+            d={`M ${startX} ${startY} C ${startX + controlOffset} ${startY}, ${endX - controlOffset} ${endY}, ${endX} ${endY}`}
+            fill="none"
+            stroke={color.border}
+            strokeWidth={level === 0 ? 2.5 : 1.5}
+            opacity={0.6}
+          />
+        );
+
+        traverse(child, level + 1);
+      });
+    };
+
+    traverse(mindMapData);
+    return connections;
   };
 
-  const getTreeWidth = (node: MindMapNode, gap: number): number => {
-    const children = node.children || [];
-    if (children.length === 0) return 120;
-    const maxChildWidth = Math.max(...children.map(child => getTreeWidth(child, gap)));
-    return 120 + gap + maxChildWidth;
+  const saveMindMap = () => {
+    if (!mindMapData) return;
+
+    const mindMapExport = {
+      data: mindMapData,
+      positions: Array.from(nodePositions.entries()),
+      savedAt: new Date().toISOString(),
+      protocolId: protocol?.id,
+      protocolName: protocol?.principle
+    };
+
+    const blob = new Blob([JSON.stringify(mindMapExport, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mindmap_${protocol?.principle?.replace(/\s+/g, '_') || 'untitled'}_${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    const savedMindMaps = JSON.parse(localStorage.getItem('saved-mindmaps') || '[]');
+    savedMindMaps.push({
+      id: crypto.randomUUID(),
+      ...mindMapExport
+    });
+    localStorage.setItem('saved-mindmaps', JSON.stringify(savedMindMaps));
+
+    alert('思维导图已保存！');
   };
 
   const SettingsIcon = () => (
     <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 0 00-1.066 2.572c.94 1.543-.826 3.31-2.37 2.37.996.608 2.296.07 2.572-1.065z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.572c.94 1.543-.826 3.31-2.37 2.37.996.608 2.296.07 2.572-1.065z" />
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
   );
@@ -681,376 +832,9 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
 
   const HandIcon = () => (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
     </svg>
   );
-
-  // 打开编辑节点弹窗
-  const openEditModal = (node: MindMapNode) => {
-    setEditingNode(node);
-    setEditLabel(node.label);
-    setShowEditModal(true);
-  };
-
-  // 保存节点编辑
-  const saveNodeEdit = () => {
-    if (!editingNode || !mindMapData) return;
-
-    // 使用深拷贝创建新的数据结构
-    const deepClone = (node: MindMapNode): MindMapNode => {
-      return {
-        ...node,
-        children: node.children?.map(deepClone)
-      };
-    };
-
-    // 递归更新节点标签
-    const updateNodeLabel = (node: MindMapNode): boolean => {
-      if (node.id === editingNode.id) {
-        node.label = editLabel;
-        return true;
-      }
-      if (node.children) {
-        for (const child of node.children) {
-          if (updateNodeLabel(child)) return true;
-        }
-      }
-      return false;
-    };
-
-    const clonedData = deepClone(mindMapData);
-    updateNodeLabel(clonedData);
-    setMindMapData(clonedData);
-    
-    // 如果当前选中的节点是被编辑的节点，更新选中状态
-    if (selectedNode?.id === editingNode.id) {
-      setSelectedNode({ ...selectedNode, label: editLabel });
-    }
-    
-    setShowEditModal(false);
-    setEditingNode(null);
-  };
-
-  // 添加子节点
-  const addChildNode = (parentNode: MindMapNode) => {
-    if (!mindMapData) return;
-
-    const newChild: MindMapNode = {
-      id: `node-${crypto.randomUUID()}`,
-      label: '新节点',
-      children: []
-    };
-
-    // 使用深拷贝创建新的数据结构
-    const deepClone = (node: MindMapNode): MindMapNode => {
-      return {
-        ...node,
-        children: node.children?.map(deepClone)
-      };
-    };
-
-    // 递归添加子节点
-    const addChildToNode = (node: MindMapNode): boolean => {
-      if (node.id === parentNode.id) {
-        if (!node.children) node.children = [];
-        node.children.push(newChild);
-        return true;
-      }
-      if (node.children) {
-        for (const child of node.children) {
-          if (addChildToNode(child)) return true;
-        }
-      }
-      return false;
-    };
-
-    const clonedData = deepClone(mindMapData);
-    addChildToNode(clonedData);
-
-    setMindMapData(clonedData);
-  };
-
-  // 删除节点
-  const deleteNode = (nodeToDelete: MindMapNode) => {
-    if (!mindMapData || nodeToDelete.id === 'root') {
-      alert('不能删除根节点');
-      return;
-    }
-
-    if (!confirm('确定要删除这个节点吗？')) return;
-
-    // 使用深拷贝创建新的数据结构
-    const deepClone = (node: MindMapNode): MindMapNode => {
-      return {
-        ...node,
-        children: node.children?.map(deepClone)
-      };
-    };
-
-    // 递归删除节点
-    const removeNode = (node: MindMapNode): boolean => {
-      if (node.children) {
-        const initialLength = node.children.length;
-        node.children = node.children.filter(child => child.id !== nodeToDelete.id);
-        if (node.children.length < initialLength) return true;
-        
-        for (const child of node.children) {
-          if (removeNode(child)) return true;
-        }
-      }
-      return false;
-    };
-
-    const clonedData = deepClone(mindMapData);
-    removeNode(clonedData);
-    
-    // 取消选中状态
-    if (selectedNode?.id === nodeToDelete.id) {
-      setSelectedNode(null);
-    }
-    
-    setMindMapData(clonedData);
-  };
-
-  // 处理鼠标滚轮缩放
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    setScale(prev => Math.max(0.3, Math.min(3, prev * delta)));
-  };
-
-  // 处理画布拖拽开始
-  const handleMouseDown = (e: React.MouseEvent) => {
-    // 如果正在拖拽节点，不触发画布拖拽
-    if (draggingNode) return;
-    
-    if (e.button === 0 || e.button === 1) { // 左键或中键
-      setIsDragging(true);
-      setDragStart({ x: e.clientX - translateX, y: e.clientY - translateY });
-    }
-  };
-
-  // 处理画布拖拽移动
-  const handleMouseMove = (e: React.MouseEvent) => {
-    // 如果正在拖拽节点，不触发画布拖拽
-    if (draggingNodeRef.current) return;
-    
-    if (isDragging) {
-      setTranslateX(e.clientX - dragStart.x);
-      setTranslateY(e.clientY - dragStart.y);
-    }
-  };
-
-  // 处理拖拽结束
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  // 重置视图
-  const resetView = () => {
-    setScale(1);
-    setTranslateX(0);
-    setTranslateY(0);
-  };
-
-  // 将屏幕坐标转换为 SVG 坐标
-  const screenToSVG = (clientX: number, clientY: number) => {
-    if (!svgRef.current) return { x: clientX, y: clientY };
-    
-    const svg = svgRef.current;
-    const pt = svg.createSVGPoint();
-    pt.x = clientX;
-    pt.y = clientY;
-    
-    // 获取 SVG 的 CTM (Current Transformation Matrix)
-    const ctm = svg.getScreenCTM();
-    if (!ctm) return { x: clientX, y: clientY };
-    
-    // 将屏幕坐标转换为 SVG 坐标
-    const svgP = pt.matrixTransform(ctm.inverse());
-    return { x: svgP.x, y: svgP.y };
-  };
-
-  // 节点拖拽开始
-  const handleNodeDragStart = (e: React.MouseEvent | React.TouchEvent, node: MindMapNode, currentX: number, currentY: number) => {
-    e.stopPropagation();
-    e.preventDefault();
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    
-    // 转换为 SVG 坐标
-    const svgPos = screenToSVG(clientX, clientY);
-    
-    // 锁定触摸，画布不再响应
-    touchLockedRef.current = true;
-    
-    // 同步更新 state 和 ref
-    draggingNodeRef.current = node;
-    setDraggingNode(node);
-    // 记录鼠标/触摸点与节点当前位置的偏移量
-    setNodeDragOffset({
-      x: svgPos.x - currentX,
-      y: svgPos.y - currentY
-    });
-  };
-
-  // 节点拖拽移动
-  const handleNodeDragMove = (e: React.MouseEvent | React.TouchEvent) => {
-    // 使用 ref 检查，避免 state 异步更新问题
-    if (!draggingNodeRef.current) return;
-    
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    
-    // 转换为 SVG 坐标
-    const svgPos = screenToSVG(clientX, clientY);
-    
-    setNodePositions(prev => {
-      const newMap = new Map(prev);
-      newMap.set(draggingNodeRef.current!.id, {
-        x: svgPos.x - nodeDragOffset.x,
-        y: svgPos.y - nodeDragOffset.y
-      });
-      return newMap;
-    });
-  };
-
-  // 节点拖拽结束
-  const handleNodeDragEnd = () => {
-    draggingNodeRef.current = null;
-    setDraggingNode(null);
-    touchLockedRef.current = false;
-  };
-
-  // 计算两点之间的距离
-  const getTouchDistance = (touches: React.TouchList) => {
-    if (touches.length < 2) return 0;
-    const dx = touches[0].clientX - touches[1].clientX;
-    const dy = touches[0].clientY - touches[1].clientY;
-    return Math.sqrt(dx * dx + dy * dy);
-  };
-
-  // 计算触摸中心点
-  const getTouchCenter = (touches: React.TouchList) => {
-    if (touches.length < 2) return { x: touches[0]?.clientX || 0, y: touches[0]?.clientY || 0 };
-    return {
-      x: (touches[0].clientX + touches[1].clientX) / 2,
-      y: (touches[0].clientY + touches[1].clientY) / 2
-    };
-  };
-
-  // 处理画布触摸开始（空白处）
-  const handleCanvasTouchStart = (e: React.TouchEvent) => {
-    // 如果触摸被节点锁定，不处理任何画布事件
-    if (touchLockedRef.current) return;
-    
-    const touches = e.touches;
-    touchStartNodeRef.current = null;
-    
-    if (touches.length === 2) {
-      // 双指：缩放
-      lastTouchDistanceRef.current = getTouchDistance(touches);
-    } else if (touches.length === 1) {
-      // 单指在空白处：开始画布拖拽
-      setIsDragging(true);
-      setDragStart({ 
-        x: touches[0].clientX - translateX, 
-        y: touches[0].clientY - translateY 
-      });
-    }
-  };
-
-  // 处理画布触摸移动
-  const handleCanvasTouchMove = (e: React.TouchEvent) => {
-    e.preventDefault();
-    
-    // 如果触摸被节点锁定，不处理任何画布事件
-    if (touchLockedRef.current) return;
-    
-    const touches = e.touches;
-
-    if (touches.length === 2) {
-      // 双指：缩放
-      const distance = getTouchDistance(touches);
-      if (lastTouchDistanceRef.current > 0) {
-        const scaleDelta = distance / lastTouchDistanceRef.current;
-        setScale(prev => Math.max(0.3, Math.min(3, prev * scaleDelta)));
-      }
-      lastTouchDistanceRef.current = distance;
-    } else if (touches.length === 1 && isDragging) {
-      // 单指：画布拖拽
-      setTranslateX(touches[0].clientX - dragStart.x);
-      setTranslateY(touches[0].clientY - dragStart.y);
-    }
-  };
-
-  // 处理画布触摸结束
-  const handleCanvasTouchEnd = () => {
-    setIsDragging(false);
-    lastTouchDistanceRef.current = 0;
-  };
-
-  // 保存思维导图到本地
-  const saveMindMap = () => {
-    if (!mindMapData) return;
-    
-    const mindMapExport = {
-      data: mindMapData,
-      positions: Array.from(nodePositions.entries()),
-      savedAt: new Date().toISOString(),
-      protocolId: protocol?.id,
-      protocolName: protocol?.principle
-    };
-    
-    const blob = new Blob([JSON.stringify(mindMapExport, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `mindmap_${protocol?.principle?.replace(/\s+/g, '_') || 'untitled'}_${Date.now()}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    // 同时保存到 localStorage
-    const savedMindMaps = JSON.parse(localStorage.getItem('saved-mindmaps') || '[]');
-    savedMindMaps.push({
-      id: crypto.randomUUID(),
-      ...mindMapExport
-    });
-    localStorage.setItem('saved-mindmaps', JSON.stringify(savedMindMaps));
-    
-    alert('思维导图已保存！');
-  };
-
-  // 导出思维导图为图片
-  const exportAsImage = () => {
-    if (!svgRef.current || !mindMapData) return;
-    
-    const svgElement = svgRef.current;
-    const svgData = new XMLSerializer().serializeToString(svgElement);
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    const img = new Image();
-    img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.fillStyle = 'white';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0);
-      
-      const pngUrl = canvas.toDataURL('image/png');
-      const a = document.createElement('a');
-      a.href = pngUrl;
-      a.download = `mindmap_${protocol?.principle?.replace(/\s+/g, '_') || 'untitled'}_${Date.now()}.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    };
-    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
-  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -1143,7 +927,7 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
                 <div className="w-12 h-12 border-4 border-golden/30 border-t-golden rounded-full animate-spin mx-auto mb-6" />
                 <h3 className="text-xl font-semibold text-gray-800 mb-2">正在生成...</h3>
                 <p className="text-gray-500 mb-6">AI 正在分析协议并构建思维导图</p>
-                
+
                 <div className="max-w-2xl mx-auto bg-gray-50 rounded-xl p-4 text-left">
                   <pre className="text-sm text-gray-600 whitespace-pre-wrap">{streamingContent}</pre>
                 </div>
@@ -1159,24 +943,23 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
             )}
 
             {mindMapData && (
-              <div>
+              <div className="flex flex-col h-full">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-800">思维导图</h3>
                   <div className="flex items-center gap-2">
-                    {/* 缩放控制 */}
                     <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
                       <button
-                        onClick={() => setScale(prev => Math.max(0.3, prev * 0.9))}
+                        onClick={() => setTransform(prev => ({ ...prev, scale: Math.max(0.3, prev.scale * 0.9) }))}
                         className="p-2 hover:bg-white rounded-md transition-colors"
                         title="缩小"
                       >
                         <ZoomOutIcon />
                       </button>
                       <span className="text-sm text-gray-600 min-w-[60px] text-center">
-                        {Math.round(scale * 100)}%
+                        {Math.round(transform.scale * 100)}%
                       </span>
                       <button
-                        onClick={() => setScale(prev => Math.min(3, prev * 1.1))}
+                        onClick={() => setTransform(prev => ({ ...prev, scale: Math.min(3, prev.scale * 1.1) }))}
                         className="p-2 hover:bg-white rounded-md transition-colors"
                         title="放大"
                       >
@@ -1204,73 +987,52 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
                     >
                       💾 保存
                     </button>
-                    <button
-                      onClick={exportAsImage}
-                      className="px-4 py-2 text-sm bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg transition-colors flex items-center gap-2"
-                      title="导出为图片"
-                    >
-                      🖼️ 导出图片
-                    </button>
                   </div>
                 </div>
-                
-                {/* 操作提示 */}
+
                 <div className="mb-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
                   <p className="flex items-center gap-2">
                     <HandIcon />
-                    <span>电脑：滚轮缩放 | 拖拽画布/节点 | 点击编辑</span>
+                    <span>电脑：拖拽节点移动 | 空白处拖拽画布 | 滚轮缩放</span>
                   </p>
                   <p className="flex items-center gap-2 mt-1">
                     <span>📱</span>
-                    <span>手机：单指拖拽节点 | 双指拖拽画布/缩放</span>
+                    <span>手机：拖拽节点移动 | 空白处拖拽画布</span>
                   </p>
                 </div>
-                
-                <div 
-                  className="bg-gray-50 rounded-xl overflow-hidden select-none"
-                  style={{ 
-                    height: '600px', 
-                    cursor: draggingNodeRef.current ? 'grabbing' : isDragging ? 'grabbing' : 'grab',
+
+                <div
+                  ref={containerRef}
+                  className="relative flex-1 bg-gray-50 rounded-xl overflow-hidden select-none"
+                  style={{
+                    height: '600px',
+                    cursor: draggingNodeId ? 'grabbing' : isPanning ? 'grabbing' : 'grab',
                     WebkitUserSelect: 'none',
                     WebkitTouchCallout: 'none',
-                    userSelect: 'none'
+                    userSelect: 'none',
+                    touchAction: 'none'
                   }}
-                  onWheel={handleWheel}
-                  onMouseDown={handleMouseDown}
-                  onMouseMove={(e) => {
-                    handleMouseMove(e);
-                    handleNodeDragMove(e);
-                  }}
-                  onMouseUp={() => {
-                    handleMouseUp();
-                    handleNodeDragEnd();
-                  }}
-                  onMouseLeave={() => {
-                    handleMouseUp();
-                    handleNodeDragEnd();
-                  }}
+                  onMouseDown={handleCanvasMouseDown}
                   onTouchStart={handleCanvasTouchStart}
-                  onTouchMove={handleCanvasTouchMove}
-                  onTouchEnd={handleCanvasTouchEnd}
-                  onContextMenu={(e) => e.preventDefault()}
+                  onWheel={handleWheel}
                   onClick={() => setSelectedNode(null)}
                 >
-                  <svg
-                    ref={svgRef}
-                    width="100%"
-                    height="100%"
-                    viewBox={`0 0 ${getTreeWidth(mindMapData, 180) + 400} ${Math.max(600, getTreeHeight(mindMapData, 60) + 200)}`}
-                    preserveAspectRatio="xMidYMid meet"
+                  <div
+                    ref={contentRef}
+                    className="absolute inset-0"
                     style={{
-                      transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
-                      transformOrigin: 'center center',
-                      transition: isDragging ? 'none' : 'transform 0.1s ease-out'
+                      transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+                      transformOrigin: '0 0'
                     }}
                   >
-                    <g transform={`translate(200, ${Math.max(300, (getTreeHeight(mindMapData, 60) + 200) / 2)})`}>
-                      {renderTree(mindMapData, 0, 0, 0)}
-                    </g>
-                  </svg>
+                    <svg
+                      className="absolute inset-0 pointer-events-none"
+                      style={{ width: '4000px', height: '3000px', overflow: 'visible' }}
+                    >
+                      {renderConnections()}
+                    </svg>
+                    {renderNode(mindMapData)}
+                  </div>
                 </div>
               </div>
             )}
@@ -1278,13 +1040,12 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
         </div>
       </div>
 
-      {/* 编辑节点弹窗 */}
       {showEditModal && editingNode && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]"
           onClick={() => setShowEditModal(false)}
         >
-          <div 
+          <div
             className="bg-white rounded-2xl p-6 w-[400px] max-w-[90vw]"
             onClick={e => e.stopPropagation()}
           >
