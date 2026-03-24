@@ -29,10 +29,10 @@ export default function BookView() {
 
     try {
       for (let i = 0; i < files.length; i++) {
-      const file = files[i];
+        const file = files[i];
         try {
-          const book = await importBookFromFile(file);
-          addBook(book);
+          // importBookFromFile 内部已经调用了 addBook，这里不需要再调用
+          await importBookFromFile(file);
           successCount++;
         } catch (error) {
           console.error(`导入书籍失败: ${file.name}`, error);
@@ -53,7 +53,7 @@ export default function BookView() {
         fileInputRef.current.value = '';
       }
     }
-  }, [importBookFromFile, addBook]);
+  }, [importBookFromFile]);
 
   const handleReadBook = useCallback((book: Book) => {
     setSelectedBook(book);
