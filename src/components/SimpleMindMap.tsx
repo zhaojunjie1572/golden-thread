@@ -183,10 +183,18 @@ export default function SimpleMindMap() {
     return colors[Math.min(level, colors.length - 1)];
   };
 
-  // 处理节点点击
+  // 处理节点点击（PC端）
   const handleNodeClick = (e: React.MouseEvent, node: MindMapNode) => {
     e.stopPropagation();
     setSelectedNode(node);
+  };
+
+  // 处理节点触摸结束（手机端）
+  const handleNodeTouchEnd = (_e: React.TouchEvent, node: MindMapNode) => {
+    // 只有在没有拖拽的情况下才视为点击
+    if (!draggingNodeIdRef.current && !isPinchingRef.current) {
+      setSelectedNode(node);
+    }
   };
 
   // 处理节点双击（展开/折叠）
@@ -691,6 +699,7 @@ export default function SimpleMindMap() {
           }}
           onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
           onTouchStart={(e) => handleNodeTouchStart(e, node.id)}
+          onTouchEnd={(e) => handleNodeTouchEnd(e, node)}
           onClick={(e) => handleNodeClick(e, node)}
           onDoubleClick={(e) => handleNodeDoubleClick(e, node)}
           title={hasChildren ? '双击展开/折叠' : ''}
