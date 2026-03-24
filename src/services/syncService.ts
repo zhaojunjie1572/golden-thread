@@ -122,10 +122,13 @@ const STORAGE_KEYS = {
 
 export class SyncService {
   static collectData(): SyncData {
+    const books = this.getFromLocalStorage(STORAGE_KEYS.books, []);
+    console.log('[SyncService.collectData] 书籍数量:', books.length);
+    
     return {
       version: '1.0.0',
       timestamp: new Date().toISOString(),
-      books: this.getFromLocalStorage(STORAGE_KEYS.books, []),
+      books: books,
       protocols: this.getFromLocalStorage(STORAGE_KEYS.protocols, []),
       protocolExecutionHistory: this.getFromLocalStorage(STORAGE_KEYS.protocolExecutionHistory, {}),
       quotes: this.getFromLocalStorage(STORAGE_KEYS.quotes, []),
