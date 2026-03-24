@@ -8,6 +8,21 @@ import './index.css';
 // 全局错误处理
 window.onerror = function(message, source, lineno, colno, error) {
   console.error('Global error:', { message, source, lineno, colno, error });
+  // 在页面上显示错误信息
+  const root = document.getElementById('root');
+  if (root) {
+    root.innerHTML = `
+      <div style="padding: 20px; font-family: sans-serif;">
+        <h2 style="color: red;">页面加载错误</h2>
+        <p><strong>错误:</strong> ${message}</p>
+        <p><strong>位置:</strong> ${source}:${lineno}</p>
+        <pre style="background: #f5f5f5; padding: 10px; overflow: auto;">${error?.stack || ''}</pre>
+        <button onclick="localStorage.clear(); window.location.reload()" style="padding: 10px 20px; margin-top: 20px;">
+          清除数据并刷新
+        </button>
+      </div>
+    `;
+  }
   return false;
 };
 
