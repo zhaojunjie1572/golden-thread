@@ -103,6 +103,10 @@ export default function SimpleMindMap() {
   const [streamingContent, setStreamingContent] = useState('');
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // 双指缩放相关状态
+  const [lastTouchDistance, setLastTouchDistance] = useState<number | null>(null);
+  const isPinchingRef = useRef(false);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const fullscreenContainerRef = useRef<HTMLDivElement>(null);
   const isPanningRef = useRef(false);
@@ -296,8 +300,35 @@ export default function SimpleMindMap() {
     }
   }, [dragOffset, panStart]);
 
+  // 计算双指之间的距离
+  const getTouchDistance = (touches: TouchList | React.TouchList): number => {
+    if (touches.length < 2) return 0;
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
   // 处理触摸移动（移动端）
   const handleTouchMove = useCallback((e: TouchEvent) => {
+    // 双指缩放
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const distance = getTouchDistance(e.touches);
+      
+      if (lastTouchDistance !== null) {
+        const scaleDelta = distance / lastTouchDistance;
+        setTransform(prev => ({
+          ...prev,
+          scale: Math.max(0.3, Math.min(3, prev.scale * scaleDelta))
+        }));
+      }
+      
+      setLastTouchDistance(distance);
+      isPinchingRef.current = true;
+      return;
+    }
+
+    // 单指拖拽节点
     if (draggingNodeIdRef.current && e.touches.length === 1) {
       e.preventDefault();
       const touch = e.touches[0];
@@ -317,7 +348,7 @@ export default function SimpleMindMap() {
         y: touch.clientY - panStart.y
       }));
     }
-  }, [dragOffset, panStart]);
+  }, [dragOffset, panStart, lastTouchDistance]);
 
   // 处理鼠标/触摸结束
   const handleEnd = useCallback(() => {
@@ -325,6 +356,8 @@ export default function SimpleMindMap() {
     setDraggingNodeId(null);
     isPanningRef.current = false;
     setIsPanning(false);
+    isPinchingRef.current = false;
+    setLastTouchDistance(null);
   }, []);
 
   // 添加全局事件监听（修复重复添加问题）
@@ -388,6 +421,16 @@ export default function SimpleMindMap() {
   // 处理画布触摸开始（移动端）
   const handleCanvasTouchStart = (e: React.TouchEvent) => {
     if (draggingNodeId) return;
+    
+    // 双指触摸 - 准备缩放
+    if (e.touches.length === 2) {
+      const distance = getTouchDistance(e.touches);
+      setLastTouchDistance(distance);
+      isPinchingRef.current = true;
+      return;
+    }
+    
+    // 单指触摸 - 拖拽画布
     if (e.touches.length === 1) {
       isPanningRef.current = true;
       setIsPanning(true);
@@ -1027,7 +1070,8 @@ export default function SimpleMindMap() {
           <li>双击节点：展开/折叠子节点</li>
           <li>拖拽节点：移动节点位置</li>
           <li>拖拽空白处：移动画布</li>
-          <li>滚轮/双指：缩放视图</li>
+          <li>滚轮（PC）：缩放视图</li>
+          <li>双指捏合（手机）：缩放视图</li>
         </ul>
       </div>
     );
@@ -1239,7 +1283,8 @@ export default function SimpleMindMap() {
               <li>双击节点：展开/折叠子节点</li>
               <li>拖拽节点：移动节点位置</li>
               <li>拖拽空白处：移动画布</li>
-              <li>滚轮/双指：缩放视图</li>
+              <li>滚轮（PC）：缩放视图</li>
+              <li>双指捏合（手机）：缩放视图</li>
             </ul>
           </div>
         )}
