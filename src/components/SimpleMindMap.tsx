@@ -30,48 +30,11 @@ const NODE_HEIGHT = 36;
 const HORIZONTAL_GAP = 140;
 const VERTICAL_GAP = 50;
 
+// 默认空白的根节点
 const defaultMindMapData: MindMapNode = {
   id: 'root',
-  label: '思维导图',
-  children: [
-    {
-      id: '1',
-      label: '核心概念',
-      children: [
-        { id: '1-1', label: '放射性思维' },
-        { id: '1-2', label: '可视化工具' }
-      ]
-    },
-    {
-      id: '2',
-      label: '主要用途',
-      children: [
-        { id: '2-1', label: '高效记忆' },
-        { id: '2-2', label: '头脑风暴' },
-        { id: '2-3', label: '知识整理' },
-        { id: '2-4', label: '项目规划' }
-      ]
-    },
-    {
-      id: '3',
-      label: '构成要素',
-      children: [
-        { id: '3-1', label: '核心主题' },
-        { id: '3-2', label: '分支结构' },
-        { id: '3-3', label: '关键词' },
-        { id: '3-4', label: '颜色图像' }
-      ]
-    },
-    {
-      id: '4',
-      label: '应用场景',
-      children: [
-        { id: '4-1', label: '学习笔记' },
-        { id: '4-2', label: '工作规划' },
-        { id: '4-3', label: '创意策划' }
-      ]
-    }
-  ]
+  label: '中心主题',
+  children: []
 };
 
 export default function SimpleMindMap() {
@@ -190,9 +153,13 @@ export default function SimpleMindMap() {
   }, [mindMapData, initializeNodePositions]);
 
   // 获取节点颜色
-  const getNodeColor = (level: number, isRoot: boolean = false) => {
+  const getNodeColor = (level: number, isRoot: boolean = false, isModule: boolean = false) => {
     if (isRoot) {
       return { bg: 'bg-amber-600', text: 'text-white', border: 'border-amber-700' };
+    }
+    if (isModule) {
+      // 模块使用特殊的紫色主题
+      return { bg: 'bg-purple-500', text: 'text-white', border: 'border-purple-600' };
     }
     const colors = [
       { bg: 'bg-amber-500', text: 'text-white', border: 'border-amber-600' },
@@ -397,12 +364,30 @@ export default function SimpleMindMap() {
     
     setMindMapData({
       id: 'root',
-      label: '思维导图',
+      label: '中心主题',
       children: []
     });
     setSelectedNode(null);
     setNodePositions(new Map());
+    setCustomConnections([]);
     localStorage.removeItem('simple-mindmap-data');
+  };
+
+  // 添加模块（根节点的直接子节点）
+  const addModule = () => {
+    const moduleName = prompt('请输入模块名称:', '新模块');
+    if (!moduleName) return;
+
+    const newModule: MindMapNode = {
+      id: `module-${Date.now()}`,
+      label: moduleName,
+      children: []
+    };
+
+    setMindMapData(prev => ({
+      ...prev,
+      children: [...(prev.children || []), newModule]
+    }));
   };
 
   // 开始创建自定义连线
@@ -805,7 +790,7 @@ export default function SimpleMindMap() {
   };
 
   // 渲染节点
-  const renderNode = (node: MindMapNode, level: number = 0, isRoot: boolean = false) => {
+  const renderNode = (node: MindMapNode, level: number = 0, isRoot: boolean = false, isModule: boolean = false) => {
     const pos = nodePositions.get(node.id);
     if (!pos) return null;
 
@@ -813,7 +798,7 @@ export default function SimpleMindMap() {
     const isDragging = draggingNodeId === node.id;
     const hasChildren = node.children && node.children.length > 0;
     const isCollapsed = node.collapsed && hasChildren;
-    const color = getNodeColor(level, isRoot);
+    const color = getNodeColor(level, isRoot, isModule);
 
     return (
       <React.Fragment key={node.id}>
@@ -958,7 +943,7 @@ export default function SimpleMindMap() {
         )}
 
         {/* 递归渲染子节点 */}
-        {!isCollapsed && node.children?.map((child) => renderNode(child, level + 1))}
+        {!isCollapsed && node.children?.map((child) => renderNode(child, level + 1, false, level === 0))}
       </React.Fragment>
     );
   };
@@ -1214,6 +1199,12 @@ export default function SimpleMindMap() {
           icon={isFullscreen ? "⛶" : "⛶"}
           title={isFullscreen ? "退出全屏" : "全屏"}
           className="text-amber-600 hover:bg-amber-100"
+        />
+        <ToolbarButton
+          onClick={addModule}
+          icon="➕"
+          title="添加模块"
+          className="text-green-500 hover:bg-green-100"
         />
         <ToolbarButton
           onClick={clearAllNodes}
