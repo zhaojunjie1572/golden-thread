@@ -28,6 +28,18 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
   const [sourceText, setSourceText] = useState('');
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // 监听 API 密钥变化，更新设置状态
+  useEffect(() => {
+    const checkApiKey = () => {
+      if (apiService.hasApiKey() && showSettings) {
+        setShowSettings(false);
+      }
+    };
+    checkApiKey();
+    const interval = setInterval(checkApiKey, 1000);
+    return () => clearInterval(interval);
+  }, [showSettings]);
+
   const [editingNode, setEditingNode] = useState<MindMapNode | null>(null);
   const [editLabel, setEditLabel] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
