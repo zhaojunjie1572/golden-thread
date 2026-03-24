@@ -542,23 +542,28 @@ export default function MindMapView({ protocol, onClose }: MindMapViewProps) {
 
         {children.map((child) => {
           const childHeight = getTreeHeight(child, verticalGap);
-          const childY = currentY + childHeight / 2;
+          const calculatedChildY = currentY + childHeight / 2;
           currentY += childHeight + verticalGap;
+
+          // 获取子节点的自定义位置（如果有）
+          const childCustomPos = nodePositions.get(child.id);
+          const childX = childCustomPos ? childCustomPos.x : nodeX + horizontalGap;
+          const childY = childCustomPos ? childCustomPos.y : calculatedChildY;
 
           return (
             <React.Fragment key={child.id}>
-              {/* 贝塞尔曲线连接线 - 使用 nodeX 和 nodeY */}
+              {/* 贝塞尔曲线连接线 - 使用父节点和子节点的实际位置 */}
               <path
                 d={`M ${nodeX + nodeWidth / 2} ${nodeY} 
-                    C ${nodeX + nodeWidth / 2 + horizontalGap / 3} ${nodeY},
-                      ${nodeX + horizontalGap - nodeWidth / 2 - horizontalGap / 3} ${childY},
-                      ${nodeX + horizontalGap - nodeWidth / 2} ${childY}`}
+                    C ${nodeX + nodeWidth / 2 + (childX - nodeX - nodeWidth / 2) / 3} ${nodeY},
+                      ${childX - (childX - nodeX - nodeWidth / 2) / 3} ${childY},
+                      ${childX} ${childY}`}
                 fill="none"
                 stroke={color.stroke}
                 strokeWidth={level === 0 ? 2.5 : 1.5}
                 opacity={0.7}
               />
-              {renderTree(child, nodeX + horizontalGap, childY, level + 1)}
+              {renderTree(child, nodeX + horizontalGap, calculatedChildY, level + 1)}
             </React.Fragment>
           );
         })}
