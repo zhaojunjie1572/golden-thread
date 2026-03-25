@@ -333,11 +333,9 @@ export class GitHubGistSyncService {
 
     console.log('[syncFromCloud] 下载成功，云端书籍数量:', result.data.books?.length || 0);
 
-    const localData = SyncService.collectData();
-    console.log('[syncFromCloud] 本地书籍数量:', localData.books?.length || 0);
-
-    // 直接使用 mergeData 进行智能合并，而不是返回冲突错误
-    console.log('[syncFromCloud] 开始智能合并数据...');
+    // 使用 restoreData 替换本地数据（而不是 mergeData 合并）
+    // 这样可以确保删除操作能正确同步
+    console.log('[syncFromCloud] 开始恢复云端数据到本地...');
     console.log('[syncFromCloud] 云端数据概览:', {
       books: result.data.books?.length || 0,
       protocols: result.data.protocols?.length || 0,
@@ -348,16 +346,8 @@ export class GitHubGistSyncService {
       agentWorkflows: result.data.agentWorkflow?.workflows?.length || 0,
       chatSessions: result.data.aiAssistant?.chatSessions?.length || 0,
     });
-    const mergeResult = SyncService.mergeData(result.data);
-    console.log('[syncFromCloud] 合并完成:', {
-      books: `${mergeResult.books.added} 新增, ${mergeResult.books.updated} 更新`,
-      protocols: `${mergeResult.protocols.added} 新增, ${mergeResult.protocols.updated} 更新`,
-      quotes: `${mergeResult.quotes.added} 新增`,
-      mindMaps: `${mergeResult.mindMaps.added} 新增`,
-      thinkTankModules: `${mergeResult.thinkTankModules.added} 新增`,
-      agentWorkflow: `${mergeResult.agentWorkflow.added} 新增`,
-      chatSessions: `${mergeResult.aiAssistantChatSessions.added} 新增`,
-    });
+    SyncService.restoreData(result.data);
+    console.log('[syncFromCloud] 数据恢复完成');
 
     // 保存合并后的配置
     const newConfig: GitHubGistConfig = {
@@ -366,7 +356,7 @@ export class GitHubGistSyncService {
     };
     this.saveConfig(newConfig);
 
-    return { success: true, message: `下载成功！新增 ${mergeResult.books.added} 本书籍，${mergeResult.protocols.added} 个协议，${mergeResult.quotes.added} 条语录，页面即将刷新...` };
+    return { success: true, message: `下载成功！云端数据已恢复到本地，页面即将刷新...` };
   }
 
   static forceSyncFromCloud(): Promise<{ success: boolean; message: string }> {

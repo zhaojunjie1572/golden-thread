@@ -273,9 +273,8 @@ export class SyncService {
 
     // 恢复 AI 助手数据
     if (data.aiAssistant) {
-      if (data.aiAssistant.chatSessions && data.aiAssistant.chatSessions.length > 0) {
-        this.saveToLocalStorage(STORAGE_KEYS.aiAssistantChatSessions, data.aiAssistant.chatSessions);
-      }
+      // 始终保存聊天记录（即使为空数组），确保删除操作能同步
+      this.saveToLocalStorage(STORAGE_KEYS.aiAssistantChatSessions, data.aiAssistant.chatSessions || []);
       // 恢复 AI 助手 UI 设置
       if (data.aiAssistant.uiSettings) {
         if (data.aiAssistant.uiSettings.backgroundImage) {
