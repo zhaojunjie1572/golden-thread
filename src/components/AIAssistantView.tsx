@@ -18,19 +18,22 @@ function removePunctuationMarks(text: string): string {
   return cleaned;
 }
 
-// 压缩图片
-function compressImage(dataUrl: string, maxWidth: number = 1920, quality: number = 0.8): Promise<string> {
+// 压缩图片 - 针对手机壁纸优化
+function compressImage(dataUrl: string, maxPixels: number = 2073600, quality: number = 0.85): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
       let width = img.width;
       let height = img.height;
+      const originalPixels = width * height;
 
-      // 如果图片尺寸大于最大宽度，等比例缩放
-      if (width > maxWidth) {
-        height = Math.round((height * maxWidth) / width);
-        width = maxWidth;
+      // 如果总像素数超过限制，等比例缩放
+      // 2073600 = 1920 * 1080 (1080p)，适合大多数手机壁纸
+      if (originalPixels > maxPixels) {
+        const scale = Math.sqrt(maxPixels / originalPixels);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
       }
 
       canvas.width = width;
@@ -42,6 +45,9 @@ function compressImage(dataUrl: string, maxWidth: number = 1920, quality: number
         return;
       }
 
+      // 使用高质量缩放
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, 0, 0, width, height);
 
       // 转换为 JPEG 格式并压缩
@@ -256,7 +262,7 @@ export default function AIAssistantView() {
             if (compressBackgroundImage) {
               try {
                 const originalSize = Math.round(dataUrl.length / 1024);
-                dataUrl = await compressImage(dataUrl, 1920, 0.8);
+                dataUrl = await compressImage(dataUrl, 2073600, 0.85);
                 const compressedSize = Math.round(dataUrl.length / 1024);
                 console.log(`图片压缩: ${originalSize}KB -> ${compressedSize}KB`);
               } catch (compressErr) {
