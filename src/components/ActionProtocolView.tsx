@@ -512,14 +512,24 @@ export default function ActionProtocolView() {
   const handleBackgroundImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // 限制图片大小为 10MB
+      if (file.size > 10 * 1024 * 1024) {
+        alert('图片大小不能超过 10MB');
+        e.target.value = '';
+        return;
+      }
       const reader = new FileReader();
       reader.onload = (event) => {
         const result = event.target?.result as string;
         setBackgroundImage(result);
         localStorage.setItem('think-tank-background-image', result);
       };
+      reader.onerror = () => {
+        alert('图片读取失败，请尝试其他图片');
+      };
       reader.readAsDataURL(file);
     }
+    e.target.value = '';
   };
 
   const removeBackgroundImage = () => {
