@@ -18,6 +18,41 @@ function removePunctuationMarks(text: string): string {
   return cleaned;
 }
 
+// 压缩图片
+function compressImage(dataUrl: string, maxWidth: number = 1920, quality: number = 0.8): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+
+      // 如果图片尺寸大于最大宽度，等比例缩放
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width);
+        width = maxWidth;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('无法创建 canvas 上下文'));
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // 转换为 JPEG 格式并压缩
+      const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+      resolve(compressedDataUrl);
+    };
+    img.onerror = () => reject(new Error('图片加载失败'));
+    img.src = dataUrl;
+  });
+}
+
 interface ChatSession {
   id: string;
   title: string;
@@ -190,7 +225,19 @@ export default function AIAssistantView() {
     localStorage.setItem('ai-assistant-bubble-transparent', bubbleTransparent.toString());
   }, [bubbleTransparent]);
 
-  const handleBackgroundImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [compressBackgroundImage, setCompressBackgroundImage] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('ai-assistant-compress-bg') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('ai-assistant-compress-bg', compressBackgroundImage.toString());
+  }, [compressBackgroundImage]);
+
+  const handleBackgroundImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       try {
@@ -201,9 +248,22 @@ export default function AIAssistantView() {
         }
         
         const reader = new FileReader();
-        reader.onload = (event) => {
+        reader.onload = async (event) => {
           try {
-            const dataUrl = event.target?.result as string;
+            let dataUrl = event.target?.result as string;
+            
+            // 如果启用了压缩，进行图片压缩
+            if (compressBackgroundImage) {
+              try {
+                const originalSize = Math.round(dataUrl.length / 1024);
+                dataUrl = await compressImage(dataUrl, 1920, 0.8);
+                const compressedSize = Math.round(dataUrl.length / 1024);
+                console.log(`图片压缩: ${originalSize}KB -> ${compressedSize}KB`);
+              } catch (compressErr) {
+                console.error('图片压缩失败，使用原图:', compressErr);
+              }
+            }
+            
             setBackgroundImage(dataUrl);
           } catch (err) {
             console.error('图片加载失败:', err);
@@ -733,7 +793,7 @@ export default function AIAssistantView() {
                     htmlFor="ai-bg-upload-fs"
                     className="flex-1 px-4 py-3 border-2 border-dashed border-gray-300 rounded-xl text-center cursor-pointer hover:border-golden hover:bg-golden/5 transition-colors"
                   >
-                    <span className="text-gray-500">点击上传背景图片</span>
+                    <span className="text-gray-500">点击上传背景图片 (最大10MB)</span>
                   </label>
                   {backgroundImage && (
                     <button
@@ -743,6 +803,22 @@ export default function AIAssistantView() {
                       移除
                     </button>
                   )}
+                </div>
+                <div className="flex items-center justify-between mt-3">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">上传时压缩图片</label>
+                    <p className="text-xs text-gray-500 mt-0.5">压缩后可节省存储空间，避免超出配额</p>
+                  </div>
+                  <button
+                    onClick={() => setCompressBackgroundImage(!compressBackgroundImage)}
+                    className={`w-12 h-6 rounded-full transition-colors relative ${
+                      compressBackgroundImage ? 'bg-golden' : 'bg-gray-300'
+                    }`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                      compressBackgroundImage ? 'translate-x-7' : 'translate-x-1'
+                    }`} />
+                  </button>
                 </div>
               </div>
               <div>
@@ -1528,7 +1604,7 @@ export default function AIAssistantView() {
                   htmlFor="ai-bg-upload"
                   className="flex-1 px-4 py-3 border-2 border-dashed border-gray-300 rounded-xl text-center cursor-pointer hover:border-golden hover:bg-golden/5 transition-colors"
                 >
-                  <span className="text-gray-500">点击上传背景图片</span>
+                  <span className="text-gray-500">点击上传背景图片 (最大10MB)</span>
                 </label>
                 {backgroundImage && (
                   <button
@@ -1539,8 +1615,24 @@ export default function AIAssistantView() {
                   </button>
                 )}
               </div>
+              <div className="flex items-center justify-between mt-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">上传时压缩图片</label>
+                  <p className="text-xs text-gray-500 mt-0.5">压缩后可节省存储空间，避免超出配额</p>
+                </div>
+                <button
+                  onClick={() => setCompressBackgroundImage(!compressBackgroundImage)}
+                  className={`w-12 h-6 rounded-full transition-colors relative ${
+                    compressBackgroundImage ? 'bg-golden' : 'bg-gray-300'
+                  }`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                    compressBackgroundImage ? 'translate-x-7' : 'translate-x-1'
+                  }`} />
+                </button>
+              </div>
             </div>
-            
+
             <div>
               <label className="text-sm font-medium text-gray-700 mb-2 block">用户文字颜色</label>
               <input

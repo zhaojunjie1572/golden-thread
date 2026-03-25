@@ -12,6 +12,41 @@ interface PromptModule {
 // 默认空模块列表，用户完全自定义
 const DEFAULT_MODULES: PromptModule[] = [];
 
+// 压缩图片
+function compressImage(dataUrl: string, maxWidth: number = 1920, quality: number = 0.8): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+
+      // 如果图片尺寸大于最大宽度，等比例缩放
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width);
+        width = maxWidth;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('无法创建 canvas 上下文'));
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // 转换为 JPEG 格式并压缩
+      const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+      resolve(compressedDataUrl);
+    };
+    img.onerror = () => reject(new Error('图片加载失败'));
+    img.src = dataUrl;
+  });
+}
+
 export default function ActionProtocolView() {
   const navigate = useNavigate();
   const [isMaximized, setIsMaximized] = useState(false);
@@ -58,6 +93,17 @@ export default function ActionProtocolView() {
       return 1;
     }
   });
+  const [compressBackgroundImage, setCompressBackgroundImage] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('think-tank-compress-bg') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('think-tank-compress-bg', compressBackgroundImage.toString());
+  }, [compressBackgroundImage]);
   
   const [modules, setModules] = useState<PromptModule[]>(() => {
     try {
@@ -509,7 +555,7 @@ export default function ActionProtocolView() {
     }
   };
 
-  const handleBackgroundImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBackgroundImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       // 限制图片大小为 10MB
@@ -519,10 +565,28 @@ export default function ActionProtocolView() {
         return;
       }
       const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        setBackgroundImage(result);
-        localStorage.setItem('think-tank-background-image', result);
+      reader.onload = async (event) => {
+        try {
+          let result = event.target?.result as string;
+
+          // 如果启用了压缩，进行图片压缩
+          if (compressBackgroundImage) {
+            try {
+              const originalSize = Math.round(result.length / 1024);
+              result = await compressImage(result, 1920, 0.8);
+              const compressedSize = Math.round(result.length / 1024);
+              console.log(`图片压缩: ${originalSize}KB -> ${compressedSize}KB`);
+            } catch (compressErr) {
+              console.error('图片压缩失败，使用原图:', compressErr);
+            }
+          }
+
+          setBackgroundImage(result);
+          localStorage.setItem('think-tank-background-image', result);
+        } catch (err) {
+          console.error('图片处理失败:', err);
+          alert('图片处理失败，请尝试其他图片');
+        }
       };
       reader.onerror = () => {
         alert('图片读取失败，请尝试其他图片');
@@ -1480,6 +1544,26 @@ export default function ActionProtocolView() {
                   <span>150%</span>
                   <span>200%</span>
                 </div>
+              </div>
+
+              <div className="pt-4 border-t border-gray-100">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <span>🖼️</span>
+                    上传时压缩背景图片
+                  </label>
+                  <button
+                    onClick={() => setCompressBackgroundImage(!compressBackgroundImage)}
+                    className={`w-12 h-6 rounded-full transition-colors relative ${
+                      compressBackgroundImage ? 'bg-golden' : 'bg-gray-300'
+                    }`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                      compressBackgroundImage ? 'translate-x-7' : 'translate-x-1'
+                    }`} />
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500">压缩后可节省存储空间，避免超出 localStorage 配额（建议开启）</p>
               </div>
             </div>
             <div className="p-4 border-t border-gray-100 shrink-0">
