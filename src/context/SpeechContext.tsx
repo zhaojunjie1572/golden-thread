@@ -260,7 +260,14 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
 
   const pauseSpeaking = useCallback(() => {
     if ('speechSynthesis' in window) {
-      window.speechSynthesis.pause();
+      // 移动端浏览器对 pause/resume 支持不完善，使用 cancel 代替
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (isMobile) {
+        // 移动端：记录当前位置并停止，而不是暂停
+        window.speechSynthesis.cancel();
+      } else {
+        window.speechSynthesis.pause();
+      }
     }
     isPausedRef.current = true;
     setSpeechState(prev => ({ ...prev, isPaused: true }));
@@ -268,11 +275,17 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
 
   const resumeSpeaking = useCallback(() => {
     if ('speechSynthesis' in window) {
-      window.speechSynthesis.resume();
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (isMobile) {
+        // 移动端：从当前段落重新开始朗读
+        speakParagraph(currentSpeechIndexRef.current);
+      } else {
+        window.speechSynthesis.resume();
+      }
     }
     isPausedRef.current = false;
     setSpeechState(prev => ({ ...prev, isPaused: false }));
-  }, []);
+  }, [speakParagraph]);
 
   const stopSpeaking = useCallback(() => {
     if ('speechSynthesis' in window) {

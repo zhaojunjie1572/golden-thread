@@ -271,12 +271,6 @@ export function SyncManagerView() {
                     <span className="text-green-600">+{showMergeResult.protocolExecutionHistory.added} 条</span>
                   </div>
                 )}
-                {showMergeResult.musicTracks.added > 0 && (
-                  <div className="flex justify-between">
-                    <span>🎶 本地音乐</span>
-                    <span className="text-green-600">+{showMergeResult.musicTracks.added} 首</span>
-                  </div>
-                )}
                 {(showMergeResult.books.updated + showMergeResult.protocols.updated + showMergeResult.thinkTankModules.updated) > 0 && (
                   <div className="flex justify-between pt-2 border-t border-green-200 dark:border-green-800">
                     <span>📝 更新项目</span>
