@@ -244,7 +244,7 @@ export class GitHubGistSyncService {
     return { hasConflict: false, details: null };
   }
 
-  static async syncToCloud(): Promise<{ success: boolean; message: string; gistId?: string }> {
+  static async syncToCloud(force: boolean = false): Promise<{ success: boolean; message: string; gistId?: string }> {
     const config = this.getConfig();
     
     if (!config || !config.token) {
@@ -263,6 +263,39 @@ export class GitHubGistSyncService {
       agentWorkflows: localData.agentWorkflow?.workflows?.length || 0,
       chatSessions: localData.aiAssistant?.chatSessions?.length || 0,
     });
+
+    // 如果不是强制覆盖，且存在 Gist ID，先检查云端数据
+    if (!force && config.gistId) {
+      console.log('[syncToCloud] 检查云端数据...');
+      const cloudResult = await this.downloadFromGist(config.token, config.gistId);
+      if (cloudResult.success && cloudResult.data) {
+        const cloudData = cloudResult.data;
+        console.log('[syncToCloud] 云端已有数据:', {
+          books: cloudData.books?.length || 0,
+          protocols: cloudData.protocols?.length || 0,
+        });
+        
+        // 检查是否有冲突
+        const conflict = this.checkConflict(localData, cloudData);
+        if (conflict.hasConflict) {
+          console.log('[syncToCloud] 检测到数据冲突，使用合并策略');
+          // 执行双向同步（合并）
+          const syncResult = await this.syncBidirectional();
+          return {
+            success: syncResult.success,
+            message: syncResult.success 
+              ? `同步完成！${syncResult.message}` 
+              : syncResult.message,
+            gistId: config.gistId
+          };
+        }
+      }
+    }
+
+    // 强制覆盖：直接上传本地数据，不检查云端
+    if (force) {
+      console.log('[syncToCloud] 强制覆盖模式：将用本地数据完全替换云端数据');
+    }
 
     const result = await this.uploadToGist(config.token, config.gistId);
     

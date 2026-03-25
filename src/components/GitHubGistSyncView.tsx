@@ -82,16 +82,23 @@ export function GitHubGistSyncView() {
     setTimeout(() => setMessage(null), 3000);
   };
 
-  const handleSyncToCloud = async () => {
+  const handleSyncToCloud = async (force: boolean = false) => {
     if (!token.trim()) {
       setMessage({ text: '请先配置 GitHub Token', type: 'error' });
       setTimeout(() => setMessage(null), 3000);
       return;
     }
 
+    // 强制覆盖时显示确认对话框
+    if (force) {
+      if (!confirm('⚠️ 警告：强制覆盖将用本地数据完全替换云端数据，云端现有数据将丢失！\n\n确定要继续吗？')) {
+        return;
+      }
+    }
+
     setIsSyncing(true);
     try {
-      const result = await GitHubGistSyncService.syncToCloud();
+      const result = await GitHubGistSyncService.syncToCloud(force);
       
       if (result.success) {
         setMessage({ text: `✅ ${result.message}`, type: 'success' });
@@ -437,7 +444,7 @@ export function GitHubGistSyncView() {
           {/* 操作按钮 */}
           <div className="grid grid-cols-2 gap-4">
             <button
-              onClick={handleSyncToCloud}
+              onClick={() => handleSyncToCloud(false)}
               disabled={isSyncing}
               className="px-4 py-3 rounded-lg font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
               style={{ backgroundColor: '#238636', color: '#fff' }}
@@ -468,6 +475,22 @@ export function GitHubGistSyncView() {
               )}
             </button>
           </div>
+
+          {/* 强制覆盖按钮 */}
+          <button
+            onClick={() => handleSyncToCloud(true)}
+            disabled={isSyncing || !config.gistId}
+            className="w-full mt-3 px-4 py-2 rounded-lg font-medium transition-opacity hover:opacity-90 disabled:opacity-50 bg-orange-500 text-white"
+          >
+            {isSyncing ? (
+              <span className="flex items-center justify-center gap-2">
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                同步中...
+              </span>
+            ) : (
+              '⚠️ 强制覆盖云端（用本地数据替换云端）'
+            )}
+          </button>
 
           {/* 诊断按钮 */}
           <button
