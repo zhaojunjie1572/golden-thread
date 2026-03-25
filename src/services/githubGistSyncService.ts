@@ -136,13 +136,36 @@ export class GitHubGistSyncService {
         return { success: false, error: 'Gist 中没有找到备份文件' };
       }
 
+      let content: string;
+
+      // 如果文件被截断（大于1MB），需要通过 raw_url 获取完整内容
+      if (file.truncated) {
+        console.log('[downloadFromGist] 文件被截断，通过 raw_url 获取完整内容...');
+        console.log('[downloadFromGist] raw_url:', file.raw_url);
+        
+        // 使用 fetch 获取 raw 内容，不添加 Authorization header 以避免 CORS 问题
+        const rawResponse = await fetch(file.raw_url);
+
+        if (!rawResponse.ok) {
+          console.error('[downloadFromGist] raw_url 请求失败:', rawResponse.status);
+          return { success: false, error: `获取完整内容失败: HTTP ${rawResponse.status}` };
+        }
+
+        content = await rawResponse.text();
+        console.log('[downloadFromGist] 通过 raw_url 获取内容大小:', content.length, '字符');
+      } else {
+        content = file.content;
+      }
+
       let jsonData;
       try {
-        jsonData = JSON.parse(file.content);
+        jsonData = JSON.parse(content);
       } catch (parseError) {
         console.error('[downloadFromGist] JSON 解析失败:', parseError);
-        console.error('[downloadFromGist] 文件内容前 200 字符:', file.content?.substring(0, 200));
-        return { success: false, error: '数据格式无效' };
+        console.error('[downloadFromGist] 文件内容前 200 字符:', content?.substring(0, 200));
+        console.error('[downloadFromGist] 文件内容后 200 字符:', content?.substring(content.length - 200));
+        console.error('[downloadFromGist] 文件总大小:', content.length, '字符');
+        return { success: false, error: '数据格式无效，文件可能超过大小限制' };
       }
 
       return { success: true, data: jsonData };
