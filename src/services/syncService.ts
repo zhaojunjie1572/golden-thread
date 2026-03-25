@@ -607,8 +607,8 @@ export class SyncService {
       agents: mergeArray(current.agents, imported.agents || []),
       workflows: mergeArray(current.workflows, imported.workflows || []),
       instances: mergeArray(current.instances, imported.instances || []),
-      memories: [...current.memories, ...(imported.memories || [])],
-      feedbacks: [...current.feedbacks, ...(imported.feedbacks || [])],
+      memories: mergeArray(current.memories, imported.memories || []),
+      feedbacks: mergeArray(current.feedbacks, imported.feedbacks || []),
       personas: mergeArray(current.personas, imported.personas || []),
     };
   }
