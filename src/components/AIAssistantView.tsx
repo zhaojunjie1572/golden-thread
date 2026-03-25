@@ -321,6 +321,7 @@ export default function AIAssistantView() {
     e.stopPropagation();
     const filtered = chatSessions.filter(s => s.id !== sessionId);
     setChatSessions(filtered);
+    saveChatSessions(filtered); // 保存到 localStorage
     if (sessionId === currentSessionId) {
       if (filtered.length > 0) {
         loadSession(filtered[0]);
