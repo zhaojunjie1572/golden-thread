@@ -424,7 +424,8 @@ export class GitHubGistSyncService {
   /**
    * 双向同步：下载云端数据并合并，然后上传合并后的数据
    */
-  static async syncBidirectional(): Promise<{ success: boolean; message: string; type?: 'upload' | 'download' | 'merge' }> {
+  static async syncBidirectional(retryCount = 0): Promise<{ success: boolean; message: string; type?: 'upload' | 'download' | 'merge' }> {
+    const MAX_RETRIES = 3;
     const config = this.getConfig();
     if (!config || !config.token) {
       return { success: false, message: '未配置 GitHub Token' };
@@ -498,6 +499,14 @@ export class GitHubGistSyncService {
 
       if (!response.ok) {
         const errorData = await response.json();
+        
+        // 如果是 409 Conflict，说明云端数据已被其他设备修改，需要重新同步
+        if (response.status === 409 && retryCount < MAX_RETRIES) {
+          console.log(`[自动同步] 检测到冲突(409)，${2000}ms后重试(${retryCount + 1}/${MAX_RETRIES})...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          return this.syncBidirectional(retryCount + 1);
+        }
+        
         return { success: false, message: errorData.message || '上传合并数据失败' };
       }
 
