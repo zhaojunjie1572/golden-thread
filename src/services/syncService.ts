@@ -432,6 +432,22 @@ export class SyncService {
       result.mindMaps
     );
 
+    // 合并当前思维导图 - 优先使用最新的（有 savedAt 字段的比较）
+    const mergedCurrentMindMap = (currentData.currentMindMap && importedData.currentMindMap)
+      ? (new Date(importedData.currentMindMap.savedAt || 0).getTime() > 
+         new Date(currentData.currentMindMap.savedAt || 0).getTime() 
+         ? importedData.currentMindMap : currentData.currentMindMap)
+      : (importedData.currentMindMap || currentData.currentMindMap);
+
+    // 合并思维导图连线 - 按 ID 去重
+    const mergedMindMapConnections = this.mergeArrayById(
+      currentData.mindMapConnections,
+      importedData.mindMapConnections || [],
+      'id',
+      null,
+      { added: 0, updated: 0, conflicts: 0 } // 内部统计，不显示
+    );
+
     // 保存合并后的数据
     this.saveToLocalStorage(STORAGE_KEYS.books, mergedBooks);
     console.log('[SyncService.mergeData] 保存书籍数量:', mergedBooks.length);
@@ -455,6 +471,10 @@ export class SyncService {
 
     // 保存思维导图
     this.saveToLocalStorage(STORAGE_KEYS.mindMaps, mergedMindMaps);
+    if (mergedCurrentMindMap) {
+      this.saveToLocalStorage(STORAGE_KEYS.currentMindMap, mergedCurrentMindMap);
+    }
+    this.saveToLocalStorage(STORAGE_KEYS.mindMapConnections, mergedMindMapConnections);
 
     // 保存 AI 助手聊天记录
     this.saveToLocalStorage(STORAGE_KEYS.aiAssistantChatSessions, mergedChatSessions);
