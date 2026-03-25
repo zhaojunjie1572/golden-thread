@@ -7,7 +7,6 @@ const AUTO_SYNC_INTERVAL = 10 * 60 * 1000; // 10分钟
 export interface GitHubGistConfig {
   token: string;
   gistId?: string;
-  autoSync: boolean;
   lastSyncTime?: string;
 }
 

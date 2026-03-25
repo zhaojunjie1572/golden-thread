@@ -7,7 +7,6 @@ export function GitHubGistSyncView() {
   const [config, setConfig] = useState<GitHubGistConfig | null>(null);
   const [token, setToken] = useState('');
   const [gistId, setGistId] = useState('');
-  const [autoSync, setAutoSync] = useState(true);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [showToken, setShowToken] = useState(false);
@@ -38,7 +37,6 @@ export function GitHubGistSyncView() {
       setConfig(savedConfig);
       setToken(savedConfig.token || '');
       setGistId(savedConfig.gistId || '');
-      setAutoSync(savedConfig.autoSync !== false);
     }
   }, []);
 
@@ -52,7 +50,6 @@ export function GitHubGistSyncView() {
     const newConfig: GitHubGistConfig = {
       token: token.trim(),
       gistId: gistId.trim() || undefined,
-      autoSync,
       lastSyncTime: config?.lastSyncTime
     };
 
@@ -171,7 +168,6 @@ export function GitHubGistSyncView() {
     setConfig(null);
     setToken('');
     setGistId('');
-    setAutoSync(false);
     setMessage({ text: '本地配置已清除', type: 'success' });
     setTimeout(() => setMessage(null), 3000);
   };
@@ -317,9 +313,11 @@ export function GitHubGistSyncView() {
         
         {/* Token 输入 */}
         <div className="mb-4">
-          <label className="block text-sm font-medium mb-2">GitHub Personal Access Token</label>
+          <label htmlFor="github-token" className="block text-sm font-medium mb-2">GitHub Personal Access Token</label>
           <div className="relative">
             <input
+              id="github-token"
+              name="github-token"
               type={showToken ? 'text' : 'password'}
               value={token}
               onChange={(e) => setToken(e.target.value)}
@@ -341,8 +339,10 @@ export function GitHubGistSyncView() {
 
         {/* Gist ID 输入 */}
         <div className="mb-4">
-          <label className="block text-sm font-medium mb-2">Gist ID（可选，首次会自动创建）</label>
+          <label htmlFor="gist-id" className="block text-sm font-medium mb-2">Gist ID（可选，首次会自动创建）</label>
           <input
+            id="gist-id"
+            name="gist-id"
             type="text"
             value={gistId}
             onChange={(e) => setGistId(e.target.value)}
@@ -353,39 +353,6 @@ export function GitHubGistSyncView() {
             首次同步会自动创建 Gist 并保存 ID
           </p>
         </div>
-
-        {/* 自动同步开关 */}
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <label className="text-sm font-medium">双向自动同步</label>
-            <p className="text-xs text-gray-500">开启后，自动下载云端数据并合并，再上传更新</p>
-          </div>
-          <button
-            onClick={() => setAutoSync(!autoSync)}
-            className={`w-12 h-6 rounded-full transition-colors ${
-              autoSync ? 'bg-golden' : 'bg-gray-300'
-            }`}
-          >
-            <div className={`w-5 h-5 rounded-full bg-white transition-transform ${
-              autoSync ? 'translate-x-6' : 'translate-x-0.5'
-            }`} />
-          </button>
-        </div>
-
-        {/* 自动同步说明 */}
-        {autoSync && (
-          <div className="mb-4 p-3 bg-blue-50 rounded-lg text-sm">
-            <p className="text-blue-700">
-              <span className="font-semibold">🔄 双向同步流程：</span>
-            </p>
-            <ol className="text-blue-600 text-xs mt-1 space-y-1 list-decimal list-inside">
-              <li>每分钟自动检查云端数据</li>
-              <li>下载云端数据并与本地数据智能合并</li>
-              <li>将合并后的数据上传到云端</li>
-              <li>所有设备保持数据一致</li>
-            </ol>
-          </div>
-        )}
 
         {/* 保存按钮 */}
         <button
