@@ -18,8 +18,8 @@ function removePunctuationMarks(text: string): string {
   return cleaned;
 }
 
-// 压缩图片 - 针对手机壁纸优化
-function compressImage(dataUrl: string, maxPixels: number = 2073600, quality: number = 0.85): Promise<string> {
+// 压缩图片 - 针对手机壁纸优化（重度压缩）
+function compressImage(dataUrl: string, maxPixels: number = 921600, quality: number = 0.6): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
@@ -262,7 +262,7 @@ export default function AIAssistantView() {
             if (compressBackgroundImage) {
               try {
                 const originalSize = Math.round(dataUrl.length / 1024);
-                dataUrl = await compressImage(dataUrl, 2073600, 0.85);
+                dataUrl = await compressImage(dataUrl, 921600, 0.6);
                 const compressedSize = Math.round(dataUrl.length / 1024);
                 console.log(`图片压缩: ${originalSize}KB -> ${compressedSize}KB`);
               } catch (compressErr) {

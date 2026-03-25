@@ -12,8 +12,8 @@ interface PromptModule {
 // 默认空模块列表，用户完全自定义
 const DEFAULT_MODULES: PromptModule[] = [];
 
-// 压缩图片 - 针对手机壁纸优化
-function compressImage(dataUrl: string, maxPixels: number = 2073600, quality: number = 0.85): Promise<string> {
+// 压缩图片 - 针对手机壁纸优化（重度压缩）
+function compressImage(dataUrl: string, maxPixels: number = 921600, quality: number = 0.6): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
@@ -579,7 +579,7 @@ export default function ActionProtocolView() {
           if (compressBackgroundImage) {
             try {
               const originalSize = Math.round(result.length / 1024);
-              result = await compressImage(result, 2073600, 0.85);
+              result = await compressImage(result, 921600, 0.6);
               const compressedSize = Math.round(result.length / 1024);
               console.log(`图片压缩: ${originalSize}KB -> ${compressedSize}KB`);
             } catch (compressErr) {
