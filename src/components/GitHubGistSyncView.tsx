@@ -59,25 +59,9 @@ export function GitHubGistSyncView() {
     GitHubGistSyncService.saveConfig(newConfig);
     setConfig(newConfig);
 
-    // 根据自动同步开关启动或停止自动同步
-    if (autoSync) {
-      GitHubGistSyncService.startAutoSync((result) => {
-        if (result.success) {
-          console.log('[自动同步] 同步成功');
-          // 如果是合并类型的同步（下载了云端数据），刷新页面以加载新数据
-          if (result.type === 'merge' || result.type === 'download') {
-            console.log('[自动同步] 数据已合并，刷新页面...');
-            window.location.reload();
-          }
-        } else {
-          console.log('[自动同步] 同步失败:', result.message);
-        }
-      });
-      setMessage({ text: '配置已保存！自动同步已开启', type: 'success' });
-    } else {
-      GitHubGistSyncService.stopAutoSync();
-      setMessage({ text: '配置已保存！自动同步已关闭', type: 'success' });
-    }
+    // 自动同步已禁用，始终停止自动同步
+    GitHubGistSyncService.stopAutoSync();
+    setMessage({ text: '配置已保存！请使用手动同步按钮进行同步', type: 'success' });
 
     setTimeout(() => setMessage(null), 3000);
   };
