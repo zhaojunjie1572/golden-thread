@@ -252,8 +252,8 @@ export class AgentWorkflowService {
       onProgress?.('正在分析需求...');
       
       const response = await apiService.chat([
-        { role: 'system', content: '你是一个智能体设计专家，擅长创建高质量的AI智能体配置。' },
-        { role: 'user', content: prompt }
+        { id: crypto.randomUUID(), role: 'system', content: '你是一个智能体设计专家，擅长创建高质量的AI智能体配置。', timestamp: new Date() },
+        { id: crypto.randomUUID(), role: 'user', content: prompt, timestamp: new Date() }
       ]);
 
       onProgress?.('正在解析配置...');

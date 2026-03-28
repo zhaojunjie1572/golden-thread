@@ -295,22 +295,22 @@ export function BookProvider({ children }: { children: ReactNode }) {
         const parsed = JSON.parse(saved);
         setBookSources(parsed.map((source: any) => ({
           ...source,
-          addedAt: new Date(source.addedAt),
+          addedAt: typeof source.addedAt === 'string' ? source.addedAt : new Date(source.addedAt).toISOString(),
         })));
       } else {
-        const defaultSources = DEFAULT_BOOK_SOURCES.map(source => ({
+        const defaultSources: BookSource[] = DEFAULT_BOOK_SOURCES.map(source => ({
           ...source,
           id: crypto.randomUUID(),
-          addedAt: new Date(),
+          addedAt: new Date().toISOString(),
         }));
         setBookSources(defaultSources);
       }
     } catch (error) {
       console.error('加载书源失败:', error);
-      const defaultSources = DEFAULT_BOOK_SOURCES.map(source => ({
+      const defaultSources: BookSource[] = DEFAULT_BOOK_SOURCES.map(source => ({
         ...source,
         id: crypto.randomUUID(),
-        addedAt: new Date(),
+        addedAt: new Date().toISOString(),
       }));
       setBookSources(defaultSources);
     }
@@ -383,12 +383,9 @@ export function BookProvider({ children }: { children: ReactNode }) {
         author: epubContent.author,
         content: epubContent.content,
         fileName: file.name,
-        addedAt: new Date(),
-        lastReadAt: null,
-        readingProgress: 0,
-        currentChapter: 0,
-        chapters: [],
-        isLocal: true,
+        addedAt: new Date().toISOString(),
+        currentPosition: 0,
+        totalCharacters: epubContent.content.length,
       };
     } else {
       // 解析 TXT 文件，尝试多种编码
@@ -405,7 +402,7 @@ export function BookProvider({ children }: { children: ReactNode }) {
     const newSource: BookSource = {
       ...source,
       id: crypto.randomUUID(),
-      addedAt: new Date(),
+      addedAt: new Date().toISOString(),
     };
     setBookSources(prev => [...prev, newSource]);
   };
@@ -414,7 +411,7 @@ export function BookProvider({ children }: { children: ReactNode }) {
     const newSources = sources.map(source => ({
       ...source,
       id: crypto.randomUUID(),
-      addedAt: new Date(),
+      addedAt: new Date().toISOString(),
     }));
     setBookSources(prev => [...prev, ...newSources]);
   };
@@ -433,7 +430,7 @@ export function BookProvider({ children }: { children: ReactNode }) {
     const defaultSources = DEFAULT_BOOK_SOURCES.map(source => ({
       ...source,
       id: crypto.randomUUID(),
-      addedAt: new Date(),
+      addedAt: new Date().toISOString(),
     }));
     setBookSources(defaultSources);
   };
@@ -483,17 +480,16 @@ export function BookProvider({ children }: { children: ReactNode }) {
     if (!source) throw new Error('书源不存在');
 
     try {
-      let searchUrl = source.searchUrl.replace('{{key}}', encodeURIComponent(query));
+      let searchUrl = source.searchUrl?.replace('{{key}}', encodeURIComponent(query));
       
-      if (source.type === 'rss') {
+      if (source.type === 'rss' || !searchUrl) {
         searchUrl = source.url;
       }
 
       const response = await fetchWithProxy(searchUrl);
       const text = await response.text();
       
-      const parser = new BookSourceParser();
-      return parser.parseSearchResults(text, source.ruleSearch, source.type);
+      return BookSourceParser.parseSearchResults(text, source.ruleSearch?.list || '');
     } catch (error) {
       console.error('搜索失败:', error);
       throw error;
@@ -508,21 +504,16 @@ export function BookProvider({ children }: { children: ReactNode }) {
       const response = await fetchWithProxy(bookId);
       const text = await response.text();
       
-      const parser = new BookSourceParser();
-      const bookInfo = await parser.parseBookInfo(text, source.ruleBookInfo);
+      const bookInfo = BookSourceParser.parseBookInfo(text, source.ruleBookInfo || {});
       
       return {
         id: crypto.randomUUID(),
         title: bookInfo.name || '未知书名',
         author: bookInfo.author || '未知作者',
-        coverUrl: bookInfo.coverUrl,
-        intro: bookInfo.intro || '',
         content: '',
-        chapters: [],
-        currentChapter: 0,
         currentPosition: 0,
         totalCharacters: 0,
-        addedAt: new Date(),
+        addedAt: new Date().toISOString(),
         fileName: '',
       };
     } catch (error) {
@@ -539,8 +530,7 @@ export function BookProvider({ children }: { children: ReactNode }) {
       const response = await fetchWithProxy(source.url);
       const text = await response.text();
       
-      const parser = new BookSourceParser();
-      const books = await parser.parseBookList(text, source.ruleSearch);
+      const books = BookSourceParser.parseBookList(text, source.ruleSearch?.list || '');
       
       const start = (page - 1) * limit;
       const end = start + limit;
@@ -660,14 +650,14 @@ export function BookProvider({ children }: { children: ReactNode }) {
     if (!source) throw new Error('书源不存在');
 
     try {
-      const searchUrl = source.searchUrl.replace('{{key}}', encodeURIComponent(keyword));
+      const searchUrl = source.searchUrl?.replace('{{key}}', encodeURIComponent(keyword));
+      if (!searchUrl) throw new Error('书源缺少搜索URL');
       const response = await fetchWithProxy(searchUrl);
       const html = await response.text();
       
-      const parser = new BookSourceParser();
-      const books = await parser.parseSearchResults(html, source.ruleSearch);
+      const books = BookSourceParser.parseSearchResults(html, source.ruleSearch?.list || '');
       
-      return books.map(book => ({
+      return books.map((book: any) => ({
         ...book,
         sourceId: source.id,
         sourceName: source.name,
@@ -708,10 +698,9 @@ export function BookProvider({ children }: { children: ReactNode }) {
       const response = await fetchWithProxy(bookUrl);
       const html = await response.text();
       
-      const parser = new BookSourceParser();
-      const chapters = await parser.parseChapterList(html, source.ruleToc);
+      const chapters = BookSourceParser.parseChapterList(html, source.ruleToc?.chapterList || source.ruleToc?.list || '');
       
-      return chapters.map((chapter, index) => ({
+      return chapters.map((chapter: any, index: number) => ({
         ...chapter,
         id: `${sourceId}-${index}`,
       }));
@@ -729,8 +718,8 @@ export function BookProvider({ children }: { children: ReactNode }) {
       const response = await fetchWithProxy(chapterUrl);
       const html = await response.text();
       
-      const parser = new BookSourceParser();
-      return parser.parseChapterContent(html, source.ruleContent);
+      const result = BookSourceParser.parseChapterContent(html, source.ruleContent?.content || '');
+      return result.content;
     } catch (error) {
       console.error('获取章节内容失败:', error);
       throw error;
@@ -745,8 +734,7 @@ export function BookProvider({ children }: { children: ReactNode }) {
       const bookResponse = await fetchWithProxy(searchResult.url);
       const bookHtml = await bookResponse.text();
       
-      const parser = new BookSourceParser();
-      const bookInfo = await parser.parseBookInfo(bookHtml, source.ruleBookInfo);
+      const bookInfo = BookSourceParser.parseBookInfo(bookHtml, source.ruleBookInfo || {});
       
       const chapters = await getChapterList(sourceId, searchResult.url);
       
@@ -764,18 +752,10 @@ export function BookProvider({ children }: { children: ReactNode }) {
         id: crypto.randomUUID(),
         title: bookInfo.name || searchResult.title,
         author: bookInfo.author || searchResult.author,
-        coverUrl: bookInfo.coverUrl || searchResult.coverUrl,
-        intro: bookInfo.intro || searchResult.intro || '',
         content: fullContent,
-        chapters: chapters.slice(0, 10).map((chapter, index) => ({
-          id: `${sourceId}-${index}`,
-          title: chapter.title,
-          url: chapter.url,
-        })),
-        currentChapter: 0,
         currentPosition: 0,
         totalCharacters: fullContent.length,
-        addedAt: new Date(),
+        addedAt: new Date().toISOString(),
         fileName: '',
       };
 
@@ -793,8 +773,7 @@ export function BookProvider({ children }: { children: ReactNode }) {
       const text = await response.text();
       
       if (source) {
-        const parser = new BookSourceParser();
-        const chapters = await parser.parseChapterList(text, source.ruleToc);
+        const chapters = BookSourceParser.parseChapterList(text, source.ruleToc?.chapterList || source.ruleToc?.list || '');
         return JSON.stringify(chapters.slice(0, 3), null, 2);
       }
       

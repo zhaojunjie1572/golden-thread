@@ -8,6 +8,7 @@ export interface GitHubGistConfig {
   token: string;
   gistId?: string;
   lastSyncTime?: string;
+  autoSync?: boolean;
 }
 
 const GITHUB_GIST_STORAGE_KEY = 'golden-thread-gist-config';
@@ -367,6 +368,10 @@ export class GitHubGistSyncService {
     }
 
     return new Promise(async (resolve) => {
+      if (!config.gistId) {
+        resolve({ success: false, message: '请先配置 Gist ID' });
+        return;
+      }
       const result = await this.downloadFromGist(config.token, config.gistId);
 
       if (!result.success || !result.data) {

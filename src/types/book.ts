@@ -10,6 +10,7 @@ export interface Book {
   totalCharacters: number;
   sourceId?: string;
   sourceUrl?: string;
+  fileName?: string;
 }
 
 export interface SearchResult {

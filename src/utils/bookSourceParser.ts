@@ -622,4 +622,53 @@ export class BookSourceParser {
     console.error('所有列表解析规则都失败:', rule);
     return [];
   }
+
+  // 解析搜索结果
+  static parseSearchResults(html: string, rule: string): any[] {
+    const list = this.parseList(html, rule);
+    return list.map(item => {
+      try {
+        return JSON.parse(item);
+      } catch {
+        return { html: item };
+      }
+    });
+  }
+
+  // 解析书籍信息
+  static parseBookInfo(html: string, rules: { name?: string; author?: string; coverUrl?: string; intro?: string }): { name: string; author: string; coverUrl?: string; intro?: string } {
+    return {
+      name: rules.name ? this.parseRule(html, rules.name) : '',
+      author: rules.author ? this.parseRule(html, rules.author) : '',
+      coverUrl: rules.coverUrl ? this.parseRule(html, rules.coverUrl) : undefined,
+      intro: rules.intro ? this.parseRule(html, rules.intro) : undefined,
+    };
+  }
+
+  // 解析书籍列表
+  static parseBookList(html: string, rule: string): any[] {
+    return this.parseSearchResults(html, rule);
+  }
+
+  // 解析章节列表
+  static parseChapterList(html: string, rule: string): { title: string; url: string }[] {
+    const list = this.parseList(html, rule);
+    return list.map((item, index) => {
+      try {
+        const parsed = JSON.parse(item);
+        return {
+          title: parsed.title || parsed.name || `章节 ${index + 1}`,
+          url: parsed.url || parsed.link || '',
+        };
+      } catch {
+        return { title: `章节 ${index + 1}`, url: '' };
+      }
+    });
+  }
+
+  // 解析章节内容
+  static parseChapterContent(html: string, rule: string): { content: string; nextUrl?: string } {
+    const content = this.parseRule(html, rule);
+    return { content };
+  }
 }

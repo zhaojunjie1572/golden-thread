@@ -638,7 +638,7 @@ export class SyncService {
   private static mergeExecutionHistory(
     current: Record<string, any[]>,
     imported: Record<string, any[]>,
-    stats: { added: number; updated: 0; conflicts: 0 }
+    stats: { added: number; updated: number; conflicts: number }
   ): Record<string, any[]> {
     const result: Record<string, any[]> = { ...current };
 
