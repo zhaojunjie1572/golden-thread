@@ -155,6 +155,8 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isCloudPlayingRef = useRef(false);
   const currentCloudIndexRef = useRef(0);
+  const isBrowserPlayingRef = useRef(false);
+  const currentBrowserIndexRef = useRef(0);
   const speechControllerRef = useRef<SpeechController | null>(null);
   const [speechSegmentProgress, setSpeechSegmentProgress] = useState<{ current: number; total: number } | null>(null);
 
@@ -227,7 +229,7 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
     return voices.find(v => v.name === speechState.selectedVoice) || null;
   }, [speechState.selectedVoice, speechState.cloudTtsConfig.useSystemVoice, voices, categorizedVoices]);
 
-  const speakParagraph = useCallback((text: string) => {
+  const speakParagraph = useCallback((text: string, index?: number) => {
     const synth = window.speechSynthesis;
     if (!synth) return;
 
@@ -248,6 +250,57 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
     if (voice) {
       utterance.voice = voice;
     }
+
+    // 添加 onend 事件处理，自动播放下一个段落
+    utterance.onend = () => {
+      if (isBrowserPlayingRef.current) {
+        const nextIndex = (index ?? currentBrowserIndexRef.current) + 1;
+        const paragraphs = paragraphsRef.current;
+        
+        if (nextIndex < paragraphs.length && isBrowserPlayingRef.current) {
+          currentBrowserIndexRef.current = nextIndex;
+          setSpeechState(prev => ({
+            ...prev,
+            currentParagraph: paragraphs[nextIndex],
+            currentParagraphIndex: nextIndex
+          }));
+          onProgressRef.current?.(nextIndex);
+          
+          // 添加小延迟，避免手机端连续播放问题
+          setTimeout(() => {
+            if (isBrowserPlayingRef.current) {
+              speakParagraph(paragraphs[nextIndex], nextIndex);
+            }
+          }, 100);
+        } else {
+          // 播放完成
+          isBrowserPlayingRef.current = false;
+          setSpeechState(prev => ({
+            ...prev,
+            isPlaying: false,
+            isPaused: false
+          }));
+        }
+      }
+    };
+
+    utterance.onerror = (event) => {
+      console.error('语音合成错误:', event.error);
+      // 发生错误时也尝试继续播放下一个
+      if (isBrowserPlayingRef.current && event.error !== 'canceled') {
+        const nextIndex = (index ?? currentBrowserIndexRef.current) + 1;
+        const paragraphs = paragraphsRef.current;
+        
+        if (nextIndex < paragraphs.length) {
+          currentBrowserIndexRef.current = nextIndex;
+          setTimeout(() => {
+            if (isBrowserPlayingRef.current) {
+              speakParagraph(paragraphs[nextIndex], nextIndex);
+            }
+          }, 100);
+        }
+      }
+    };
 
     utteranceRef.current = utterance;
     synth.speak(utterance);
@@ -308,7 +361,10 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
     if (speechState.cloudTtsConfig.engine !== 'browser') {
       startCloudSpeaking(validParagraphs, startIndex);
     } else {
-      speakParagraph(validParagraphs[startIndex] || '');
+      // 初始化浏览器 TTS 播放状态
+      isBrowserPlayingRef.current = true;
+      currentBrowserIndexRef.current = startIndex;
+      speakParagraph(validParagraphs[startIndex] || '', startIndex);
     }
   }, [speakParagraph, speechState.cloudTtsConfig]);
 
@@ -397,6 +453,7 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
 
   const stopSpeaking = useCallback(() => {
     isCloudPlayingRef.current = false;
+    isBrowserPlayingRef.current = false;
     
     // 停止长文本朗读控制器
     if (speechControllerRef.current) {
@@ -438,6 +495,9 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
       }
       startCloudSpeaking(paragraphs, nextIndex);
     } else {
+      // 更新浏览器 TTS 播放索引
+      currentBrowserIndexRef.current = nextIndex;
+      
       setSpeechState(prev => ({
         ...prev,
         currentParagraph: paragraphs[nextIndex],
@@ -445,7 +505,7 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
       }));
       
       if (speechState.isPlaying) {
-        speakParagraph(paragraphs[nextIndex]);
+        speakParagraph(paragraphs[nextIndex], nextIndex);
       }
     }
   }, [speechState.currentParagraphIndex, speechState.isPlaying, speechState.cloudTtsConfig, speakParagraph, startCloudSpeaking]);
@@ -461,6 +521,9 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
       }
       startCloudSpeaking(paragraphs, prevIndex);
     } else {
+      // 更新浏览器 TTS 播放索引
+      currentBrowserIndexRef.current = prevIndex;
+      
       setSpeechState(prev => ({
         ...prev,
         currentParagraph: paragraphs[prevIndex],
@@ -468,7 +531,7 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
       }));
       
       if (speechState.isPlaying) {
-        speakParagraph(paragraphs[prevIndex]);
+        speakParagraph(paragraphs[prevIndex], prevIndex);
       }
     }
   }, [speechState.currentParagraphIndex, speechState.isPlaying, speechState.cloudTtsConfig, speakParagraph, startCloudSpeaking]);

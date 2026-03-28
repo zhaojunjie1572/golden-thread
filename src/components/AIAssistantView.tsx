@@ -482,12 +482,20 @@ export default function AIAssistantView() {
     utterance.volume = speechState.volume;
     utterance.pitch = speechState.pitch;
 
-    if (speechState.selectedVoice) {
+    // 如果启用了系统默认语音，优先使用系统默认
+    if (speechState.cloudTtsConfig.useSystemVoice !== false) {
+      const defaultVoice = voices.find(v => v.default);
+      if (defaultVoice) {
+        utterance.voice = defaultVoice;
+      }
+    } else if (speechState.selectedVoice) {
+      // 手动选择语音模式
       const voice = voices.find(v => v.name === speechState.selectedVoice);
       if (voice) {
         utterance.voice = voice;
       }
     } else {
+      // 自动选择中文语音
       const chineseVoice = voices.find(v => v.lang.includes('zh') || v.lang.includes('CN'));
       if (chineseVoice) {
         utterance.voice = chineseVoice;
@@ -495,6 +503,12 @@ export default function AIAssistantView() {
     }
 
     utterance.onend = () => {
+      setSpeakingId(null);
+      setIsPaused(false);
+    };
+
+    utterance.onerror = (event) => {
+      console.error('AI 助手语音合成错误:', event.error);
       setSpeakingId(null);
       setIsPaused(false);
     };
