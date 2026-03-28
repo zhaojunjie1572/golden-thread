@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiService, ChatMessage, ApiConfig } from '../services/apiService';
 import { webSearchService } from '../services/webSearchService';
 import { useSpeech } from '../context/SpeechContext';
+import { synthesizeTextToSpeech } from '../services/cloudTtsService';
 
 // 去除标点符号，用停顿代替
 function removePunctuationMarks(text: string): string {
@@ -420,7 +421,9 @@ export default function AIAssistantView() {
     setError(null);
   };
 
-  const handleSpeak = (message: ChatMessage) => {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const handleSpeak = async (message: ChatMessage) => {
     if (speakingId === message.id) {
       return;
     }
@@ -433,7 +436,47 @@ export default function AIAssistantView() {
       ? removePunctuationMarks(message.content)
       : message.content;
 
-    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+    // 如果使用云端 TTS (Edge TTS 或阿里云)
+    if (speechState.cloudTtsConfig.engine !== 'browser') {
+      try {
+        const blob = await synthesizeTextToSpeech(textToSpeak, speechState.cloudTtsConfig, {
+          rate: speechState.speechRate,
+          pitch: speechState.pitch
+        });
+        
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        
+        audio.onended = () => {
+          setSpeakingId(null);
+          setIsPaused(false);
+          URL.revokeObjectURL(url);
+          audioRef.current = null;
+        };
+        
+        audio.onerror = () => {
+          console.error('Audio playback error');
+          setSpeakingId(null);
+          setIsPaused(false);
+          URL.revokeObjectURL(url);
+          audioRef.current = null;
+        };
+        
+        await audio.play();
+      } catch (error) {
+        console.error('Cloud TTS error:', error);
+        // 如果云端 TTS 失败，回退到浏览器 TTS
+        fallbackToBrowserTTS(textToSpeak);
+      }
+    } else {
+      // 使用浏览器原生 TTS
+      fallbackToBrowserTTS(textToSpeak);
+    }
+  };
+
+  const fallbackToBrowserTTS = (text: string) => {
+    const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'zh-CN';
     utterance.rate = speechState.speechRate;
     utterance.volume = speechState.volume;
@@ -461,13 +504,35 @@ export default function AIAssistantView() {
   };
 
   const handleStopSpeaking = () => {
+    // 停止浏览器 TTS
     speechSynthesis.cancel();
+    
+    // 停止 Cloud TTS 音频
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
+    }
+    
     setSpeakingId(null);
     setIsPaused(false);
     utteranceRef.current = null;
   };
 
   const handlePauseSpeaking = () => {
+    // 处理 Cloud TTS 音频
+    if (audioRef.current) {
+      if (isPaused) {
+        audioRef.current.play();
+        setIsPaused(false);
+      } else {
+        audioRef.current.pause();
+        setIsPaused(true);
+      }
+      return;
+    }
+    
+    // 处理浏览器 TTS
     if (isPaused) {
       speechSynthesis.resume();
       setIsPaused(false);
