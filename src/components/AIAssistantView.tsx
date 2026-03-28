@@ -5,16 +5,26 @@ import { webSearchService } from '../services/webSearchService';
 import { useSpeech } from '../context/SpeechContext';
 import { synthesizeTextToSpeech } from '../services/cloudTtsService';
 
-// 去除标点符号，用停顿代替
+// 去除标点符号，保留重要的停顿标点
 function removePunctuationMarks(text: string): string {
-  // 定义需要去除的所有标点符号和特殊字符
-  const punctuationMarks = /[\u3000-\u303F\uFF00-\uFFEF\u2000-\u206F\u0021-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E\u20A0-\u20CF\u2190-\u21FF\u27F0-\u27FF\u2900-\u297F\u2600-\u26FF\u2700-\u27BF\u1F300-\u1F5FF\u1F600-\u1F64F\u1F680-\u1F6FF\u1F900-\u1F9FF\u2500-\u257F\u2580-\u259F\uE000-\uF8FF]+/gu;
+  let cleaned = text;
+  
+  // 定义需要完全移除的所有其他标点符号和特殊字符
+  // 注意：字符范围按 Unicode 顺序排列，避免范围错误
+  const removePunctuation = /[\u2000-\u206F\u20A0-\u20CF\u2190-\u21FF\u2500-\u257F\u2580-\u259F\u2600-\u26FF\u2700-\u27BF\u27F0-\u27FF\u2900-\u297F\uE000-\uF8FF\u1F300-\u1F5FF\u1F600-\u1F64F\u1F680-\u1F6FF\u1F900-\u1F9FF\u3000-\u3001\u3003-\u303F\uff00-\uff1e\uff20-\uffff\u0022-\u002C\u002D-\u002F\u003A-\u003E\u0040\u005B-\u005E\u0060\u007B-\u007E]+/gu;
 
-  // 将标点替换为逗号+空格（产生明显的停顿效果）
-  let cleaned = text.replace(punctuationMarks, '，');
-
-  // 合并多个连续的逗号为一个
-  cleaned = cleaned.replace(/，+/g, '，');
+  // 第一步：移除所有不需要的标点符号
+  cleaned = cleaned.replace(removePunctuation, '');
+  
+  // 第二步：合并多个连续的停顿标点为一个
+  // 保留：句号、问号、感叹号（中文和英文）
+  cleaned = cleaned.replace(/[\u3002\uff1f\uff01.!?]+/g, (match) => {
+    // 保留第一个出现的标点
+    return match[0];
+  });
+  
+  // 第三步：清理多余的空格
+  cleaned = cleaned.replace(/\s+/g, ' ').trim();
 
   return cleaned;
 }
