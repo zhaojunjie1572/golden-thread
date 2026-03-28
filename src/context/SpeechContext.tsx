@@ -4,7 +4,10 @@ import {
   loadConfig, 
   saveConfig, 
   synthesizeTextToSpeech, 
-  playAudio 
+  playAudio,
+  speakLongText,
+  speakLongTextBrowser,
+  SpeechController
 } from '../services/cloudTtsService';
 
 export interface SpeechState {
@@ -31,6 +34,7 @@ interface SpeechContextType {
   speechState: SpeechState;
   voices: SpeechSynthesisVoice[];
   categorizedVoices: VoiceWithCategory[];
+  speechSegmentProgress: { current: number; total: number } | null;
   startSpeaking: (bookTitle: string, bookAuthor: string, paragraphs: string[], startIndex: number, onProgress?: (index: number) => void) => void;
   pauseSpeaking: () => void;
   resumeSpeaking: () => void;
@@ -152,6 +156,8 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isCloudPlayingRef = useRef(false);
   const currentCloudIndexRef = useRef(0);
+  const speechControllerRef = useRef<SpeechController | null>(null);
+  const [speechSegmentProgress, setSpeechSegmentProgress] = useState<{ current: number; total: number } | null>(null);
 
   const categorizedVoices = useMemo(() => {
     if (!voices || !Array.isArray(voices)) {
@@ -239,29 +245,26 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
       processedText = removePunctuationMarks(text);
     }
 
-    const blob = await synthesizeTextToSpeech(processedText, speechState.cloudTtsConfig, {
-      rate: speechState.speechRate,
-      pitch: speechState.pitch
-    });
-
     return new Promise((resolve, reject) => {
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      
-      audio.onended = () => {
-        URL.revokeObjectURL(url);
-        audioRef.current = null;
-        resolve();
-      };
-      
-      audio.onerror = () => {
-        URL.revokeObjectURL(url);
-        audioRef.current = null;
-        reject(new Error('音频播放失败'));
-      };
-      
-      audio.play().catch(reject);
+      speakLongText(processedText, speechState.cloudTtsConfig, {
+        rate: speechState.speechRate,
+        pitch: speechState.pitch,
+        volume: speechState.volume,
+        onProgress: (current, total) => {
+          setSpeechSegmentProgress({ current, total });
+        },
+        onEnded: () => {
+          setSpeechSegmentProgress(null);
+          resolve();
+        },
+        onError: (error) => {
+          setSpeechSegmentProgress(null);
+          reject(error);
+        }
+      }).then(controller => {
+        speechControllerRef.current = controller;
+        controller.play();
+      }).catch(reject);
     });
   }, [speechState]);
 
@@ -333,6 +336,11 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
   }, [speakCloudParagraph]);
 
   const pauseSpeaking = useCallback(() => {
+    // 暂停长文本朗读控制器
+    if (speechControllerRef.current) {
+      speechControllerRef.current.pause();
+    }
+    
     if (speechState.cloudTtsConfig.engine !== 'browser') {
       if (audioRef.current) {
         audioRef.current.pause();
@@ -351,6 +359,11 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
   }, [speechState.cloudTtsConfig]);
 
   const resumeSpeaking = useCallback(() => {
+    // 恢复长文本朗读控制器
+    if (speechControllerRef.current) {
+      speechControllerRef.current.play();
+    }
+    
     if (speechState.cloudTtsConfig.engine !== 'browser') {
       if (audioRef.current) {
         audioRef.current.play();
@@ -371,6 +384,12 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
   const stopSpeaking = useCallback(() => {
     isCloudPlayingRef.current = false;
     
+    // 停止长文本朗读控制器
+    if (speechControllerRef.current) {
+      speechControllerRef.current.stop();
+      speechControllerRef.current = null;
+    }
+    
     if (speechState.cloudTtsConfig.engine !== 'browser') {
       if (audioRef.current) {
         audioRef.current.pause();
@@ -384,6 +403,8 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
       }
       utteranceRef.current = null;
     }
+    
+    setSpeechSegmentProgress(null);
     
     setSpeechState(prev => ({
       ...prev,
@@ -562,6 +583,7 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
       speechState,
       voices,
       categorizedVoices,
+      speechSegmentProgress,
       startSpeaking,
       pauseSpeaking,
       resumeSpeaking,
