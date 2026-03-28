@@ -231,14 +231,26 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
 
   const speakParagraph = useCallback((text: string, index?: number) => {
     const synth = window.speechSynthesis;
-    if (!synth) return;
+    if (!synth) {
+      console.error('浏览器不支持语音合成');
+      return;
+    }
 
+    // 先取消之前的朗读
     synth.cancel();
+    
+    // 清除之前的备用定时器
+    if ((window as any).__ttsBackupTimer) {
+      clearTimeout((window as any).__ttsBackupTimer);
+      (window as any).__ttsBackupTimer = null;
+    }
     
     let processedText = text;
     if (speechState.removePunctuation) {
       processedText = removePunctuationMarks(text);
     }
+
+    console.log(`开始朗读段落 ${index ?? currentBrowserIndexRef.current}:`, processedText.substring(0, 50) + '...');
 
     const utterance = new SpeechSynthesisUtterance(processedText);
     utterance.rate = speechState.speechRate;
@@ -248,11 +260,20 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
 
     const voice = getSelectedVoice();
     if (voice) {
+      console.log('使用语音:', voice.name);
       utterance.voice = voice;
+    } else {
+      console.warn('没有找到合适的语音');
     }
 
+    let hasEnded = false;
+    
     // 添加 onend 事件处理，自动播放下一个段落
     utterance.onend = () => {
+      if (hasEnded) return;
+      hasEnded = true;
+      console.log(`段落 ${index ?? currentBrowserIndexRef.current} 朗读结束`);
+      
       if (isBrowserPlayingRef.current) {
         const nextIndex = (index ?? currentBrowserIndexRef.current) + 1;
         const paragraphs = paragraphsRef.current;
@@ -271,9 +292,10 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
             if (isBrowserPlayingRef.current) {
               speakParagraph(paragraphs[nextIndex], nextIndex);
             }
-          }, 100);
+          }, 200);
         } else {
           // 播放完成
+          console.log('所有段落朗读完成');
           isBrowserPlayingRef.current = false;
           setSpeechState(prev => ({
             ...prev,
@@ -285,7 +307,10 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
     };
 
     utterance.onerror = (event) => {
-      console.error('语音合成错误:', event.error);
+      console.error('语音合成错误:', event.error, '段落:', index ?? currentBrowserIndexRef.current);
+      if (hasEnded) return;
+      hasEnded = true;
+      
       // 发生错误时也尝试继续播放下一个
       if (isBrowserPlayingRef.current && event.error !== 'canceled') {
         const nextIndex = (index ?? currentBrowserIndexRef.current) + 1;
@@ -297,13 +322,51 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
             if (isBrowserPlayingRef.current) {
               speakParagraph(paragraphs[nextIndex], nextIndex);
             }
-          }, 100);
+          }, 200);
         }
       }
     };
 
+    // 手机端备用机制：使用定时器检查朗读是否卡住
+    // 估算朗读时间（假设每秒读 5 个字符）
+    const estimatedDuration = Math.max(processedText.length / 5 / speechState.speechRate * 1000, 3000);
+    console.log('预计朗读时间:', estimatedDuration, 'ms');
+    
+    (window as any).__ttsBackupTimer = setTimeout(() => {
+      if (!hasEnded && isBrowserPlayingRef.current) {
+        console.warn('朗读可能卡住，触发备用机制');
+        hasEnded = true;
+        const nextIndex = (index ?? currentBrowserIndexRef.current) + 1;
+        const paragraphs = paragraphsRef.current;
+        
+        if (nextIndex < paragraphs.length) {
+          currentBrowserIndexRef.current = nextIndex;
+          setSpeechState(prev => ({
+            ...prev,
+            currentParagraph: paragraphs[nextIndex],
+            currentParagraphIndex: nextIndex
+          }));
+          onProgressRef.current?.(nextIndex);
+          speakParagraph(paragraphs[nextIndex], nextIndex);
+        } else {
+          isBrowserPlayingRef.current = false;
+          setSpeechState(prev => ({
+            ...prev,
+            isPlaying: false,
+            isPaused: false
+          }));
+        }
+      }
+    }, estimatedDuration + 2000); // 给 2 秒缓冲时间
+
     utteranceRef.current = utterance;
-    synth.speak(utterance);
+    
+    // 手机端需要延迟一点再开始朗读，确保音频上下文已准备就绪
+    setTimeout(() => {
+      if (isBrowserPlayingRef.current) {
+        synth.speak(utterance);
+      }
+    }, 50);
   }, [speechState.speechRate, speechState.pitch, speechState.volume, speechState.removePunctuation, getSelectedVoice]);
 
   const speakCloudParagraph = useCallback(async (text: string): Promise<void> => {
@@ -454,6 +517,12 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
   const stopSpeaking = useCallback(() => {
     isCloudPlayingRef.current = false;
     isBrowserPlayingRef.current = false;
+    
+    // 清除备用定时器
+    if ((window as any).__ttsBackupTimer) {
+      clearTimeout((window as any).__ttsBackupTimer);
+      (window as any).__ttsBackupTimer = null;
+    }
     
     // 停止长文本朗读控制器
     if (speechControllerRef.current) {
