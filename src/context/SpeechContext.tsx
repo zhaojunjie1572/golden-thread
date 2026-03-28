@@ -421,7 +421,77 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
       totalParagraphs: validParagraphs.length
     }));
 
-    if (speechState.cloudTtsConfig.engine !== 'browser') {
+    // 检查是否使用 Edge TTS 开关
+    const useEdgeTts = speechState.cloudTtsConfig.useEdgeTts === true;
+    
+    // 检查是否需要使用 Edge TTS
+    if (useEdgeTts && speechState.cloudTtsConfig.engine === 'browser') {
+      console.log('读书模块使用 Edge TTS 开关');
+      // 使用 Edge TTS
+      isCloudPlayingRef.current = true;
+      currentCloudIndexRef.current = startIndex;
+      
+      const playNext = () => {
+        if (!isCloudPlayingRef.current || currentCloudIndexRef.current >= validParagraphs.length) {
+          setSpeechState(prev => ({ ...prev, isPlaying: false, isPaused: false }));
+          return;
+        }
+        
+        const text = validParagraphs[currentCloudIndexRef.current];
+        let processedText = text;
+        if (speechState.removePunctuation) {
+          processedText = removePunctuationMarks(text);
+        }
+        
+        setSpeechState(prev => ({
+          ...prev,
+          currentParagraph: text,
+          currentParagraphIndex: currentCloudIndexRef.current
+        }));
+        onProgressRef.current?.(currentCloudIndexRef.current);
+        
+        const edgeConfig = {
+          ...speechState.cloudTtsConfig,
+          engine: 'edge-tts' as const
+        };
+        
+        speakLongText(processedText, edgeConfig, {
+          rate: speechState.speechRate,
+          pitch: speechState.pitch,
+          volume: speechState.volume,
+          onProgress: (current, total) => {
+            setSpeechSegmentProgress({ current, total });
+          },
+          onEnded: () => {
+            setSpeechSegmentProgress(null);
+            currentCloudIndexRef.current++;
+            if (isCloudPlayingRef.current) {
+              setTimeout(playNext, 100);
+            }
+          },
+          onError: (error) => {
+            console.error('读书模块朗读错误:', error);
+            setSpeechSegmentProgress(null);
+            currentCloudIndexRef.current++;
+            if (isCloudPlayingRef.current) {
+              setTimeout(playNext, 100);
+            }
+          }
+        }).then(controller => {
+          speechControllerRef.current = controller;
+          controller.play();
+        }).catch(err => {
+          console.error('读书模块播放错误:', err);
+          currentCloudIndexRef.current++;
+          if (isCloudPlayingRef.current) {
+            setTimeout(playNext, 100);
+          }
+        });
+      };
+      
+      playNext();
+    } else if (speechState.cloudTtsConfig.engine !== 'browser') {
+      // 使用其他云端引擎
       startCloudSpeaking(validParagraphs, startIndex);
     } else {
       // 初始化浏览器 TTS 播放状态
@@ -429,7 +499,7 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
       currentBrowserIndexRef.current = startIndex;
       speakParagraph(validParagraphs[startIndex] || '', startIndex);
     }
-  }, [speakParagraph, speechState.cloudTtsConfig]);
+  }, [speakParagraph, speechState.cloudTtsConfig, speechState.removePunctuation, speechState.speechRate, speechState.pitch, speechState.volume]);
 
   const startCloudSpeaking = useCallback(async (paragraphs: string[], startIndex: number) => {
     isCloudPlayingRef.current = true;

@@ -3,6 +3,7 @@ export type TtsEngine = 'browser' | 'aliyun' | 'edge-tts' | 'custom';
 export interface CloudTtsConfig {
   engine: TtsEngine;
   useSystemVoice?: boolean; // 使用系统默认语音（浏览器引擎时有效）
+  useEdgeTts?: boolean; // 是否使用 Edge TTS 替代浏览器 TTS
   aliyun?: {
     accessKeyId: string;
     accessKeySecret: string;
@@ -70,7 +71,8 @@ export const ALIYUN_VOICES = [
 
 export function getDefaultConfig(): CloudTtsConfig {
   return {
-    engine: 'browser'
+    engine: 'browser',
+    useEdgeTts: false
   };
 }
 

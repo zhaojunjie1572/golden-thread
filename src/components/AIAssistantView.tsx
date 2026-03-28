@@ -446,18 +446,29 @@ export default function AIAssistantView() {
       ? removePunctuationMarks(message.content)
       : message.content;
 
-    // 如果使用云端 TTS (Edge TTS 或阿里云)
+    // 检查是否使用 Edge TTS 开关
+    const useEdgeTts = speechState.cloudTtsConfig.useEdgeTts === true;
+    
+    // 如果使用云端 TTS (Edge TTS 或阿里云) 或开启了 Edge TTS 开关
     console.log('AI 助手朗读配置:', {
       engine: speechState.cloudTtsConfig.engine,
+      useEdgeTts: useEdgeTts,
       edgeTtsConfig: speechState.cloudTtsConfig['edge-tts'],
       aliyunConfig: speechState.cloudTtsConfig.aliyun ? '已配置' : '未配置',
       customConfig: speechState.cloudTtsConfig.custom ? '已配置' : '未配置'
     });
     
-    if (speechState.cloudTtsConfig.engine !== 'browser') {
+    // 创建临时配置，用于 Edge TTS 开关
+    let effectiveConfig = speechState.cloudTtsConfig;
+    if (useEdgeTts && effectiveConfig.engine === 'browser') {
+      console.log('AI 助手使用 Edge TTS 开关');
+      effectiveConfig = { ...effectiveConfig, engine: 'edge-tts' };
+    }
+    
+    if (effectiveConfig.engine !== 'browser') {
       try {
-        console.log('AI 助手使用云端 TTS:', speechState.cloudTtsConfig.engine);
-        const blob = await synthesizeTextToSpeech(textToSpeak, speechState.cloudTtsConfig, {
+        console.log('AI 助手使用云端 TTS:', effectiveConfig.engine);
+        const blob = await synthesizeTextToSpeech(textToSpeak, effectiveConfig, {
           rate: speechState.speechRate,
           pitch: speechState.pitch
         });
