@@ -192,7 +192,22 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const getSelectedVoice = useCallback(() => {
+    // 如果启用了系统默认语音，直接返回系统默认
+    if (speechState.cloudTtsConfig.useSystemVoice !== false) {
+      const defaultVoice = voices.find(v => v.default);
+      if (defaultVoice) {
+        return defaultVoice;
+      }
+      // 如果没有标记为 default 的声音，返回第一个声音
+      if (voices.length > 0) {
+        return voices[0];
+      }
+      return null;
+    }
+
+    // 手动选择语音模式
     if (speechState.selectedVoice === '') {
+      // 自动选择最优中文女声
       const zhFemaleVoices = categorizedVoices.filter(v => v.category === 'zh-female');
       if (zhFemaleVoices.length > 0) {
         return zhFemaleVoices[0];
@@ -210,7 +225,7 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
     }
     
     return voices.find(v => v.name === speechState.selectedVoice) || null;
-  }, [speechState.selectedVoice, voices, categorizedVoices]);
+  }, [speechState.selectedVoice, speechState.cloudTtsConfig.useSystemVoice, voices, categorizedVoices]);
 
   const speakParagraph = useCallback((text: string) => {
     const synth = window.speechSynthesis;

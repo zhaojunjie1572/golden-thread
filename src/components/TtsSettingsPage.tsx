@@ -125,6 +125,27 @@ export default function TtsSettingsPage() {
                 </button>
               ))}
             </div>
+
+            {/* 系统默认语音开关 - 仅在浏览器引擎时显示 */}
+            {config.engine === 'browser' && (
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <label className="flex items-center justify-between cursor-pointer">
+                  <div>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">使用系统默认语音</span>
+                    <p className="text-xs text-gray-500 mt-0.5">关闭时可手动选择特定声音</p>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={config.useSystemVoice !== false}
+                      onChange={(e) => setConfig({ ...config, useSystemVoice: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-amber-300 dark:peer-focus:ring-amber-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-amber-500"></div>
+                  </div>
+                </label>
+              </div>
+            )}
           </div>
 
           {config.engine === 'aliyun' && (
@@ -512,7 +533,7 @@ export default function TtsSettingsPage() {
             </div>
           </div>
 
-          {config.engine === 'browser' && (
+          {config.engine === 'browser' && config.useSystemVoice === false && (
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">声音选择</h2>
