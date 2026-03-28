@@ -439,6 +439,7 @@ export default function AIAssistantView() {
     // 如果使用云端 TTS (Edge TTS 或阿里云)
     if (speechState.cloudTtsConfig.engine !== 'browser') {
       try {
+        console.log('AI 助手使用云端 TTS');
         const blob = await synthesizeTextToSpeech(textToSpeak, speechState.cloudTtsConfig, {
           rate: speechState.speechRate,
           pitch: speechState.pitch
@@ -449,21 +450,31 @@ export default function AIAssistantView() {
         audioRef.current = audio;
         
         audio.onended = () => {
+          console.log('AI 助手云端 TTS 播放结束');
           setSpeakingId(null);
           setIsPaused(false);
           URL.revokeObjectURL(url);
           audioRef.current = null;
         };
         
-        audio.onerror = () => {
-          console.error('Audio playback error');
+        audio.onerror = (e) => {
+          console.error('Audio playback error:', e);
           setSpeakingId(null);
           setIsPaused(false);
           URL.revokeObjectURL(url);
           audioRef.current = null;
         };
         
-        await audio.play();
+        // 手机端需要延迟播放
+        setTimeout(async () => {
+          try {
+            await audio.play();
+          } catch (playError) {
+            console.error('音频播放失败:', playError);
+            // 如果播放失败，回退到浏览器 TTS
+            fallbackToBrowserTTS(textToSpeak);
+          }
+        }, 100);
       } catch (error) {
         console.error('Cloud TTS error:', error);
         // 如果云端 TTS 失败，回退到浏览器 TTS
@@ -476,6 +487,11 @@ export default function AIAssistantView() {
   };
 
   const fallbackToBrowserTTS = (text: string) => {
+    console.log('AI 助手开始朗读:', text.substring(0, 50) + '...');
+    
+    // 先取消之前的朗读
+    speechSynthesis.cancel();
+    
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'zh-CN';
     utterance.rate = speechState.speechRate;
@@ -486,35 +502,56 @@ export default function AIAssistantView() {
     if (speechState.cloudTtsConfig.useSystemVoice !== false) {
       const defaultVoice = voices.find(v => v.default);
       if (defaultVoice) {
+        console.log('AI 助手使用系统默认语音:', defaultVoice.name);
         utterance.voice = defaultVoice;
       }
     } else if (speechState.selectedVoice) {
       // 手动选择语音模式
       const voice = voices.find(v => v.name === speechState.selectedVoice);
       if (voice) {
+        console.log('AI 助手使用选定语音:', voice.name);
         utterance.voice = voice;
       }
     } else {
       // 自动选择中文语音
       const chineseVoice = voices.find(v => v.lang.includes('zh') || v.lang.includes('CN'));
       if (chineseVoice) {
+        console.log('AI 助手使用中文语音:', chineseVoice.name);
         utterance.voice = chineseVoice;
       }
     }
 
     utterance.onend = () => {
+      console.log('AI 助手朗读结束');
       setSpeakingId(null);
       setIsPaused(false);
     };
 
     utterance.onerror = (event) => {
       console.error('AI 助手语音合成错误:', event.error);
-      setSpeakingId(null);
-      setIsPaused(false);
+      // 手机端某些错误可以忽略
+      if (event.error !== 'canceled') {
+        setSpeakingId(null);
+        setIsPaused(false);
+      }
+    };
+
+    utterance.onstart = () => {
+      console.log('AI 助手朗读开始');
     };
 
     utteranceRef.current = utterance;
-    speechSynthesis.speak(utterance);
+    
+    // 手机端需要延迟启动，确保音频上下文已准备就绪
+    setTimeout(() => {
+      try {
+        speechSynthesis.speak(utterance);
+      } catch (error) {
+        console.error('启动语音合成失败:', error);
+        setSpeakingId(null);
+        setIsPaused(false);
+      }
+    }, 100);
   };
 
   const handleStopSpeaking = () => {
