@@ -10,11 +10,11 @@ function removePunctuationMarks(text: string): string {
   // 定义需要去除的所有标点符号和特殊字符
   const punctuationMarks = /[\u3000-\u303F\uFF00-\uFFEF\u2000-\u206F\u0021-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E\u20A0-\u20CF\u2190-\u21FF\u27F0-\u27FF\u2900-\u297F\u2600-\u26FF\u2700-\u27BF\u1F300-\u1F5FF\u1F600-\u1F64F\u1F680-\u1F6FF\u1F900-\u1F9FF\u2500-\u257F\u2580-\u259F\uE000-\uF8FF]+/gu;
 
-  // 将标点替换为空格（产生停顿效果）
-  let cleaned = text.replace(punctuationMarks, ' ');
+  // 将标点替换为逗号+空格（产生明显的停顿效果）
+  let cleaned = text.replace(punctuationMarks, '，');
 
-  // 合并多个空格为一个
-  cleaned = cleaned.replace(/\s+/g, ' ').trim();
+  // 合并多个连续的逗号为一个
+  cleaned = cleaned.replace(/，+/g, '，');
 
   return cleaned;
 }
@@ -437,13 +437,21 @@ export default function AIAssistantView() {
       : message.content;
 
     // 如果使用云端 TTS (Edge TTS 或阿里云)
+    console.log('AI 助手朗读配置:', {
+      engine: speechState.cloudTtsConfig.engine,
+      edgeTtsConfig: speechState.cloudTtsConfig['edge-tts'],
+      aliyunConfig: speechState.cloudTtsConfig.aliyun ? '已配置' : '未配置',
+      customConfig: speechState.cloudTtsConfig.custom ? '已配置' : '未配置'
+    });
+    
     if (speechState.cloudTtsConfig.engine !== 'browser') {
       try {
-        console.log('AI 助手使用云端 TTS');
+        console.log('AI 助手使用云端 TTS:', speechState.cloudTtsConfig.engine);
         const blob = await synthesizeTextToSpeech(textToSpeak, speechState.cloudTtsConfig, {
           rate: speechState.speechRate,
           pitch: speechState.pitch
         });
+        console.log('AI 助手云端 TTS 合成成功');
         
         const url = URL.createObjectURL(blob);
         const audio = new Audio(url);
