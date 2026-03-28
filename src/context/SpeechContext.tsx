@@ -1,4 +1,11 @@
-import { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo, ReactNode } from 'react';
+import { 
+  CloudTtsConfig, 
+  loadConfig, 
+  saveConfig, 
+  synthesizeTextToSpeech, 
+  playAudio 
+} from '../services/cloudTtsService';
 
 export interface SpeechState {
   isPlaying: boolean;
@@ -13,11 +20,17 @@ export interface SpeechState {
   volume: number;
   pitch: number;
   removePunctuation: boolean;
+  cloudTtsConfig: CloudTtsConfig;
+}
+
+export interface VoiceWithCategory extends SpeechSynthesisVoice {
+  category: 'zh-female' | 'zh-male' | 'zh-other' | 'other';
 }
 
 interface SpeechContextType {
   speechState: SpeechState;
   voices: SpeechSynthesisVoice[];
+  categorizedVoices: VoiceWithCategory[];
   startSpeaking: (bookTitle: string, bookAuthor: string, paragraphs: string[], startIndex: number, onProgress?: (index: number) => void) => void;
   pauseSpeaking: () => void;
   resumeSpeaking: () => void;
@@ -29,7 +42,9 @@ interface SpeechContextType {
   setVolume: (volume: number) => void;
   setPitch: (pitch: number) => void;
   setRemovePunctuation: (remove: boolean) => void;
+  setCloudTtsConfig: (config: CloudTtsConfig) => void;
   testVoice: (voiceName: string, text?: string) => void;
+  testCloudTts: (config: CloudTtsConfig, text?: string) => Promise<void>;
 }
 
 const initialSpeechState: SpeechState = {
@@ -45,325 +60,508 @@ const initialSpeechState: SpeechState = {
   volume: 1,
   pitch: 1,
   removePunctuation: true,
+  cloudTtsConfig: loadConfig()
 };
 
 const SpeechContext = createContext<SpeechContextType | undefined>(undefined);
 
-// 去除标点符号，用停顿代替
 function removePunctuationMarks(text: string): string {
-  // 定义需要去除的所有标点符号和特殊字符
-  // 包括：中文标点、英文标点、数学符号、货币符号、箭头、表情符号修饰符等
-  // CJK 符号和标点、全角 ASCII 变体: \u3000-\u303F\uFF00-\uFFEF
-  // 常用标点: \u2000-\u206F
-  // 基本 ASCII 标点: \u0021-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E
-  // 货币符号: \u20A0-\u20CF
-  // 箭头符号: \u2190-\u21FF\u27F0-\u27FF\u2900-\u297F
-  // 杂项符号和装饰符号: \u2600-\u26FF\u2700-\u27BF
-  // 表情符号: \u1F300-\u1F5FF\u1F600-\u1F64F\u1F680-\u1F6FF\u1F900-\u1F9FF
-  // 制表符和方块元素: \u2500-\u257F\u2580-\u259F
-  // 私用区: \uE000-\uF8FF
   const punctuationMarks = /[\u3000-\u303F\uFF00-\uFFEF\u2000-\u206F\u0021-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E\u20A0-\u20CF\u2190-\u21FF\u27F0-\u27FF\u2900-\u297F\u2600-\u26FF\u2700-\u27BF\u1F300-\u1F5FF\u1F600-\u1F64F\u1F680-\u1F6FF\u1F900-\u1F9FF\u2500-\u257F\u2580-\u259F\uE000-\uF8FF]+/gu;
-
-  // 将标点替换为空格（产生停顿效果）
   let cleaned = text.replace(punctuationMarks, ' ');
-
-  // 合并多个空格为一个
   cleaned = cleaned.replace(/\s+/g, ' ').trim();
-
   return cleaned;
 }
 
-export function SpeechProvider({ children }: { children: ReactNode }) {
-  const [speechState, setSpeechState] = useState<SpeechState>(() => {
-    const savedRate = localStorage.getItem('speech-rate');
-    const savedVoice = localStorage.getItem('selected-voice');
-    const savedVolume = localStorage.getItem('speech-volume');
-    const savedPitch = localStorage.getItem('speech-pitch');
-    const savedRemovePunctuation = localStorage.getItem('speech-remove-punctuation');
-    return {
-      ...initialSpeechState,
-      speechRate: savedRate ? parseFloat(savedRate) : 1.5,
-      selectedVoice: savedVoice || '',
-      volume: savedVolume ? parseFloat(savedVolume) : 1,
-      pitch: savedPitch ? parseFloat(savedPitch) : 1,
-      removePunctuation: savedRemovePunctuation !== null ? savedRemovePunctuation === 'true' : true,
-    };
-  });
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [paragraphs, setParagraphs] = useState<string[]>([]);
-  const [onProgressCallback, setOnProgressCallback] = useState<((index: number) => void) | null>(null);
+function isChineseVoice(voice: SpeechSynthesisVoice): boolean {
+  const lang = voice.lang.toLowerCase();
+  return lang.includes('zh') || lang.includes('cn') || lang.includes('cmn');
+}
 
+function isFemaleVoice(voice: SpeechSynthesisVoice): boolean {
+  const name = voice.name.toLowerCase();
+  const femaleKeywords = [
+    'female', '女', 'xiaoxiao', 'xiaoyi', 'xiaomei', 'xiaofang', 
+    'huihui', 'tiantian', 'siri', 'google 普通话', 'microsoft yaoyao',
+    'microsoft xiaoxiao', 'xiaoxiao', 'xiaoni', 'xiaohan', 'xiaomeng',
+    'xiaoxuan', 'xiaoyan', 'xiaolin', 'xiaoling', 'xiaoxia',
+    'alice', 'victoria', 'samantha', 'tessa', 'serena',
+    'ting-ting', 'mei-jia', 'sin-ji', 'google 台灣國語'
+  ];
+  return femaleKeywords.some(keyword => name.includes(keyword));
+}
+
+function isMaleVoice(voice: SpeechSynthesisVoice): boolean {
+  const name = voice.name.toLowerCase();
+  const maleKeywords = [
+    'male', '男', 'yunxi', 'yunyang', 'yunfeng', 'yunhao',
+    'alex', 'daniel', 'fred', 'jorge', 'juan', 'aaron', 'david',
+    'david', 'mark', 'john', 'paul', 'peter', 'richard'
+  ];
+  return maleKeywords.some(keyword => name.includes(keyword));
+}
+
+function categorizeVoice(voice: SpeechSynthesisVoice): VoiceWithCategory {
+  let category: 'zh-female' | 'zh-male' | 'zh-other' | 'other' = 'other';
+  
+  if (isChineseVoice(voice)) {
+    if (isFemaleVoice(voice)) {
+      category = 'zh-female';
+    } else if (isMaleVoice(voice)) {
+      category = 'zh-male';
+    } else {
+      category = 'zh-other';
+    }
+  } else {
+    category = 'other';
+  }
+  
+  return { ...voice, category };
+}
+
+function sortVoices(voices: VoiceWithCategory[]): VoiceWithCategory[] {
+  const categoryOrder = {
+    'zh-female': 0,
+    'zh-male': 1,
+    'zh-other': 2,
+    'other': 3
+  };
+  
+  return [...voices].sort((a, b) => {
+    if (!a || !b) return 0;
+    
+    const categoryDiff = categoryOrder[a.category] - categoryOrder[b.category];
+    if (categoryDiff !== 0) return categoryDiff;
+    
+    const aIsDefault = a.default;
+    const bIsDefault = b.default;
+    if (aIsDefault !== bIsDefault) return aIsDefault ? -1 : 1;
+    
+    const nameA = a.name || '';
+    const nameB = b.name || '';
+    return nameA.localeCompare(nameB, 'zh-CN');
+  });
+}
+
+export function SpeechProvider({ children }: { children: ReactNode }) {
+  const [speechState, setSpeechState] = useState<SpeechState>(initialSpeechState);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-  const currentSpeechIndexRef = useRef(0);
-  const isSpeakingRef = useRef(false);
-  const isPausedRef = useRef(false);
-  const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
-  const lastSpeechRateRef = useRef(1.5);
+  const paragraphsRef = useRef<string[]>([]);
+  const onProgressRef = useRef<((index: number) => void) | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const isCloudPlayingRef = useRef(false);
+  const currentCloudIndexRef = useRef(0);
+
+  const categorizedVoices = useMemo(() => {
+    if (!voices || !Array.isArray(voices)) {
+      return [];
+    }
+    try {
+      const categorized = voices.map(voice => {
+        if (!voice) return null;
+        return categorizeVoice(voice);
+      }).filter(Boolean) as VoiceWithCategory[];
+      return sortVoices(categorized);
+    } catch (error) {
+      console.error('分类声音时出错:', error);
+      return [];
+    }
+  }, [voices]);
 
   useEffect(() => {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+
     const loadVoices = () => {
-      const availableVoices = window.speechSynthesis.getVoices();
-      voicesRef.current = availableVoices;
+      const availableVoices = synth.getVoices();
       setVoices(availableVoices);
     };
 
     loadVoices();
-
-    const timer1 = setTimeout(() => loadVoices(), 500);
-    const timer2 = setTimeout(() => loadVoices(), 2000);
-
-    window.speechSynthesis.onvoiceschanged = loadVoices;
+    synth.onvoiceschanged = loadVoices;
 
     return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
+      synth.onvoiceschanged = null;
     };
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem('speech-rate', speechState.speechRate.toString());
-  }, [speechState.speechRate]);
+  const getSelectedVoice = useCallback(() => {
+    if (speechState.selectedVoice === '') {
+      const zhFemaleVoices = categorizedVoices.filter(v => v.category === 'zh-female');
+      if (zhFemaleVoices.length > 0) {
+        return zhFemaleVoices[0];
+      }
+      
+      const zhVoices = categorizedVoices.filter(v => v.category.startsWith('zh'));
+      if (zhVoices.length > 0) {
+        return zhVoices[0];
+      }
+      
+      if (voices.length > 0) {
+        return voices.find(v => v.default) || voices[0];
+      }
+      return null;
+    }
+    
+    return voices.find(v => v.name === speechState.selectedVoice) || null;
+  }, [speechState.selectedVoice, voices, categorizedVoices]);
 
-  useEffect(() => {
-    localStorage.setItem('selected-voice', speechState.selectedVoice);
-  }, [speechState.selectedVoice]);
+  const speakParagraph = useCallback((text: string) => {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
 
-  useEffect(() => {
-    localStorage.setItem('speech-volume', speechState.volume.toString());
-  }, [speechState.volume]);
+    synth.cancel();
+    
+    let processedText = text;
+    if (speechState.removePunctuation) {
+      processedText = removePunctuationMarks(text);
+    }
 
-  useEffect(() => {
-    localStorage.setItem('speech-pitch', speechState.pitch.toString());
-  }, [speechState.pitch]);
-
-  useEffect(() => {
-    localStorage.setItem('speech-remove-punctuation', speechState.removePunctuation.toString());
-  }, [speechState.removePunctuation]);
-
-  const testVoice = useCallback((voiceName: string, text = '你好，这是当前选中的声音') => {
-    if (!('speechSynthesis' in window)) return;
-
-    window.speechSynthesis.cancel();
-    const testText = speechState.removePunctuation ? removePunctuationMarks(text) : text;
-    const utterance = new SpeechSynthesisUtterance(testText);
+    const utterance = new SpeechSynthesisUtterance(processedText);
     utterance.rate = speechState.speechRate;
     utterance.pitch = speechState.pitch;
     utterance.volume = speechState.volume;
     utterance.lang = 'zh-CN';
 
-    if (voiceName) {
-      const voice = voicesRef.current.find(v => v.name === voiceName);
-      if (voice) {
-        utterance.voice = voice;
-      }
-    } else {
-      const chineseVoice = voicesRef.current.find(voice =>
-        voice.lang.includes('zh') || voice.lang.includes('CN')
-      );
-      if (chineseVoice) {
-        utterance.voice = chineseVoice;
-      }
+    const voice = getSelectedVoice();
+    if (voice) {
+      utterance.voice = voice;
     }
-
-    window.speechSynthesis.speak(utterance);
-  }, [speechState.speechRate, speechState.volume, speechState.pitch, speechState.removePunctuation]);
-
-  const speakParagraph = useCallback((index: number) => {
-    if (!('speechSynthesis' in window) || index >= paragraphs.length) {
-      if (index >= paragraphs.length) {
-        setSpeechState(prev => ({ ...prev, isPlaying: false, isPaused: false }));
-      }
-      return;
-    }
-
-    currentSpeechIndexRef.current = index;
-
-    setSpeechState(prev => ({
-      ...prev,
-      currentParagraph: paragraphs[index],
-      currentParagraphIndex: index,
-    }));
-
-    if (onProgressCallback) {
-      onProgressCallback(index);
-    }
-
-    // 处理文本：去除标点符号
-    const rawText = paragraphs[index];
-    const textToSpeak = speechState.removePunctuation ? removePunctuationMarks(rawText) : rawText;
-
-    const utterance = new SpeechSynthesisUtterance(textToSpeak);
-    utterance.rate = speechState.speechRate;
-    utterance.pitch = speechState.pitch;
-    utterance.volume = speechState.volume;
-    utterance.lang = 'zh-CN';
-
-    if (speechState.selectedVoice) {
-      const voice = voicesRef.current.find(v => v.name === speechState.selectedVoice);
-      if (voice) {
-        utterance.voice = voice;
-      }
-    } else {
-      const chineseVoice = voicesRef.current.find(voice =>
-        voice.lang.includes('zh') || voice.lang.includes('CN')
-      );
-      if (chineseVoice) {
-        utterance.voice = chineseVoice;
-      }
-    }
-
-    utterance.onend = () => {
-      if (currentSpeechIndexRef.current === index && isSpeakingRef.current && !isPausedRef.current) {
-        speakParagraph(index + 1);
-      }
-    };
-
-    utterance.onerror = () => {
-      setSpeechState(prev => ({ ...prev, isPlaying: false, isPaused: false }));
-    };
 
     utteranceRef.current = utterance;
-    window.speechSynthesis.speak(utterance);
-  }, [paragraphs, speechState.speechRate, speechState.selectedVoice, speechState.volume, speechState.pitch, speechState.removePunctuation, onProgressCallback]);
+    synth.speak(utterance);
+  }, [speechState.speechRate, speechState.pitch, speechState.volume, speechState.removePunctuation, getSelectedVoice]);
+
+  const speakCloudParagraph = useCallback(async (text: string): Promise<void> => {
+    let processedText = text;
+    if (speechState.removePunctuation) {
+      processedText = removePunctuationMarks(text);
+    }
+
+    const blob = await synthesizeTextToSpeech(processedText, speechState.cloudTtsConfig, {
+      rate: speechState.speechRate,
+      pitch: speechState.pitch
+    });
+
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+        audioRef.current = null;
+        resolve();
+      };
+      
+      audio.onerror = () => {
+        URL.revokeObjectURL(url);
+        audioRef.current = null;
+        reject(new Error('音频播放失败'));
+      };
+      
+      audio.play().catch(reject);
+    });
+  }, [speechState]);
 
   const startSpeaking = useCallback((
-    bookTitle: string,
-    bookAuthor: string,
-    newParagraphs: string[],
+    bookTitle: string, 
+    bookAuthor: string, 
+    paragraphs: string[], 
     startIndex: number,
     onProgress?: (index: number) => void
   ) => {
-    if (!('speechSynthesis' in window)) {
-      alert('您的浏览器不支持语音合成功能');
-      return;
-    }
-
-    window.speechSynthesis.cancel();
-    setParagraphs(newParagraphs);
-    setOnProgressCallback(() => onProgress || null);
-
+    const validParagraphs = paragraphs.filter(p => p.trim().length > 0);
+    
+    paragraphsRef.current = validParagraphs;
+    onProgressRef.current = onProgress || null;
+    
     setSpeechState(prev => ({
       ...prev,
       isPlaying: true,
       isPaused: false,
       bookTitle,
       bookAuthor,
-      currentParagraph: newParagraphs[startIndex] || '',
+      currentParagraph: validParagraphs[startIndex] || '',
       currentParagraphIndex: startIndex,
-      totalParagraphs: newParagraphs.length,
+      totalParagraphs: validParagraphs.length
     }));
 
-    isSpeakingRef.current = true;
-    isPausedRef.current = false;
-    speakParagraph(startIndex);
-  }, [speakParagraph]);
+    if (speechState.cloudTtsConfig.engine !== 'browser') {
+      startCloudSpeaking(validParagraphs, startIndex);
+    } else {
+      speakParagraph(validParagraphs[startIndex] || '');
+    }
+  }, [speakParagraph, speechState.cloudTtsConfig]);
+
+  const startCloudSpeaking = useCallback(async (paragraphs: string[], startIndex: number) => {
+    isCloudPlayingRef.current = true;
+    currentCloudIndexRef.current = startIndex;
+
+    try {
+      for (let i = startIndex; i < paragraphs.length && isCloudPlayingRef.current; i++) {
+        if (!isCloudPlayingRef.current) break;
+        
+        currentCloudIndexRef.current = i;
+        setSpeechState(prev => ({
+          ...prev,
+          currentParagraph: paragraphs[i],
+          currentParagraphIndex: i
+        }));
+        
+        onProgressRef.current?.(i);
+        await speakCloudParagraph(paragraphs[i]);
+      }
+      
+      if (isCloudPlayingRef.current) {
+        setSpeechState(prev => ({
+          ...prev,
+          isPlaying: false,
+          isPaused: false
+        }));
+      }
+    } catch (error) {
+      console.error('云 TTS 播放错误:', error);
+      isCloudPlayingRef.current = false;
+      setSpeechState(prev => ({
+        ...prev,
+        isPlaying: false,
+        isPaused: false
+      }));
+    }
+  }, [speakCloudParagraph]);
 
   const pauseSpeaking = useCallback(() => {
-    if ('speechSynthesis' in window) {
-      // 移动端浏览器对 pause/resume 支持不完善，使用 cancel 代替
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      if (isMobile) {
-        // 移动端：记录当前位置并停止，而不是暂停
-        window.speechSynthesis.cancel();
-      } else {
-        window.speechSynthesis.pause();
+    if (speechState.cloudTtsConfig.engine !== 'browser') {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+    } else {
+      const synth = window.speechSynthesis;
+      if (synth) {
+        synth.pause();
       }
     }
-    isPausedRef.current = true;
-    setSpeechState(prev => ({ ...prev, isPaused: true }));
-  }, []);
+    
+    setSpeechState(prev => ({
+      ...prev,
+      isPaused: true
+    }));
+  }, [speechState.cloudTtsConfig]);
 
   const resumeSpeaking = useCallback(() => {
-    if ('speechSynthesis' in window) {
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      if (isMobile) {
-        // 移动端：从当前段落重新开始朗读
-        speakParagraph(currentSpeechIndexRef.current);
-      } else {
-        window.speechSynthesis.resume();
+    if (speechState.cloudTtsConfig.engine !== 'browser') {
+      if (audioRef.current) {
+        audioRef.current.play();
+      }
+    } else {
+      const synth = window.speechSynthesis;
+      if (synth) {
+        synth.resume();
       }
     }
-    isPausedRef.current = false;
-    setSpeechState(prev => ({ ...prev, isPaused: false }));
-  }, [speakParagraph]);
+    
+    setSpeechState(prev => ({
+      ...prev,
+      isPaused: false
+    }));
+  }, [speechState.cloudTtsConfig]);
 
   const stopSpeaking = useCallback(() => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
+    isCloudPlayingRef.current = false;
+    
+    if (speechState.cloudTtsConfig.engine !== 'browser') {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        audioRef.current = null;
+      }
+    } else {
+      const synth = window.speechSynthesis;
+      if (synth) {
+        synth.cancel();
+      }
+      utteranceRef.current = null;
     }
-    isSpeakingRef.current = false;
-    isPausedRef.current = false;
+    
     setSpeechState(prev => ({
-      ...initialSpeechState,
-      speechRate: prev.speechRate,
-      selectedVoice: prev.selectedVoice,
-      volume: prev.volume,
-      pitch: prev.pitch,
-      removePunctuation: prev.removePunctuation,
+      ...prev,
+      isPlaying: false,
+      isPaused: false
     }));
-    setParagraphs([]);
-    setOnProgressCallback(null);
-  }, []);
+  }, [speechState.cloudTtsConfig]);
 
   const nextParagraph = useCallback(() => {
-    if (speechState.currentParagraphIndex < paragraphs.length - 1) {
-      const newIndex = speechState.currentParagraphIndex + 1;
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
+    const paragraphs = paragraphsRef.current;
+    const nextIndex = Math.min(speechState.currentParagraphIndex + 1, paragraphs.length - 1);
+    
+    if (speechState.cloudTtsConfig.engine !== 'browser') {
+      isCloudPlayingRef.current = false;
+      if (audioRef.current) {
+        audioRef.current.pause();
       }
-      speakParagraph(newIndex);
+      startCloudSpeaking(paragraphs, nextIndex);
+    } else {
+      setSpeechState(prev => ({
+        ...prev,
+        currentParagraph: paragraphs[nextIndex],
+        currentParagraphIndex: nextIndex
+      }));
+      
+      if (speechState.isPlaying) {
+        speakParagraph(paragraphs[nextIndex]);
+      }
     }
-  }, [speechState.currentParagraphIndex, paragraphs.length, speakParagraph]);
+  }, [speechState.currentParagraphIndex, speechState.isPlaying, speechState.cloudTtsConfig, speakParagraph, startCloudSpeaking]);
 
   const prevParagraph = useCallback(() => {
-    if (speechState.currentParagraphIndex > 0) {
-      const newIndex = speechState.currentParagraphIndex - 1;
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
+    const paragraphs = paragraphsRef.current;
+    const prevIndex = Math.max(speechState.currentParagraphIndex - 1, 0);
+    
+    if (speechState.cloudTtsConfig.engine !== 'browser') {
+      isCloudPlayingRef.current = false;
+      if (audioRef.current) {
+        audioRef.current.pause();
       }
-      speakParagraph(newIndex);
+      startCloudSpeaking(paragraphs, prevIndex);
+    } else {
+      setSpeechState(prev => ({
+        ...prev,
+        currentParagraph: paragraphs[prevIndex],
+        currentParagraphIndex: prevIndex
+      }));
+      
+      if (speechState.isPlaying) {
+        speakParagraph(paragraphs[prevIndex]);
+      }
     }
-  }, [speechState.currentParagraphIndex, speakParagraph]);
+  }, [speechState.currentParagraphIndex, speechState.isPlaying, speechState.cloudTtsConfig, speakParagraph, startCloudSpeaking]);
+
+  useEffect(() => {
+    if (speechState.cloudTtsConfig.engine !== 'browser') return;
+    
+    const synth = window.speechSynthesis;
+    if (!synth || !utteranceRef.current) return;
+
+    const handleEnd = () => {
+      const paragraphs = paragraphsRef.current;
+      const nextIndex = speechState.currentParagraphIndex + 1;
+      
+      if (nextIndex < paragraphs.length) {
+        setSpeechState(prev => ({
+          ...prev,
+          currentParagraph: paragraphs[nextIndex],
+          currentParagraphIndex: nextIndex
+        }));
+        onProgressRef.current?.(nextIndex);
+        speakParagraph(paragraphs[nextIndex]);
+      } else {
+        setSpeechState(prev => ({
+          ...prev,
+          isPlaying: false,
+          isPaused: false
+        }));
+      }
+    };
+
+    const utterance = utteranceRef.current;
+    utterance.onend = handleEnd;
+
+    return () => {
+      utterance.onend = null;
+    };
+  }, [speechState.currentParagraphIndex, speakParagraph, speechState.cloudTtsConfig]);
 
   const setSpeechRate = useCallback((rate: number) => {
-    setSpeechState(prev => ({ ...prev, speechRate: rate }));
-    if (speechState.isPlaying && !speechState.isPaused && rate !== lastSpeechRateRef.current) {
-      lastSpeechRateRef.current = rate;
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
-      speakParagraph(speechState.currentParagraphIndex);
-    }
-  }, [speechState.isPlaying, speechState.isPaused, speechState.currentParagraphIndex, speakParagraph]);
+    setSpeechState(prev => ({
+      ...prev,
+      speechRate: rate
+    }));
+  }, []);
 
   const setSelectedVoice = useCallback((voice: string) => {
-    setSpeechState(prev => ({ ...prev, selectedVoice: voice }));
+    setSpeechState(prev => ({
+      ...prev,
+      selectedVoice: voice
+    }));
   }, []);
 
   const setVolume = useCallback((volume: number) => {
-    setSpeechState(prev => ({ ...prev, volume }));
+    setSpeechState(prev => ({
+      ...prev,
+      volume
+    }));
   }, []);
 
   const setPitch = useCallback((pitch: number) => {
-    setSpeechState(prev => ({ ...prev, pitch }));
+    setSpeechState(prev => ({
+      ...prev,
+      pitch
+    }));
   }, []);
 
   const setRemovePunctuation = useCallback((remove: boolean) => {
-    setSpeechState(prev => ({ ...prev, removePunctuation: remove }));
+    setSpeechState(prev => ({
+      ...prev,
+      removePunctuation: remove
+    }));
   }, []);
 
-  useEffect(() => {
-    isSpeakingRef.current = speechState.isPlaying;
-  }, [speechState.isPlaying]);
+  const setCloudTtsConfig = useCallback((config: CloudTtsConfig) => {
+    saveConfig(config);
+    setSpeechState(prev => ({
+      ...prev,
+      cloudTtsConfig: config
+    }));
+  }, []);
 
-  useEffect(() => {
-    isPausedRef.current = speechState.isPaused;
-  }, [speechState.isPaused]);
+  const testVoice = useCallback((voiceName: string, text: string = '你好，这是测试语音，希望你能喜欢') => {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+
+    synth.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = speechState.speechRate;
+    utterance.pitch = speechState.pitch;
+    utterance.volume = speechState.volume;
+    utterance.lang = 'zh-CN';
+
+    if (voiceName) {
+      const voice = voices.find(v => v.name === voiceName);
+      if (voice) {
+        utterance.voice = voice;
+      }
+    } else {
+      const voice = getSelectedVoice();
+      if (voice) {
+        utterance.voice = voice;
+      }
+    }
+
+    synth.speak(utterance);
+  }, [speechState.speechRate, speechState.pitch, speechState.volume, voices, getSelectedVoice]);
+
+  const testCloudTts = useCallback(async (config: CloudTtsConfig, text: string = '你好，这是测试语音') => {
+    if (config.engine === 'browser') {
+      testVoice('', text);
+      return;
+    }
+    
+    const blob = await synthesizeTextToSpeech(text, config, {
+      rate: speechState.speechRate,
+      pitch: speechState.pitch
+    });
+    
+    await playAudio(blob);
+  }, [speechState.speechRate, speechState.pitch, testVoice]);
 
   return (
     <SpeechContext.Provider value={{
       speechState,
       voices,
+      categorizedVoices,
       startSpeaking,
       pauseSpeaking,
       resumeSpeaking,
@@ -375,7 +573,9 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
       setVolume,
       setPitch,
       setRemovePunctuation,
+      setCloudTtsConfig,
       testVoice,
+      testCloudTts
     }}>
       {children}
     </SpeechContext.Provider>

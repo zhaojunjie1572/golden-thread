@@ -489,7 +489,7 @@ export function BookProvider({ children }: { children: ReactNode }) {
       const response = await fetchWithProxy(searchUrl);
       const text = await response.text();
       
-      return BookSourceParser.parseSearchResults(text, source.ruleSearch?.list || '');
+      return BookSourceParser.parseSearchResults(text, source.ruleSearch?.bookList || source.ruleSearch?.list || '');
     } catch (error) {
       console.error('搜索失败:', error);
       throw error;
@@ -530,7 +530,7 @@ export function BookProvider({ children }: { children: ReactNode }) {
       const response = await fetchWithProxy(source.url);
       const text = await response.text();
       
-      const books = BookSourceParser.parseBookList(text, source.ruleSearch?.list || '');
+      const books = BookSourceParser.parseBookList(text, source.ruleSearch?.bookList || source.ruleSearch?.list || '');
       
       const start = (page - 1) * limit;
       const end = start + limit;
@@ -655,7 +655,7 @@ export function BookProvider({ children }: { children: ReactNode }) {
       const response = await fetchWithProxy(searchUrl);
       const html = await response.text();
       
-      const books = BookSourceParser.parseSearchResults(html, source.ruleSearch?.list || '');
+      const books = BookSourceParser.parseSearchResults(html, source.ruleSearch?.bookList || source.ruleSearch?.list || '');
       
       return books.map((book: any) => ({
         ...book,

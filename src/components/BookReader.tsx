@@ -18,6 +18,7 @@ export default function BookReader({ book, onUpdateProgress, onClose }: BookRead
   const { 
     speechState, 
     voices,
+    categorizedVoices,
     startSpeaking, 
     pauseSpeaking, 
     resumeSpeaking, 
@@ -510,9 +511,12 @@ export default function BookReader({ book, onUpdateProgress, onClose }: BookRead
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-sm opacity-70" style={{ color: textColor }}>声音选择</label>
-                      <span className="text-xs opacity-50" style={{ color: textColor }}>可用声音: {voices.length} 种</span>
+                      <span className="text-xs opacity-50" style={{ color: textColor }}>
+                        中文女声: {categorizedVoices.filter(v => v.category === 'zh-female').length} | 
+                        全部: {voices.length} 种
+                      </span>
                     </div>
-                    <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-xl p-2">
+                    <div className="space-y-2 max-h-64 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-xl p-2">
                       <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
                         <input
                           type="radio"
@@ -525,7 +529,8 @@ export default function BookReader({ book, onUpdateProgress, onClose }: BookRead
                           className="w-4 h-4 text-amber-500"
                         />
                         <div className="flex-1">
-                          <p className="text-sm font-medium" style={{ color: textColor }}>自动选择中文</p>
+                          <p className="text-sm font-medium" style={{ color: textColor }}>🎯 自动选择最优中文女声</p>
+                          <p className="text-xs opacity-50" style={{ color: textColor }}>系统自动选择最佳声音</p>
                         </div>
                         {speechState.selectedVoice === '' && (
                           <button
@@ -540,12 +545,105 @@ export default function BookReader({ book, onUpdateProgress, onClose }: BookRead
                           </button>
                         )}
                       </label>
-                      {voices.map((voice) => (
+                      
+                      {/* 中文女声分组 */}
+                      {categorizedVoices.some(v => v.category === 'zh-female') && (
+                        <div className="mt-2 mb-1">
+                          <div className="text-xs font-semibold px-2 py-1 bg-pink-50 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 rounded-lg mb-2">
+                            👩 中文女声
+                          </div>
+                        </div>
+                      )}
+                      {categorizedVoices.filter(v => v.category === 'zh-female').map((voice) => (
                         <label
                           key={voice.name}
-                          className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
-                            voice.lang.includes('zh') || voice.lang.includes('CN') ? 'hover:bg-gray-50 dark:hover:bg-gray-700' : 'hover:bg-gray-50 dark:hover:bg-gray-700 opacity-60'
-                          }`}
+                          className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors bg-pink-50/50 dark:bg-pink-900/10`}
+                        >
+                          <input
+                            type="radio"
+                            name="voice"
+                            value={voice.name}
+                            checked={speechState.selectedVoice === voice.name}
+                            onChange={() => {
+                              setSelectedVoiceInSpeech(voice.name);
+                            }}
+                            className="w-4 h-4 text-pink-500"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate" style={{ color: textColor }}>{voice.name}</p>
+                            <p className="text-xs opacity-50" style={{ color: textColor }}>{voice.lang}</p>
+                          </div>
+                          <span className="text-xs px-1.5 py-0.5 bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300 rounded">女声</span>
+                          {speechState.selectedVoice === voice.name && (
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                testVoice(voice.name);
+                              }}
+                              className="text-xs px-2 py-1 bg-amber-500/10 text-amber-500 rounded hover:bg-amber-500/20 transition-colors flex-shrink-0"
+                            >
+                              试听
+                            </button>
+                          )}
+                        </label>
+                      ))}
+                      
+                      {/* 中文男声分组 */}
+                      {categorizedVoices.some(v => v.category === 'zh-male') && (
+                        <div className="mt-3 mb-1">
+                          <div className="text-xs font-semibold px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg mb-2">
+                            👨 中文男声
+                          </div>
+                        </div>
+                      )}
+                      {categorizedVoices.filter(v => v.category === 'zh-male').map((voice) => (
+                        <label
+                          key={voice.name}
+                          className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors bg-blue-50/50 dark:bg-blue-900/10`}
+                        >
+                          <input
+                            type="radio"
+                            name="voice"
+                            value={voice.name}
+                            checked={speechState.selectedVoice === voice.name}
+                            onChange={() => {
+                              setSelectedVoiceInSpeech(voice.name);
+                            }}
+                            className="w-4 h-4 text-blue-500"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate" style={{ color: textColor }}>{voice.name}</p>
+                            <p className="text-xs opacity-50" style={{ color: textColor }}>{voice.lang}</p>
+                          </div>
+                          <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded">男声</span>
+                          {speechState.selectedVoice === voice.name && (
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                testVoice(voice.name);
+                              }}
+                              className="text-xs px-2 py-1 bg-amber-500/10 text-amber-500 rounded hover:bg-amber-500/20 transition-colors flex-shrink-0"
+                            >
+                              试听
+                            </button>
+                          )}
+                        </label>
+                      ))}
+                      
+                      {/* 其他中文声音分组 */}
+                      {categorizedVoices.some(v => v.category === 'zh-other') && (
+                        <div className="mt-3 mb-1">
+                          <div className="text-xs font-semibold px-2 py-1 bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg mb-2">
+                            🔊 其他中文声音
+                          </div>
+                        </div>
+                      )}
+                      {categorizedVoices.filter(v => v.category === 'zh-other').map((voice) => (
+                        <label
+                          key={voice.name}
+                          className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors`}
                         >
                           <input
                             type="radio"
@@ -561,9 +659,49 @@ export default function BookReader({ book, onUpdateProgress, onClose }: BookRead
                             <p className="text-sm font-medium truncate" style={{ color: textColor }}>{voice.name}</p>
                             <p className="text-xs opacity-50" style={{ color: textColor }}>{voice.lang}</p>
                           </div>
-                          {(voice.lang.includes('zh') || voice.lang.includes('CN')) && (
-                            <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded">中文</span>
+                          <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded">中文</span>
+                          {speechState.selectedVoice === voice.name && (
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                testVoice(voice.name);
+                              }}
+                              className="text-xs px-2 py-1 bg-amber-500/10 text-amber-500 rounded hover:bg-amber-500/20 transition-colors flex-shrink-0"
+                            >
+                              试听
+                            </button>
                           )}
+                        </label>
+                      ))}
+                      
+                      {/* 其他语言声音 */}
+                      {categorizedVoices.some(v => v.category === 'other') && (
+                        <div className="mt-3 mb-1">
+                          <div className="text-xs font-semibold px-2 py-1 bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 rounded-lg mb-2">
+                            🌍 其他语言
+                          </div>
+                        </div>
+                      )}
+                      {categorizedVoices.filter(v => v.category === 'other').map((voice) => (
+                        <label
+                          key={voice.name}
+                          className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors opacity-60`}
+                        >
+                          <input
+                            type="radio"
+                            name="voice"
+                            value={voice.name}
+                            checked={speechState.selectedVoice === voice.name}
+                            onChange={() => {
+                              setSelectedVoiceInSpeech(voice.name);
+                            }}
+                            className="w-4 h-4 text-gray-400"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate" style={{ color: textColor }}>{voice.name}</p>
+                            <p className="text-xs opacity-50" style={{ color: textColor }}>{voice.lang}</p>
+                          </div>
                           {speechState.selectedVoice === voice.name && (
                             <button
                               onClick={(e) => {

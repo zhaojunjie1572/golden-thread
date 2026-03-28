@@ -749,20 +749,6 @@ export default function BookSourceManager({ onClose, onSelectSource }: BookSourc
           </div>
         </div>
       )}
-
-      {browsingSource && (
-        <BookSourceBrowseView
-          source={browsingSource}
-          onClose={() => setBrowsingSource(null)}
-        />
-      )}
-
-      {debuggingSource && (
-        <BookSourceDebugger
-          source={debuggingSource}
-          onClose={() => setDebuggingSource(null)}
-        />
-      )}
     </div>
   );
 }
