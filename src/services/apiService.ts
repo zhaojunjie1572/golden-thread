@@ -87,10 +87,13 @@ class APIService {
     }
 
     try {
-      const baseUrl = this.config.baseUrl.endsWith('/') 
-        ? this.config.baseUrl.slice(0, -1) 
-        : this.config.baseUrl;
+      // 清理 baseUrl
+      let baseUrl = this.config.baseUrl.trim();
+      while (baseUrl.endsWith('/')) {
+        baseUrl = baseUrl.slice(0, -1);
+      }
       
+      // 尝试多个可能的模型列表端点
       const urls = [
         `${baseUrl}/models`,
         `${baseUrl}/v1/models`,
@@ -154,13 +157,31 @@ class APIService {
     }
   }
 
+  private buildApiUrl(endpoint: string): string {
+    let baseUrl = this.config.baseUrl.trim();
+    
+    // 移除末尾的斜杠
+    while (baseUrl.endsWith('/')) {
+      baseUrl = baseUrl.slice(0, -1);
+    }
+    
+    // 确保 endpoint 以 / 开头
+    const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    
+    return `${baseUrl}${normalizedEndpoint}`;
+  }
+
   async chat(messages: ChatMessage[]): Promise<string> {
     if (!this.hasApiKey()) {
       throw new Error('请先设置API密钥');
     }
 
     try {
-      const response = await fetch(`${this.config.baseUrl}/chat/completions`, {
+      const url = this.buildApiUrl('/chat/completions');
+      console.log('API 请求 URL:', url);
+      console.log('API 请求模型:', this.config.model);
+      
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -178,13 +199,20 @@ class APIService {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || `请求失败: ${response.status}`);
+        const errorText = await response.text().catch(() => '');
+        console.error('API 错误响应:', errorText);
+        let errorMessage = `请求失败: ${response.status}`;
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error?.message || errorMessage;
+        } catch {}
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
       return data.choices[0]?.message?.content || '抱歉，没有收到回复';
     } catch (error) {
+      console.error('API 请求错误:', error);
       if (error instanceof Error) {
         throw error;
       }
@@ -258,7 +286,11 @@ class APIService {
         };
       });
 
-      const response = await fetch(`${this.config.baseUrl}/chat/completions`, {
+      const url = this.buildApiUrl('/chat/completions');
+      console.log('Stream API 请求 URL:', url);
+      console.log('Stream API 请求模型:', this.config.model);
+      
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -275,8 +307,14 @@ class APIService {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || `请求失败: ${response.status}`);
+        const errorText = await response.text().catch(() => '');
+        console.error('Stream API 错误响应:', errorText);
+        let errorMessage = `请求失败: ${response.status}`;
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error?.message || errorMessage;
+        } catch {}
+        throw new Error(errorMessage);
       }
 
       const reader = response.body?.getReader();
