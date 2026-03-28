@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { AgentModule, Workflow, WorkflowInstance, ExecutableTask, AGENT_TEMPLATES, WORKFLOW_TEMPLATES } from '../types/agent';
+import React, { useState, useEffect, useRef } from 'react';
+import { AgentModule, Workflow, WorkflowInstance, ExecutableTask } from '../types/agent';
 import { agentWorkflow } from '../services/agentWorkflowService';
-import { apiService } from '../services/apiService';
 
 interface AgentNode {
   id: string;
@@ -26,7 +25,6 @@ export default function AgentWorkflowView() {
   const [currentInstance, setCurrentInstance] = useState<WorkflowInstance | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [inputText, setInputText] = useState('');
-  const [showAgentSelector, setShowAgentSelector] = useState(false);
   const [showWorkflowBuilder, setShowWorkflowBuilder] = useState(false);
   const [generatedTasks, setGeneratedTasks] = useState<ExecutableTask[]>([]);
   const [activeTab, setActiveTab] = useState<'workflows' | 'agents' | 'history'>('workflows');
@@ -36,7 +34,6 @@ export default function AgentWorkflowView() {
   // 工作流构建器状态
   const [builderNodes, setBuilderNodes] = useState<AgentNode[]>([]);
   const [builderConnections, setBuilderConnections] = useState<Connection[]>([]);
-  const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
   const builderRef = useRef<HTMLDivElement>(null);
@@ -112,7 +109,6 @@ export default function AgentWorkflowView() {
       status: 'idle',
     };
     setBuilderNodes(prev => [...prev, newNode]);
-    setShowAgentSelector(false);
   };
 
   const removeNode = (nodeId: string) => {
@@ -582,7 +578,7 @@ export default function AgentWorkflowView() {
                     : node.status === 'error'
                     ? 'border-red-500 bg-red-50'
                     : 'border-gray-200 bg-white hover:border-golden'
-                } ${selectedNode === node.id ? 'ring-2 ring-golden' : ''} ${
+                } ${
                   isConnecting && connectingFrom === node.id ? 'ring-2 ring-blue-400' : ''
                 }`}
                 style={{ left: node.x, top: node.y }}

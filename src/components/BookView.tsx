@@ -9,7 +9,7 @@ import { BuiltInLibrary } from './BuiltInLibrary';
 import BookBatchManager from './BookBatchManager';
 
 export default function BookView() {
-  const { books, addBook, updateBook, deleteBook, importBookFromFile, isLoading } = useBooks();
+  const { books, updateBook, deleteBook, importBookFromFile, isLoading } = useBooks();
   const { colors } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);

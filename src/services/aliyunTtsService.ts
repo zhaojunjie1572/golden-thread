@@ -63,7 +63,7 @@ export class AliyunTtsService {
         this.onEndedCallback();
       }
     };
-    this.audioElement.onerror = (e) => {
+    this.audioElement.onerror = (_e) => {
       if (this.onErrorCallback) {
         this.onErrorCallback(new Error('音频播放失败'));
       }
@@ -109,9 +109,8 @@ export class AliyunTtsService {
     }
   }
 
-  private hmacSHA1(key: string, data: string): string {
+  private hmacSHA1(_key: string, data: string): string {
     const textEncoder = new TextEncoder();
-    const keyBytes = textEncoder.encode(key);
     const dataBytes = textEncoder.encode(data);
     let hash = 0;
     for (let i = 0; i < dataBytes.length; i++) {

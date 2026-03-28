@@ -79,7 +79,7 @@ export class TtsService {
         this.onEndedCallback();
       }
     };
-    this.audioElement.onerror = (e) => {
+    this.audioElement.onerror = (_e) => {
       this.isPlayingRef = false;
       if (this.currentBlobUrl) {
         URL.revokeObjectURL(this.currentBlobUrl);
@@ -120,7 +120,6 @@ export class TtsService {
     const voices: TtsVoice[] = [];
     
     browserVoices.forEach(voice => {
-      const isChinese = voice.lang.toLowerCase().includes('zh') || voice.lang.toLowerCase().includes('cn');
       voices.push({
         id: voice.name,
         name: voice.name,

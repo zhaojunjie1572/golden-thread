@@ -4,9 +4,8 @@ import {
   loadConfig, 
   saveConfig, 
   synthesizeTextToSpeech, 
-  playAudio,
+  playAudio, 
   speakLongText,
-  speakLongTextBrowser,
   SpeechController
 } from '../services/cloudTtsService';
 

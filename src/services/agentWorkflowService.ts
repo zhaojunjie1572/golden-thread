@@ -1128,7 +1128,7 @@ ${userContext ? `用户背景：${userContext}` : ''}
   static async generateSimulatedFeedback(
     agent: AgentModule,
     output: string,
-    context: WorkflowContext,
+    _context: WorkflowContext,
     persona: TargetPersona,
     iteration: number = 1
   ): Promise<SimulatedFeedback> {
@@ -1213,7 +1213,7 @@ ${output}
 
   static parseFeedbackFromResponse(
     response: string,
-    style: TargetPersona['feedbackStyle']
+    _style: TargetPersona['feedbackStyle']
   ): { summary: string; score: number; concerns: string[]; suggestions: string[] } {
     // 提取评分
     const scoreMatch = response.match(/评分[：:]\s*(\d+)/i);

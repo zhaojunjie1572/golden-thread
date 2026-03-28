@@ -191,9 +191,6 @@ async function synthesizeAliyun(
     throw new Error('请完整填写阿里云配置');
   }
 
-  const url = `https://nls-meta.cn-shanghai.aliyuncs.com/2019-02-28/meta/filelist?Action=CreateToken`;
-  const timestamp = new Date().toISOString();
-  
   const format = 'wav';
   const sampleRate = 16000;
   

@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import { Book } from '../types/book';
-import { useTheme } from '../context/ThemeContext';
 
 interface BookBatchManagerProps {
   books: Book[];
@@ -15,7 +14,6 @@ export default function BookBatchManager({
   onDeleteBooks,
   onExportBooks 
 }: BookBatchManagerProps) {
-  const { colors } = useTheme();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'title' | 'author' | 'addedAt' | 'progress'>('addedAt');

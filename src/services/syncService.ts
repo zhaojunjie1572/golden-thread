@@ -532,40 +532,6 @@ export class SyncService {
   }
 
   /**
-   * 按指定 key 合并数组
-   */
-  private static mergeArrayByKey<T>(
-    current: T[],
-    imported: T[],
-    key: keyof T,
-    stats: { added: number; updated: number; conflicts: number }
-  ): T[] {
-    const map = new Map<string, T>();
-    
-    current.forEach(item => {
-      const keyValue = String(item[key]);
-      if (keyValue) map.set(keyValue, item);
-    });
-
-    imported.forEach(item => {
-      const keyValue = String(item[key]);
-      if (!keyValue) return;
-
-      if (map.has(keyValue)) {
-        stats.conflicts++;
-        // 保留导入的（假设更新）
-        map.set(keyValue, item);
-        stats.updated++;
-      } else {
-        map.set(keyValue, item);
-        stats.added++;
-      }
-    });
-
-    return Array.from(map.values());
-  }
-
-  /**
    * 合并智库模块消息
    */
   private static mergeModuleMessages(
