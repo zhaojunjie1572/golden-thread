@@ -26,8 +26,18 @@ export interface CloudTtsConfig {
 
 const STORAGE_KEY = 'cloud-tts-config';
 
-// 最大文本长度限制（URL 安全长度，约 1800 字符以留有余量）
-const MAX_TEXT_LENGTH = 1800;
+// 最大文本长度限制 - 手机端需要更小的分段以确保稳定性
+const MAX_TEXT_LENGTH = 800;
+
+// 移动端检测
+function isMobileDevice(): boolean {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+// 根据设备类型获取合适的文本长度限制
+function getMaxTextLength(): number {
+  return isMobileDevice() ? 400 : MAX_TEXT_LENGTH;
+}
 
 export const EDGE_TTS_VOICES = [
   { id: 'zh-CN-XiaoxiaoNeural', name: '晓晓', desc: '温柔女声', gender: 'female' as const },
@@ -86,9 +96,12 @@ export function loadConfig(): CloudTtsConfig {
 /**
  * 智能分割文本为适合朗读的段落
  * 优先按句子分割，如果句子太长则按逗号、顿号分割
+ * 手机端使用更小的分段以确保稳定性
  */
-export function splitTextForSpeech(text: string, maxLength: number = MAX_TEXT_LENGTH): string[] {
-  if (text.length <= maxLength) {
+export function splitTextForSpeech(text: string, maxLength?: number): string[] {
+  const effectiveMaxLength = maxLength || getMaxTextLength();
+  
+  if (text.length <= effectiveMaxLength) {
     return [text];
   }
 
@@ -104,7 +117,7 @@ export function splitTextForSpeech(text: string, maxLength: number = MAX_TEXT_LE
     if (!sentence) continue;
 
     // 如果当前句子本身超过最大长度，需要进一步分割
-    if (sentence.length > maxLength) {
+    if (sentence.length > effectiveMaxLength) {
       // 先保存当前累积的段落
       if (currentSegment.trim()) {
         segments.push(currentSegment.trim());
@@ -118,7 +131,7 @@ export function splitTextForSpeech(text: string, maxLength: number = MAX_TEXT_LE
       for (const sub of subSentences) {
         if (!sub) continue;
 
-        if ((tempSegment + sub).length > maxLength) {
+        if ((tempSegment + sub).length > effectiveMaxLength) {
           if (tempSegment.trim()) {
             segments.push(tempSegment.trim());
           }
@@ -133,7 +146,7 @@ export function splitTextForSpeech(text: string, maxLength: number = MAX_TEXT_LE
       }
     } else {
       // 检查加入当前句子后是否超过最大长度
-      if ((currentSegment + sentence).length > maxLength) {
+      if ((currentSegment + sentence).length > effectiveMaxLength) {
         if (currentSegment.trim()) {
           segments.push(currentSegment.trim());
         }
@@ -340,6 +353,11 @@ export interface SpeechController {
 
 /**
  * 朗读长文本（云 TTS 版本）
+ * 修复手机端截断问题：
+ * 1. 取消预加载机制，改为按需加载
+ * 2. 添加播放锁防止并发问题
+ * 3. 优化音频资源管理
+ * 4. 添加更详细的错误处理
  */
 export async function speakLongText(
   text: string,
@@ -364,92 +382,128 @@ export async function speakLongText(
   let isPlaying = false;
   let isPaused = false;
   let currentAudio: HTMLAudioElement | null = null;
-  let audioUrls: string[] = [];
+  let playLock = false; // 播放锁，防止并发问题
 
-  // 预合成所有音频段
-  const preloadAudios = async () => {
-    try {
-      for (let i = 0; i < segments.length; i++) {
-        if (!isPlaying && !isPaused) return; // 如果被停止则取消预加载
-
-        const blob = await synthesizeTextToSpeech(segments[i], config, { rate, pitch });
-        const url = URL.createObjectURL(blob);
-        audioUrls.push(url);
-      }
-    } catch (error) {
-      options.onError?.(error instanceof Error ? error : new Error('预加载音频失败'));
+  // 清理当前音频资源
+  const cleanupCurrentAudio = () => {
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.src = '';
+      currentAudio = null;
     }
   };
 
-  const playNext = async () => {
-    if (currentIndex >= segments.length || !isPlaying) {
-      isPlaying = false;
-      options.onEnded?.();
-      return;
+  // 播放单个段落
+  const playSegment = async (index: number): Promise<boolean> => {
+    if (index >= segments.length || !isPlaying) {
+      return false;
     }
 
-    options.onProgress?.(currentIndex + 1, segments.length);
+    // 获取播放锁
+    if (playLock) {
+      console.log('播放被锁定，等待...');
+      return false;
+    }
+    playLock = true;
 
     try {
-      // 如果该段音频还没预加载，先合成
-      if (!audioUrls[currentIndex]) {
-        const blob = await synthesizeTextToSpeech(segments[currentIndex], config, { rate, pitch });
-        audioUrls[currentIndex] = URL.createObjectURL(blob);
+      options.onProgress?.(index + 1, segments.length);
+
+      // 合成音频
+      const blob = await synthesizeTextToSpeech(segments[index], config, { rate, pitch });
+      
+      if (!isPlaying) {
+        return false;
       }
 
-      const audio = new Audio(audioUrls[currentIndex]);
+      // 清理之前的音频
+      cleanupCurrentAudio();
+
+      // 创建新的音频对象
+      const audioUrl = URL.createObjectURL(blob);
+      const audio = new Audio(audioUrl);
       currentAudio = audio;
       audio.volume = volume;
 
-      audio.onended = () => {
-        currentIndex++;
-        if (isPlaying && !isPaused) {
-          playNext();
-        }
-      };
+      // 等待音频播放完成
+      await new Promise<void>((resolve, reject) => {
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+          resolve();
+        };
 
-      audio.onerror = () => {
-        options.onError?.(new Error(`音频播放失败: 第 ${currentIndex + 1} 段`));
-        currentIndex++;
-        if (isPlaying && !isPaused) {
-          playNext();
-        }
-      };
+        audio.onerror = () => {
+          URL.revokeObjectURL(audioUrl);
+          reject(new Error(`音频播放失败: 第 ${index + 1} 段`));
+        };
 
-      await audio.play();
+        // 手机端需要主动解锁音频上下文
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            URL.revokeObjectURL(audioUrl);
+            reject(error);
+          });
+        }
+      });
+
+      playLock = false;
+      return true;
     } catch (error) {
-      options.onError?.(error instanceof Error ? error : new Error('播放音频失败'));
+      playLock = false;
+      console.error(`播放第 ${index + 1} 段失败:`, error);
+      options.onError?.(error instanceof Error ? error : new Error('播放失败'));
+      return false;
+    }
+  };
+
+  // 顺序播放所有段落
+  const playNext = async () => {
+    while (currentIndex < segments.length && isPlaying && !isPaused) {
+      const success = await playSegment(currentIndex);
+      if (!success || !isPlaying) {
+        break;
+      }
+      currentIndex++;
+    }
+
+    // 播放完成或停止
+    if (currentIndex >= segments.length || !isPlaying) {
       isPlaying = false;
+      cleanupCurrentAudio();
+      options.onEnded?.();
     }
   };
 
   const controller: SpeechController = {
     play: () => {
       if (isPaused && currentAudio) {
-        currentAudio.play();
+        // 恢复暂停的音频
+        currentAudio.play().catch(error => {
+          console.error('恢复播放失败:', error);
+          options.onError?.(error);
+        });
         isPaused = false;
         isPlaying = true;
       } else if (!isPlaying) {
+        // 开始新播放
         isPlaying = true;
         isPaused = false;
         playNext();
-        // 开始预加载剩余音频
-        preloadAudios();
       }
     },
     pause: () => {
-      isPaused = true;
-      currentAudio?.pause();
+      if (isPlaying && !isPaused) {
+        isPaused = true;
+        currentAudio?.pause();
+      }
     },
     stop: () => {
       isPlaying = false;
       isPaused = false;
-      currentAudio?.pause();
-      currentAudio = null;
+      cleanupCurrentAudio();
       currentIndex = 0;
-      // 清理所有音频 URL
-      audioUrls.forEach(url => URL.revokeObjectURL(url));
-      audioUrls = [];
+      playLock = false;
     }
   };
 
@@ -458,6 +512,7 @@ export async function speakLongText(
 
 /**
  * 朗读长文本（浏览器 TTS 版本）
+ * 修复手机端截断问题
  */
 export function speakLongTextBrowser(
   text: string,
@@ -475,7 +530,9 @@ export function speakLongTextBrowser(
     throw new Error('浏览器不支持语音合成');
   }
 
-  const segments = splitTextForSpeech(text, 300); // 浏览器 TTS 可以处理更长的段落
+  // 手机端使用更小的分段
+  const segmentSize = isMobileDevice() ? 150 : 300;
+  const segments = splitTextForSpeech(text, segmentSize);
   const { rate = 1, pitch = 1, volume = 1, voice } = options;
 
   let currentIndex = 0;
@@ -504,21 +561,42 @@ export function speakLongTextBrowser(
     utterance.onend = () => {
       currentIndex++;
       if (isPlaying && !isPaused) {
-        playNext();
+        // 添加小延迟，避免手机端连续播放问题
+        setTimeout(() => {
+          if (isPlaying && !isPaused) {
+            playNext();
+          }
+        }, isMobileDevice() ? 100 : 50);
       }
     };
 
     utterance.onerror = (event) => {
       if (event.error !== 'canceled') {
+        console.error('语音合成错误:', event.error);
         options.onError?.(new Error(`语音合成错误: ${event.error}`));
       }
       currentIndex++;
       if (isPlaying && !isPaused) {
-        playNext();
+        setTimeout(() => {
+          if (isPlaying && !isPaused) {
+            playNext();
+          }
+        }, isMobileDevice() ? 100 : 50);
       }
     };
 
-    window.speechSynthesis.speak(utterance);
+    // 手机端需要额外的错误处理
+    try {
+      window.speechSynthesis.cancel(); // 先取消之前的
+      setTimeout(() => {
+        if (isPlaying && !isPaused) {
+          window.speechSynthesis.speak(utterance);
+        }
+      }, isMobileDevice() ? 50 : 0);
+    } catch (error) {
+      console.error('启动语音合成失败:', error);
+      options.onError?.(error instanceof Error ? error : new Error('启动失败'));
+    }
   };
 
   const controller: SpeechController = {
