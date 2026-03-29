@@ -195,8 +195,8 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const getSelectedVoice = useCallback(() => {
-    // 如果用户在 AI 助手中手动选择了语音，优先使用用户选择的
-    if (speechState.selectedVoice !== '') {
+    // 如果开启了使用系统默认语音，优先使用用户在 AI 助手中选择的语音
+    if (speechState.cloudTtsConfig.useSystemVoice !== false && speechState.selectedVoice !== '') {
       const selectedVoice = voices.find(v => v.name === speechState.selectedVoice);
       if (selectedVoice) {
         return selectedVoice;
@@ -244,7 +244,7 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
       return voices[0];
     }
     return null;
-  }, [speechState.selectedVoice, voices]);
+  }, [speechState.selectedVoice, speechState.cloudTtsConfig.useSystemVoice, voices]);
 
   const speakParagraph = useCallback((text: string, index?: number) => {
     const synth = window.speechSynthesis;
