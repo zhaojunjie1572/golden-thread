@@ -14,15 +14,11 @@ export default function TtsSettingsPage() {
   const { colors } = useTheme();
   const { 
     speechState, 
-    voices,
-    categorizedVoices,
-    setSelectedVoice: setSelectedVoiceInSpeech,
     setSpeechRate,
     setVolume,
     setPitch,
     setRemovePunctuation,
     setCloudTtsConfig,
-    testVoice,
     testCloudTts
   } = useSpeech();
 
@@ -44,19 +40,7 @@ export default function TtsSettingsPage() {
     }
   }, [config.engine, config.useEdgeTts]);
 
-  // 调试日志
-  useEffect(() => {
-    console.log('TTS 设置页面状态:', {
-      engine: config.engine,
-      useEdgeTts: config.useEdgeTts,
-      useSystemVoice: config.useSystemVoice,
-      showVoiceSelection: config.engine === 'browser' && config.useEdgeTts !== true && config.useSystemVoice === false,
-      voicesCount: voices.length,
-      categorizedVoicesCount: categorizedVoices.length
-    });
-    console.log('voices:', voices.slice(0, 5));
-    console.log('categorizedVoices:', categorizedVoices.slice(0, 5));
-  }, [config, voices, categorizedVoices]);
+
 
   const handleSaveConfig = () => {
     setCloudTtsConfig(config);
@@ -81,28 +65,7 @@ export default function TtsSettingsPage() {
     }
   };
 
-  const handleTestVoice = async (voiceName: string) => {
-    setTestStatus('testing');
-    setTestMessage('正在测试...');
-    
-    try {
-      if (config.engine === 'browser') {
-        testVoice(voiceName);
-      } else {
-        await testCloudTts(config, '你好，这是测试语音');
-      }
-      setTestStatus('success');
-      setTestMessage('测试成功！');
-      
-      setTimeout(() => {
-        setTestStatus('idle');
-        setTestMessage('');
-      }, 2000);
-    } catch (error) {
-      setTestStatus('error');
-      setTestMessage(error instanceof Error ? error.message : '测试失败');
-    }
-  };
+
 
   return (
     <div className="min-h-screen">
@@ -174,16 +137,17 @@ export default function TtsSettingsPage() {
                 <label className="flex items-center justify-between cursor-pointer">
                   <div>
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">使用系统默认语音</span>
-                    <p className="text-xs text-gray-500 mt-0.5">开启时使用在 AI 助手中选择的声音，关闭时可手动选择特定声音</p>
+                    <p className="text-xs text-gray-500 mt-0.5">使用 AI 助手中选择的声音</p>
                   </div>
                   <div className="relative">
                     <input
                       type="checkbox"
-                      checked={config.useSystemVoice !== false}
-                      onChange={(e) => setConfig({ ...config, useSystemVoice: e.target.checked })}
+                      checked={true}
+                      disabled
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-amber-300 dark:peer-focus:ring-amber-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-amber-500"></div>
+                    <div className="w-11 h-6 bg-amber-500 rounded-full peer"></div>
+                    <div className="absolute top-[2px] left-[2px] bg-white border border-gray-300 dark:border-gray-600 rounded-full h-5 w-5 transition-all transform translate-x-5"></div>
                   </div>
                 </label>
               </div>
@@ -575,130 +539,7 @@ export default function TtsSettingsPage() {
             </div>
           </div>
 
-          {config.engine === 'browser' && config.useEdgeTts !== true && config.useSystemVoice === false && (
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">声音选择</h2>
-                <span className="text-xs text-gray-500">
-                  中文女声: {categorizedVoices.filter(v => v.category === 'zh-female').length} | 
-                  全部: {voices.length} 种
-                </span>
-              </div>
-              
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                <label className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors">
-                  <input
-                    type="radio"
-                    name="voice"
-                    value=""
-                    checked={speechState.selectedVoice === ''}
-                    onChange={() => setSelectedVoiceInSpeech('')}
-                    className="w-4 h-4 text-amber-500"
-                  />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">🎯 自动选择最优中文女声</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">系统自动选择最佳声音</p>
-                  </div>
-                  {speechState.selectedVoice === '' && (
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleTestVoice('');
-                      }}
-                      className="text-xs px-3 py-1.5 bg-amber-500/10 text-amber-500 rounded-lg hover:bg-amber-500/20 transition-colors"
-                    >
-                      试听
-                    </button>
-                  )}
-                </label>
 
-                {categorizedVoices.some(v => v.category === 'zh-female') && (
-                  <div className="mt-4 mb-2">
-                    <div className="text-xs font-semibold px-2 py-1 bg-pink-50 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 rounded-lg">
-                      👩 中文女声
-                    </div>
-                  </div>
-                )}
-                {categorizedVoices.filter(v => v.category === 'zh-female').map((voice) => (
-                  <label
-                    key={voice.name}
-                    className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors bg-pink-50/50 dark:bg-pink-900/10"
-                  >
-                    <input
-                      type="radio"
-                      name="voice"
-                      value={voice.name}
-                      checked={speechState.selectedVoice === voice.name}
-                      onChange={() => setSelectedVoiceInSpeech(voice.name)}
-                      className="w-4 h-4 text-pink-500"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{voice.name}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{voice.lang}</p>
-                    </div>
-                    <span className="text-xs px-2 py-1 bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300 rounded-full">
-                      中文
-                    </span>
-                    {speechState.selectedVoice === voice.name && (
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleTestVoice(voice.name);
-                        }}
-                        className="text-xs px-3 py-1.5 bg-amber-500/10 text-amber-500 rounded-lg hover:bg-amber-500/20 transition-colors flex-shrink-0"
-                      >
-                        试听
-                      </button>
-                    )}
-                  </label>
-                ))}
-
-                {categorizedVoices.some(v => v.category === 'zh-male') && (
-                  <div className="mt-4 mb-2">
-                    <div className="text-xs font-semibold px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg">
-                      👨 中文男声
-                    </div>
-                  </div>
-                )}
-                {categorizedVoices.filter(v => v.category === 'zh-male').map((voice) => (
-                  <label
-                    key={voice.name}
-                    className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors bg-blue-50/50 dark:bg-blue-900/10"
-                  >
-                    <input
-                      type="radio"
-                      name="voice"
-                      value={voice.name}
-                      checked={speechState.selectedVoice === voice.name}
-                      onChange={() => setSelectedVoiceInSpeech(voice.name)}
-                      className="w-4 h-4 text-blue-500"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{voice.name}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{voice.lang}</p>
-                    </div>
-                    <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded-full">
-                      中文
-                    </span>
-                    {speechState.selectedVoice === voice.name && (
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleTestVoice(voice.name);
-                        }}
-                        className="text-xs px-3 py-1.5 bg-amber-500/10 text-amber-500 rounded-lg hover:bg-amber-500/20 transition-colors flex-shrink-0"
-                      >
-                        试听
-                      </button>
-                    )}
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
 
           <div className="flex gap-3">
             <button

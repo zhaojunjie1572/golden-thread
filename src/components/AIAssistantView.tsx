@@ -515,8 +515,63 @@ export default function AIAssistantView() {
     }
   };
 
-  const fallbackToBrowserTTS = (text: string) => {
+  const fallbackToBrowserTTS = async (text: string) => {
     console.log('AI 助手开始朗读:', text.substring(0, 50) + '...');
+    
+    // 先检查是否使用 Edge TTS 开关
+    const useEdgeTts = speechState.cloudTtsConfig.useEdgeTts === true;
+    
+    if (useEdgeTts) {
+      console.log('AI 助手回退时使用 Edge TTS 开关');
+      try {
+        const effectiveConfig = { ...speechState.cloudTtsConfig, engine: 'edge-tts' };
+        const blob = await synthesizeTextToSpeech(text, effectiveConfig, {
+          rate: speechState.speechRate,
+          pitch: speechState.pitch
+        });
+        
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        
+        audio.onended = () => {
+          console.log('AI 助手回退 Edge TTS 播放结束');
+          setSpeakingId(null);
+          setIsPaused(false);
+          URL.revokeObjectURL(url);
+          audioRef.current = null;
+        };
+        
+        audio.onerror = (e) => {
+          console.error('AI 助手回退 Edge TTS 播放错误:', e);
+          setSpeakingId(null);
+          setIsPaused(false);
+          URL.revokeObjectURL(url);
+          audioRef.current = null;
+        };
+        
+        setTimeout(async () => {
+          try {
+            await audio.play();
+          } catch (playError) {
+            console.error('AI 助手回退 Edge TTS 播放失败:', playError);
+            // 如果 Edge TTS 也失败了，才真的回退到浏览器 TTS
+            speakWithBrowserTTS(text);
+          }
+        }, 100);
+        return;
+      } catch (error) {
+        console.error('AI 助手回退 Edge TTS 错误:', error);
+        // 如果 Edge TTS 失败了，才真的回退到浏览器 TTS
+      }
+    }
+    
+    // 如果没有开启 Edge TTS 或 Edge TTS 失败，使用浏览器原生 TTS
+    speakWithBrowserTTS(text);
+  };
+  
+  const speakWithBrowserTTS = (text: string) => {
+    console.log('AI 助手使用浏览器 TTS 朗读:', text.substring(0, 50) + '...');
     
     // 先取消之前的朗读
     speechSynthesis.cancel();
@@ -527,36 +582,19 @@ export default function AIAssistantView() {
     utterance.volume = speechState.volume;
     utterance.pitch = speechState.pitch;
 
-    // 根据配置选择语音
-    if (speechState.cloudTtsConfig.useSystemVoice === true) {
-      // 当选择"使用系统声音"时，优先使用用户在 AI 助手中选择的声音
-      if (speechState.selectedVoice) {
-        const voice = voices.find(v => v.name === speechState.selectedVoice);
-        if (voice) {
-          console.log('AI 助手使用用户选择的语音:', voice.name);
-          utterance.voice = voice;
-        }
-      } else {
-        // 如果没有选择，则使用系统默认语音
-        const defaultVoice = voices.find(v => v.default);
-        if (defaultVoice) {
-          console.log('AI 助手使用系统默认语音:', defaultVoice.name);
-          utterance.voice = defaultVoice;
-        }
-      }
-    } else if (speechState.selectedVoice) {
-      // 使用用户手动选择的语音
+    // 优先使用用户在 AI 助手中选择的声音
+    if (speechState.selectedVoice) {
       const voice = voices.find(v => v.name === speechState.selectedVoice);
       if (voice) {
-        console.log('AI 助手使用选定语音:', voice.name);
+        console.log('AI 助手使用用户选择的语音:', voice.name);
         utterance.voice = voice;
       }
     } else {
-      // 自动选择中文语音
-      const chineseVoice = voices.find(v => v.lang.includes('zh') || v.lang.includes('CN'));
-      if (chineseVoice) {
-        console.log('AI 助手使用中文语音:', chineseVoice.name);
-        utterance.voice = chineseVoice;
+      // 如果没有选择，则使用系统默认语音
+      const defaultVoice = voices.find(v => v.default);
+      if (defaultVoice) {
+        console.log('AI 助手使用系统默认语音:', defaultVoice.name);
+        utterance.voice = defaultVoice;
       }
     }
 
