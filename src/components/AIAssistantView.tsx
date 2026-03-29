@@ -527,15 +527,16 @@ export default function AIAssistantView() {
     utterance.volume = speechState.volume;
     utterance.pitch = speechState.pitch;
 
-    // 如果启用了系统默认语音，优先使用系统默认
-    if (speechState.cloudTtsConfig.useSystemVoice !== false) {
+    // 根据配置选择语音
+    if (speechState.cloudTtsConfig.useSystemVoice === true) {
+      // 使用系统默认语音
       const defaultVoice = voices.find(v => v.default);
       if (defaultVoice) {
         console.log('AI 助手使用系统默认语音:', defaultVoice.name);
         utterance.voice = defaultVoice;
       }
     } else if (speechState.selectedVoice) {
-      // 手动选择语音模式
+      // 使用用户手动选择的语音
       const voice = voices.find(v => v.name === speechState.selectedVoice);
       if (voice) {
         console.log('AI 助手使用选定语音:', voice.name);

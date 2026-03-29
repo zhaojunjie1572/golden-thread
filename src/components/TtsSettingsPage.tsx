@@ -37,6 +37,13 @@ export default function TtsSettingsPage() {
     setConfig(speechState.cloudTtsConfig);
   }, [speechState.cloudTtsConfig]);
 
+  // 当在浏览器引擎下开启 Edge TTS 开关时，自动展开 Edge TTS 配置
+  useEffect(() => {
+    if (config.engine === 'browser' && config.useEdgeTts === true) {
+      setShowEdgeTts(true);
+    }
+  }, [config.engine, config.useEdgeTts]);
+
   const handleSaveConfig = () => {
     setCloudTtsConfig(config);
   };
@@ -276,7 +283,7 @@ export default function TtsSettingsPage() {
             </div>
           )}
 
-          {config.engine === 'edge-tts' && (
+          {(config.engine === 'edge-tts' || (config.engine === 'browser' && config.useEdgeTts === true)) && (
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Edge TTS 配置</h2>
@@ -554,7 +561,7 @@ export default function TtsSettingsPage() {
             </div>
           </div>
 
-          {config.engine === 'browser' && config.useSystemVoice === false && (
+          {config.engine === 'browser' && config.useEdgeTts !== true && config.useSystemVoice === false && (
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">声音选择</h2>
