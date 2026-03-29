@@ -44,6 +44,20 @@ export default function TtsSettingsPage() {
     }
   }, [config.engine, config.useEdgeTts]);
 
+  // 调试日志
+  useEffect(() => {
+    console.log('TTS 设置页面状态:', {
+      engine: config.engine,
+      useEdgeTts: config.useEdgeTts,
+      useSystemVoice: config.useSystemVoice,
+      showVoiceSelection: config.engine === 'browser' && config.useEdgeTts !== true && config.useSystemVoice === false,
+      voicesCount: voices.length,
+      categorizedVoicesCount: categorizedVoices.length
+    });
+    console.log('voices:', voices.slice(0, 5));
+    console.log('categorizedVoices:', categorizedVoices.slice(0, 5));
+  }, [config, voices, categorizedVoices]);
+
   const handleSaveConfig = () => {
     setCloudTtsConfig(config);
   };

@@ -72,7 +72,8 @@ export const ALIYUN_VOICES = [
 export function getDefaultConfig(): CloudTtsConfig {
   return {
     engine: 'browser',
-    useEdgeTts: false
+    useEdgeTts: false,
+    useSystemVoice: true
   };
 }
 
