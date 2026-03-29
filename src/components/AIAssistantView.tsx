@@ -586,15 +586,23 @@ export default function AIAssistantView() {
     if (speechState.selectedVoice) {
       const voice = voices.find(v => v.name === speechState.selectedVoice);
       if (voice) {
-        console.log('AI 助手使用用户选择的语音:', voice.name);
-        utterance.voice = voice;
+        try {
+          console.log('AI 助手使用用户选择的语音:', voice.name);
+          utterance.voice = voice;
+        } catch (error) {
+          console.warn('AI 助手设置语音时出错:', error);
+        }
       }
     } else {
       // 如果没有选择，则使用系统默认语音
       const defaultVoice = voices.find(v => v.default);
       if (defaultVoice) {
-        console.log('AI 助手使用系统默认语音:', defaultVoice.name);
-        utterance.voice = defaultVoice;
+        try {
+          console.log('AI 助手使用系统默认语音:', defaultVoice.name);
+          utterance.voice = defaultVoice;
+        } catch (error) {
+          console.warn('AI 助手设置系统默认语音时出错:', error);
+        }
       }
     }
 

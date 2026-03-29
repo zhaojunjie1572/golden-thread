@@ -202,13 +202,32 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // 否则，自动选择最优中文女声
-    const zhFemaleVoices = categorizedVoices.filter(v => v.category === 'zh-female');
+    // 否则，自动选择最优中文女声（从原始 voices 数组中获取）
+    const zhFemaleVoices = voices.filter(v => {
+      const lang = v.lang.toLowerCase();
+      const name = v.name.toLowerCase();
+      const isChinese = lang.includes('zh') || lang.includes('cn') || lang.includes('cmn');
+      const isFemale = [
+        'female', '女', 'xiaoxiao', 'xiaoyi', 'xiaomei', 'xiaofang', 
+        'huihui', 'tiantian', 'siri', 'google 普通话', 'microsoft yaoyao',
+        'microsoft xiaoxiao', 'xiaoxiao', 'xiaoni', 'xiaohan', 'xiaomeng',
+        'xiaoxuan', 'xiaoyan', 'xiaolin', 'xiaoling', 'xiaoxia',
+        'alice', 'victoria', 'samantha', 'tessa', 'serena',
+        'ting-ting', 'mei-jia', 'sin-ji', 'google 台灣國語'
+      ].some(keyword => name.includes(keyword));
+      return isChinese && isFemale;
+    });
+    
     if (zhFemaleVoices.length > 0) {
       return zhFemaleVoices[0];
     }
     
-    const zhVoices = categorizedVoices.filter(v => v.category.startsWith('zh'));
+    // 尝试其他中文语音
+    const zhVoices = voices.filter(v => {
+      const lang = v.lang.toLowerCase();
+      return lang.includes('zh') || lang.includes('cn') || lang.includes('cmn');
+    });
+    
     if (zhVoices.length > 0) {
       return zhVoices[0];
     }
@@ -224,7 +243,7 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
       return voices[0];
     }
     return null;
-  }, [speechState.selectedVoice, voices, categorizedVoices]);
+  }, [speechState.selectedVoice, voices]);
 
   const speakParagraph = useCallback((text: string, index?: number) => {
     const synth = window.speechSynthesis;
@@ -257,8 +276,13 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
 
     const voice = getSelectedVoice();
     if (voice) {
-      console.log('使用语音:', voice.name);
-      utterance.voice = voice;
+      try {
+        console.log('使用语音:', voice.name);
+        utterance.voice = voice;
+      } catch (error) {
+        console.warn('设置语音时出错，使用默认语言设置:', error);
+        // 如果设置 voice 失败，不设置 voice，让浏览器使用默认
+      }
     } else {
       console.warn('没有找到合适的语音');
     }
