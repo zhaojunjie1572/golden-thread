@@ -69,7 +69,8 @@ const initialSpeechState: SpeechState = {
 const SpeechContext = createContext<SpeechContextType | undefined>(undefined);
 
 function removePunctuationMarks(text: string): string {
-  const punctuationMarks = /[\u3000-\u303F\uFF00-\uFFEF\u2000-\u206F\u0021-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E\u20A0-\u20CF\u2190-\u21FF\u27F0-\u27FF\u2900-\u297F\u2600-\u26FF\u2700-\u27BF\u1F300-\u1F5FF\u1F600-\u1F64F\u1F680-\u1F6FF\u1F900-\u1F9FF\u2500-\u257F\u2580-\u259F\uE000-\uF8FF]+/gu;
+  // 只移除常见标点符号，保留数字、英文和中文
+  const punctuationMarks = /[，。！？、；：""''（）【】《》「」『』.,!?;:"'()\[\]{}<>]+/g;
   let cleaned = text.replace(punctuationMarks, ' ');
   cleaned = cleaned.replace(/\s+/g, ' ').trim();
   return cleaned;
