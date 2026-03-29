@@ -70,7 +70,7 @@ const SpeechContext = createContext<SpeechContextType | undefined>(undefined);
 
 function removePunctuationMarks(text: string): string {
   // 只移除常见标点符号，保留数字、英文和中文
-  const punctuationMarks = /[，。！？、；：""''（）【】《》「」『』.,!?;:"'()\[\]{}<>]+/g;
+  const punctuationMarks = /[，。！？、；：""''（）【】《》「」『』.,!?;:"'()\[\]{}<>*]+/g;
   let cleaned = text.replace(punctuationMarks, ' ');
   cleaned = cleaned.replace(/\s+/g, ' ').trim();
   return cleaned;

@@ -8,7 +8,7 @@ import { synthesizeTextToSpeech } from '../services/cloudTtsService';
 // 去除标点符号，保留重要的停顿标点
 function removePunctuationMarks(text: string): string {
   // 只移除常见标点符号，保留数字、英文和中文
-  const punctuationMarks = /[，。！？、；：""''（）【】《》「」『』.,!?;:"'()\[\]{}<>]+/g;
+  const punctuationMarks = /[，。！？、；：""''（）【】《》「」『』.,!?;:"'()\[\]{}<>*]+/g;
   let cleaned = text.replace(punctuationMarks, ' ');
   cleaned = cleaned.replace(/\s+/g, ' ').trim();
   return cleaned;
