@@ -160,7 +160,7 @@ export default function TtsSettingsPage() {
                 <label className="flex items-center justify-between cursor-pointer">
                   <div>
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">使用系统默认语音</span>
-                    <p className="text-xs text-gray-500 mt-0.5">关闭时可手动选择特定声音</p>
+                    <p className="text-xs text-gray-500 mt-0.5">开启时使用在 AI 助手中选择的声音，关闭时可手动选择特定声音</p>
                   </div>
                   <div className="relative">
                     <input
