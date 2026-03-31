@@ -296,7 +296,8 @@ export default function AIAssistantView() {
   };
 
   const handleFetchModels = async () => {
-    if (!apiService.hasApiKey()) {
+    // 反代服务不需要 API 密钥
+    if (!apiService.hasApiKey() && apiConfig.provider !== 'proxy') {
       setModelFetchError('请先设置API密钥');
       return;
     }
@@ -1505,11 +1506,20 @@ export default function AIAssistantView() {
                   <select
                     value={apiConfig.provider}
                     onChange={(e) => {
-                      const provider = e.target.value as 'deepseek' | 'custom';
+                      const provider = e.target.value as 'deepseek' | 'custom' | 'google' | 'websocket' | 'proxy';
                       let newConfig = { ...apiConfig, provider };
                       if (provider === 'deepseek') {
                         newConfig.baseUrl = 'https://api.deepseek.com/v1';
                         newConfig.model = 'deepseek-chat';
+                      } else if (provider === 'google') {
+                        newConfig.baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
+                        newConfig.model = 'gemini-2.0-flash';
+                      } else if (provider === 'websocket') {
+                        newConfig.baseUrl = 'ws://127.0.0.1:9998';
+                        newConfig.model = '';
+                      } else if (provider === 'proxy') {
+                        newConfig.baseUrl = 'http://127.0.0.1:8889';
+                        newConfig.model = 'gemini-2.0-flash';
                       } else if (provider === 'custom') {
                         newConfig.baseUrl = '';
                         newConfig.model = '';
@@ -1520,29 +1530,70 @@ export default function AIAssistantView() {
                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none"
                   >
                     <option value="deepseek">DeepSeek</option>
+                    <option value="google">Google AI Studio (Gemini)</option>
+                    <option value="proxy">本地 HTTP 反代服务</option>
+                    <option value="websocket">本地 WebSocket 服务</option>
                     <option value="custom">自定义 (兼容 OpenAI 格式)</option>
                   </select>
                 </div>
 
-                <div>
-                  <label className="text-sm text-gray-500 mb-2 block">API 密钥</label>
-                  <input
-                    type="password"
-                    value={apiConfig.apiKey}
-                    onChange={(e) => setApiConfig({ ...apiConfig, apiKey: e.target.value })}
-                    placeholder={apiConfig.provider === 'deepseek' ? 'sk-xxxxxxxxxxxxxxxxxxxxxxxx' : '输入 API 密钥'}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none"
-                  />
-                </div>
-
-                {apiConfig.provider === 'custom' && (
+                {apiConfig.provider !== 'websocket' && apiConfig.provider !== 'proxy' && (
                   <div>
-                    <label className="text-sm text-gray-500 mb-2 block">API 基础 URL</label>
+                    <label className="text-sm text-gray-500 mb-2 block">API 密钥</label>
+                    <input
+                      type="password"
+                      value={apiConfig.apiKey}
+                      onChange={(e) => setApiConfig({ ...apiConfig, apiKey: e.target.value })}
+                      placeholder={
+                        apiConfig.provider === 'deepseek' 
+                          ? 'sk-xxxxxxxxxxxxxxxxxxxxxxxx' 
+                          : apiConfig.provider === 'google'
+                          ? 'AIzaSy...'
+                          : '输入 API 密钥'
+                      }
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none"
+                    />
+                  </div>
+                )}
+
+                {(apiConfig.provider === 'custom' || apiConfig.provider === 'websocket' || apiConfig.provider === 'proxy') && (
+                  <div>
+                    <label className="text-sm text-gray-500 mb-2 block">
+                      {apiConfig.provider === 'websocket' 
+                        ? 'WebSocket 服务地址' 
+                        : apiConfig.provider === 'proxy'
+                        ? '反代服务器 URL'
+                        : 'API 基础 URL'}
+                    </label>
                     <input
                       type="text"
                       value={apiConfig.baseUrl}
                       onChange={(e) => setApiConfig({ ...apiConfig, baseUrl: e.target.value })}
-                      placeholder="https://api.example.com/v1"
+                      placeholder={
+                        apiConfig.provider === 'websocket' 
+                          ? 'ws://127.0.0.1:9998' 
+                          : apiConfig.provider === 'proxy'
+                          ? 'http://127.0.0.1:8889'
+                          : 'https://api.example.com/v1'
+                      }
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none"
+                    />
+                    {apiConfig.provider === 'proxy' && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        支持 /v1/chat/completions 端点的反代服务，如 SillyTavern 兼容的反代
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {apiConfig.provider === 'proxy' && (
+                  <div>
+                    <label className="text-sm text-gray-500 mb-2 block">反代密码/密钥（可选）</label>
+                    <input
+                      type="password"
+                      value={apiConfig.proxyKey || ''}
+                      onChange={(e) => setApiConfig({ ...apiConfig, proxyKey: e.target.value })}
+                      placeholder="如果反代服务需要密码，请在此输入"
                       className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none"
                     />
                   </div>
@@ -1551,27 +1602,89 @@ export default function AIAssistantView() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-sm text-gray-500">模型选择</label>
-                    <button
-                      onClick={handleFetchModels}
-                      disabled={isLoadingModels || !apiConfig.apiKey}
-                      className="text-xs px-3 py-1 bg-golden/10 text-golden rounded-lg hover:bg-golden/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                    >
-                      {isLoadingModels ? (
-                        <>
-                          <div className="w-3 h-3 border border-golden/30 border-t-golden rounded-full animate-spin" />
-                          加载中...
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                          </svg>
-                          刷新模型
-                        </>
-                      )}
-                    </button>
+                    {(apiConfig.provider !== 'google' && apiConfig.provider !== 'websocket') && (
+                      <button
+                        onClick={handleFetchModels}
+                        disabled={isLoadingModels || (apiConfig.provider !== 'proxy' && !apiConfig.apiKey)}
+                        className="text-xs px-3 py-1 bg-golden/10 text-golden rounded-lg hover:bg-golden/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                      >
+                        {isLoadingModels ? (
+                          <>
+                            <div className="w-3 h-3 border border-golden/30 border-t-golden rounded-full animate-spin" />
+                            加载中...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            刷新模型
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
-                  {availableModels.length > 0 ? (
+                  {apiConfig.provider === 'google' ? (
+                    <div className="space-y-2">
+                      <select
+                        value={apiConfig.model}
+                        onChange={(e) => setApiConfig({ ...apiConfig, model: e.target.value })}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none"
+                      >
+                        <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                        <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite</option>
+                        <option value="gemini-2.0-pro-exp">Gemini 2.0 Pro (Experimental)</option>
+                        <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                      </select>
+                    </div>
+                  ) : apiConfig.provider === 'proxy' && availableModels.length > 0 ? (
+                    <div className="space-y-2">
+                      <select
+                        value={apiConfig.model}
+                        onChange={(e) => setApiConfig({ ...apiConfig, model: e.target.value })}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none"
+                      >
+                        {availableModels.map((model) => (
+                          <option key={model} value={model}>
+                            {model}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => setAvailableModels([])}
+                        className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                      >
+                        切换为手动输入
+                      </button>
+                    </div>
+                  ) : apiConfig.provider === 'proxy' ? (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        value={apiConfig.model}
+                        onChange={(e) => setApiConfig({ ...apiConfig, model: e.target.value })}
+                        placeholder="例如：gemini-2.0-flash, gemini-1.5-pro"
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none"
+                      />
+                      <p className="text-xs text-gray-500">
+                        点击"刷新模型"按钮获取可用模型列表
+                      </p>
+                    </div>
+                  ) : apiConfig.provider === 'websocket' ? (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        value={apiConfig.model}
+                        onChange={(e) => setApiConfig({ ...apiConfig, model: e.target.value })}
+                        placeholder="模型名称（可选）"
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none"
+                      />
+                      <p className="text-xs text-gray-500">
+                        如果本地 WebSocket 服务需要特定的模型名称，可以在这里设置
+                      </p>
+                    </div>
+                  ) : availableModels.length > 0 ? (
                     <div className="space-y-2">
                       <select
                         value={apiConfig.model}
@@ -1597,7 +1710,11 @@ export default function AIAssistantView() {
                         type="text"
                         value={apiConfig.model}
                         onChange={(e) => setApiConfig({ ...apiConfig, model: e.target.value })}
-                        placeholder={apiConfig.provider === 'deepseek' ? 'deepseek-chat' : '例如：GLM-4, gpt-4, claude-3-opus'}
+                        placeholder={
+                          apiConfig.provider === 'deepseek' 
+                            ? 'deepseek-chat' 
+                            : '例如：GLM-4, gpt-4, claude-3-opus'
+                        }
                         className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none"
                       />
                       {modelFetchError && (
@@ -1610,6 +1727,12 @@ export default function AIAssistantView() {
                 <p className="text-sm text-gray-500">
                   {apiConfig.provider === 'deepseek'
                     ? '获取 API 密钥：<a href="https://platform.deepseek.com/" target="_blank" rel="noopener noreferrer" className="text-golden hover:underline">platform.deepseek.com</a>'
+                    : apiConfig.provider === 'google'
+                    ? '获取 API 密钥：<a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-golden hover:underline">aistudio.google.com</a>'
+                    : apiConfig.provider === 'proxy'
+                    ? '连接到本地 HTTP 反代服务，兼容 SillyTavern 等工具的反代配置'
+                    : apiConfig.provider === 'websocket'
+                    ? '连接到本地 WebSocket 服务，支持 OpenAI 或 Gemini 响应格式'
                     : '支持所有兼容 OpenAI Chat Completions API 格式的接口'
                   }
                 </p>
