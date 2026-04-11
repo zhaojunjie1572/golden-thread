@@ -16,7 +16,7 @@ interface ChatMessage {
 }
 
 interface ApiConfig {
-  provider: 'deepseek' | 'custom' | 'google' | 'websocket' | 'proxy';
+  provider: 'deepseek' | 'custom' | 'google' | 'websocket' | 'proxy' | 'minimax';
   apiKey: string;
   baseUrl: string;
   model: string;

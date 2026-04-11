@@ -1506,11 +1506,14 @@ export default function AIAssistantView() {
                   <select
                     value={apiConfig.provider}
                     onChange={(e) => {
-                      const provider = e.target.value as 'deepseek' | 'custom' | 'google' | 'websocket' | 'proxy';
+                      const provider = e.target.value as 'deepseek' | 'custom' | 'google' | 'websocket' | 'proxy' | 'minimax';
                       let newConfig = { ...apiConfig, provider };
                       if (provider === 'deepseek') {
                         newConfig.baseUrl = 'https://api.deepseek.com/v1';
                         newConfig.model = 'deepseek-chat';
+                      } else if (provider === 'minimax') {
+                        newConfig.baseUrl = 'https://api.minimaxi.com/v1';
+                        newConfig.model = 'MiniMax-M2.7';
                       } else if (provider === 'google') {
                         newConfig.baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
                         newConfig.model = 'gemini-2.0-flash';
@@ -1530,6 +1533,7 @@ export default function AIAssistantView() {
                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none"
                   >
                     <option value="deepseek">DeepSeek</option>
+                    <option value="minimax">MiniMax</option>
                     <option value="google">Google AI Studio (Gemini)</option>
                     <option value="proxy">本地 HTTP 反代服务</option>
                     <option value="websocket">本地 WebSocket 服务</option>
@@ -1549,6 +1553,8 @@ export default function AIAssistantView() {
                           ? 'sk-xxxxxxxxxxxxxxxxxxxxxxxx' 
                           : apiConfig.provider === 'google'
                           ? 'AIzaSy...'
+                          : apiConfig.provider === 'minimax'
+                          ? 'sk-xxxxxxxxxxxxxxxxxxxxxxxx'
                           : '输入 API 密钥'
                       }
                       className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none"
@@ -1638,6 +1644,22 @@ export default function AIAssistantView() {
                         <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
                       </select>
                     </div>
+                  ) : apiConfig.provider === 'minimax' ? (
+                    <div className="space-y-2">
+                      <select
+                        value={apiConfig.model}
+                        onChange={(e) => setApiConfig({ ...apiConfig, model: e.target.value })}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none"
+                      >
+                        <option value="MiniMax-M2.7">MiniMax-M2.7</option>
+                        <option value="MiniMax-M2.7-highspeed">MiniMax-M2.7-highspeed</option>
+                        <option value="MiniMax-M2.5">MiniMax-M2.5</option>
+                        <option value="MiniMax-M2.5-highspeed">MiniMax-M2.5-highspeed</option>
+                        <option value="MiniMax-M2.1">MiniMax-M2.1</option>
+                        <option value="MiniMax-M2.1-highspeed">MiniMax-M2.1-highspeed</option>
+                        <option value="MiniMax-M2">MiniMax-M2</option>
+                      </select>
+                    </div>
                   ) : apiConfig.provider === 'proxy' && availableModels.length > 0 ? (
                     <div className="space-y-2">
                       <select
@@ -1713,6 +1735,8 @@ export default function AIAssistantView() {
                         placeholder={
                           apiConfig.provider === 'deepseek' 
                             ? 'deepseek-chat' 
+                            : apiConfig.provider === 'minimax'
+                            ? 'MiniMax-M2.7'
                             : '例如：GLM-4, gpt-4, claude-3-opus'
                         }
                         className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-golden focus:ring-2 focus:ring-golden/20 outline-none"
@@ -1727,6 +1751,8 @@ export default function AIAssistantView() {
                 <p className="text-sm text-gray-500">
                   {apiConfig.provider === 'deepseek'
                     ? '获取 API 密钥：<a href="https://platform.deepseek.com/" target="_blank" rel="noopener noreferrer" className="text-golden hover:underline">platform.deepseek.com</a>'
+                    : apiConfig.provider === 'minimax'
+                    ? '获取 API 密钥：<a href="https://platform.minimaxi.com/" target="_blank" rel="noopener noreferrer" className="text-golden hover:underline">platform.minimaxi.com</a>'
                     : apiConfig.provider === 'google'
                     ? '获取 API 密钥：<a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-golden hover:underline">aistudio.google.com</a>'
                     : apiConfig.provider === 'proxy'
